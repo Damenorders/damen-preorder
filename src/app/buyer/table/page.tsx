@@ -31,7 +31,9 @@ const STATUS_ORDER: BuyerTableStatus[] = [
   "received",
 ];
 
-// Spec chips cycle through soft tints, Jotform-style.
+// Spec chips in soft tints, Jotform-style. Colour is derived from the chip's
+// first word ("Skin", "Bone", "10/12"…), so the same attribute gets the same
+// colour on every row.
 const chipColors = [
   "bg-pink-100 text-pink-900",
   "bg-orange-100 text-orange-900",
@@ -40,6 +42,15 @@ const chipColors = [
   "bg-violet-100 text-violet-900",
   "bg-teal-100 text-teal-900",
 ];
+
+function chipColorFor(part: string): string {
+  const word = part.split(" ")[0];
+  let hash = 0;
+  for (let i = 0; i < word.length; i++) {
+    hash = (hash * 31 + word.charCodeAt(i)) % 9973;
+  }
+  return chipColors[hash % chipColors.length];
+}
 
 export default async function BuyerTablePage({
   searchParams,
@@ -274,7 +285,13 @@ export default async function BuyerTablePage({
                       <td className={`${tdClass} whitespace-nowrap`}>
                         {formatDate(row.deliveryDate)}
                         {tag && (
-                          <span className="ml-1.5 rounded-full bg-accent-50 px-1.5 py-0.5 text-[11px] font-medium text-accent-800">
+                          <span
+                            className={`ml-1.5 rounded-full px-1.5 py-0.5 text-[11px] font-medium ${
+                              tag === "today"
+                                ? "bg-cyan-soft text-accent-800"
+                                : "bg-accent-50 text-accent-800"
+                            }`}
+                          >
                             {tag}
                           </span>
                         )}
@@ -291,7 +308,7 @@ export default async function BuyerTablePage({
                             ? row.specs.split(" · ").map((part, idx) => (
                                 <span
                                   key={idx}
-                                  className={`whitespace-nowrap rounded-md px-1.5 py-0.5 text-xs font-medium ${chipColors[idx % chipColors.length]}`}
+                                  className={`whitespace-nowrap rounded-md px-1.5 py-0.5 text-xs font-medium ${chipColorFor(part)}`}
                                 >
                                   {part}
                                 </span>

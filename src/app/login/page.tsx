@@ -36,13 +36,16 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="flex flex-1 items-center justify-center px-4 py-12">
+    <main className="flex flex-1 items-center justify-center bg-gradient-to-b from-accent-50 to-white px-4 py-12">
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Damen Preorder
+          <h1 className="text-4xl font-bold tracking-tight text-accent-700">
+            Damen
           </h1>
-          <p className="mt-1 text-sm text-neutral-500">
+          <p className="mt-0.5 text-[11px] font-medium uppercase tracking-[0.3em] text-cyan-flash">
+            Preorders
+          </p>
+          <p className="mt-3 text-sm text-neutral-500">
             Sign in with your work email
           </p>
         </div>

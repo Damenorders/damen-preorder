@@ -22,7 +22,7 @@ export default async function RepDashboard() {
               key={dep}
               title={departmentLabels[dep]}
               links={[
-                { label: "Fill Form", href: `/orders/${dep}/new` },
+                { label: "Fill Form", href: `/orders/${dep}/new`, primary: true },
                 { label: "Edit Form", href: `/orders/${dep}/submissions?mode=edit` },
                 { label: "Submissions", href: `/orders/${dep}/submissions` },
               ]}

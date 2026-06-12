@@ -3,6 +3,8 @@ import Link from "next/link";
 interface CardLink {
   label: string;
   href?: string; // omitted → shown as a disabled "coming soon" item
+  /** Filled accent style for the card's main everyday action */
+  primary?: boolean;
 }
 
 export function DashboardCard({
@@ -24,7 +26,11 @@ export function DashboardCard({
             <Link
               key={link.label}
               href={link.href}
-              className="rounded-xl bg-accent-50 px-4 py-3 text-sm font-medium text-accent-800 transition hover:bg-accent-100"
+              className={
+                link.primary
+                  ? "rounded-xl bg-accent-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-accent-700"
+                  : "rounded-xl bg-accent-50 px-4 py-3 text-sm font-medium text-accent-800 transition hover:bg-accent-100"
+              }
             >
               {link.label}
             </Link>

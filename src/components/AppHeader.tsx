@@ -10,13 +10,18 @@ const roleLabels: Record<User["role"], string> = {
 
 export default function AppHeader({ user }: { user: User }) {
   return (
-    <header className="sticky top-0 z-10 border-b border-neutral-200 bg-white/95 backdrop-blur">
+    <header className="sticky top-0 z-10 bg-accent-700 shadow-sm">
       <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-3">
         <div className="min-w-0">
-          <p className="truncate text-base font-semibold">Damen Preorder</p>
-          <p className="truncate text-xs text-neutral-500">
+          <p className="truncate text-lg font-bold leading-tight tracking-tight text-white">
+            Damen
+            <span className="ml-2 align-middle text-[11px] font-medium uppercase tracking-widest text-cyan-flash">
+              Preorders
+            </span>
+          </p>
+          <p className="truncate text-xs text-white/70">
             {user.name}
-            <span className="ml-1.5 inline-block rounded-full bg-accent-50 px-2 py-0.5 text-[11px] font-medium text-accent-800">
+            <span className="ml-1.5 inline-block rounded-full bg-white/15 px-2 py-0.5 text-[11px] font-medium text-white">
               {roleLabels[user.role]}
             </span>
           </p>
@@ -24,7 +29,7 @@ export default function AppHeader({ user }: { user: User }) {
         <form action={signOut}>
           <button
             type="submit"
-            className="rounded-xl border border-neutral-300 px-4 py-2.5 text-sm font-medium text-neutral-700 transition hover:bg-neutral-50"
+            className="rounded-full border border-white/30 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/10"
           >
             Sign out
           </button>
