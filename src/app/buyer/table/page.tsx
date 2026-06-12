@@ -236,10 +236,10 @@ export default async function BuyerTablePage({
                   <th className={thClass}>Client Name</th>
                   <th className={thClass}>Status</th>
                   <th className={thClass}>Delivery Date</th>
+                  <th className={`${thClass} text-right`}>Weight</th>
                   <th className={thClass}>Product</th>
                   <th className={thClass}>Specs</th>
                   <th className={`${thClass} text-right`}>Qty</th>
-                  <th className={`${thClass} text-right`}>Weight</th>
                   <th className={thClass}>Notes</th>
                   <th className={thClass}>Created</th>
                   <th className={thClass}>Updated</th>
@@ -278,6 +278,9 @@ export default async function BuyerTablePage({
                           </span>
                         )}
                       </td>
+                      <td className={`${tdClass} whitespace-nowrap text-right tabular-nums`}>
+                        {row.weight ? `${row.weight} kg` : "—"}
+                      </td>
                       <td className={`${tdClass} whitespace-nowrap font-medium`}>
                         {row.product}
                       </td>
@@ -297,9 +300,6 @@ export default async function BuyerTablePage({
                       </td>
                       <td className={`${tdClass} text-right tabular-nums`}>
                         {row.quantity}
-                      </td>
-                      <td className={`${tdClass} whitespace-nowrap text-right tabular-nums`}>
-                        {row.weight ? `${row.weight} kg` : "—"}
                       </td>
                       <td className={`${tdClass} max-w-[200px]`}>
                         {notes ? (
