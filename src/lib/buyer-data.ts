@@ -291,7 +291,8 @@ export async function getFilterOptions() {
   return {
     clients: clientRows.map((r) => r.clientName),
     reps: repRows.map((r) => r.repName),
-    products: productRows.map((p) => p.productName),
+    // names can repeat across departments (e.g. "Other") — list each once
+    products: [...new Set(productRows.map((p) => p.productName))],
   };
 }
 
