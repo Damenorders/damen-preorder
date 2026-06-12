@@ -53,7 +53,8 @@ export default async function BuyerTablePage({
   const hasAnyParam = Object.keys(params).length > 0;
   const status = get("status") ?? (hasAnyParam ? "all" : "pending");
   const delivery = get("delivery") ?? (hasAnyParam ? "all" : "today_tomorrow");
-  const sort = get("sort") === "status" ? ("status" as const) : ("date" as const);
+  const statusFirst = get("sort") === "status";
+  const newestFirst = get("dates") === "newest";
 
   const filters = {
     status,
@@ -64,27 +65,24 @@ export default async function BuyerTablePage({
     createdDate: get("created"),
     updatedDate: get("updated"),
     hasNotes: get("notes") === "1",
-    sort,
+    statusFirst,
+    newestFirst,
   };
 
-  // Sort-toggle links carry the current effective view along, so switching
-  // the sort never changes which rows are shown.
-  function sortHref(target: "date" | "status") {
+  // Sort-toggle links carry the current effective view along, so toggling
+  // a sort never changes which rows are shown. Both toggles combine freely.
+  function toggleHref(toggle: "status" | "dates") {
     const p = new URLSearchParams();
     p.set("status", status);
     p.set("delivery", delivery);
-    for (const [key, param] of [
-      ["client", "client"],
-      ["rep", "rep"],
-      ["product", "product"],
-      ["created", "created"],
-      ["updated", "updated"],
-      ["notes", "notes"],
-    ] as const) {
+    for (const param of ["client", "rep", "product", "created", "updated", "notes"] as const) {
       const v = get(param);
-      if (v) p.set(key, v);
+      if (v) p.set(param, v);
     }
-    if (target === "status") p.set("sort", "status");
+    const nextStatusFirst = toggle === "status" ? !statusFirst : statusFirst;
+    const nextNewestFirst = toggle === "dates" ? !newestFirst : newestFirst;
+    if (nextStatusFirst) p.set("sort", "status");
+    if (nextNewestFirst) p.set("dates", "newest");
     return `/buyer/table?${p.toString()}`;
   }
 
@@ -182,24 +180,24 @@ export default async function BuyerTablePage({
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-xs font-medium text-neutral-500">Sort:</span>
           <Link
-            href={sortHref("date")}
+            href={toggleHref("status")}
             className={`rounded-full px-3.5 py-2 text-sm font-medium transition ${
-              sort === "date"
+              statusFirst
                 ? "bg-accent-600 text-white"
                 : "border border-neutral-300 text-neutral-700 hover:border-accent-600"
             }`}
           >
-            By delivery date
+            Status first{statusFirst ? " ✓" : ""}
           </Link>
           <Link
-            href={sortHref("status")}
+            href={toggleHref("dates")}
             className={`rounded-full px-3.5 py-2 text-sm font-medium transition ${
-              sort === "status"
+              newestFirst
                 ? "bg-accent-600 text-white"
                 : "border border-neutral-300 text-neutral-700 hover:border-accent-600"
             }`}
           >
-            Status first
+            Newest date first{newestFirst ? " ✓" : ""}
           </Link>
         </div>
         <FilterBar fields={fields} activeCount={activeCount} />
