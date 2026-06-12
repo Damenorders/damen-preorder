@@ -138,6 +138,7 @@ export async function getAllSubmissions(
 export interface BuyerTableFilters {
   status?: string; // buyer table status | "all"
   delivery?: string; // "today_tomorrow" (default) | "today" | "tomorrow" | "all" | YYYY-MM-DD
+  department?: string; // meat | fish | other
   clientName?: string;
   repName?: string;
   product?: string;
@@ -217,6 +218,9 @@ export async function getBuyerTable(
   }
   // "all" → no delivery condition
 
+  if (filters.department && isDepartment(filters.department)) {
+    conditions.push(eq(orders.department, filters.department));
+  }
   if (filters.clientName) conditions.push(eq(orders.clientName, filters.clientName));
   if (filters.repName) conditions.push(eq(orders.repName, filters.repName));
   if (filters.product) conditions.push(eq(orderLines.product, filters.product));

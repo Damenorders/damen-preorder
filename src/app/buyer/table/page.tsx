@@ -6,7 +6,11 @@ import {
   getBuyerTable,
   getFilterOptions,
 } from "@/lib/buyer-data";
-import { buyerTableStatusLabels } from "@/lib/labels";
+import {
+  buyerTableStatusLabels,
+  DEPARTMENTS,
+  departmentLabels,
+} from "@/lib/labels";
 import { formatDate, formatDateTime } from "@/lib/dates";
 import type { BuyerTableStatus } from "@/db/schema";
 import PageShell from "@/components/PageShell";
@@ -59,6 +63,7 @@ export default async function BuyerTablePage({
   const filters = {
     status,
     delivery,
+    department: get("module"),
     clientName: get("client"),
     repName: get("rep"),
     product: get("product"),
@@ -75,7 +80,7 @@ export default async function BuyerTablePage({
     const p = new URLSearchParams();
     p.set("status", status);
     p.set("delivery", delivery);
-    for (const param of ["client", "rep", "product", "created", "updated", "notes"] as const) {
+    for (const param of ["module", "client", "rep", "product", "created", "updated", "notes"] as const) {
       const v = get(param);
       if (v) p.set(param, v);
     }
@@ -96,8 +101,14 @@ export default async function BuyerTablePage({
   const activeCount =
     (status !== "all" ? 1 : 0) +
     (delivery !== "all" ? 1 : 0) +
-    [filters.clientName, filters.repName, filters.product, filters.createdDate, filters.updatedDate]
-      .filter(Boolean).length +
+    [
+      filters.department,
+      filters.clientName,
+      filters.repName,
+      filters.product,
+      filters.createdDate,
+      filters.updatedDate,
+    ].filter(Boolean).length +
     (filters.hasNotes ? 1 : 0);
 
   const fields: FilterField[] = [
@@ -127,6 +138,13 @@ export default async function BuyerTablePage({
       ],
     },
     { type: "date", param: "delivery", label: "Delivery date (pick)" },
+    {
+      type: "select",
+      param: "module",
+      label: "Category",
+      emptyLabel: "All categories",
+      options: DEPARTMENTS.map((d) => ({ value: d, label: departmentLabels[d] })),
+    },
     {
       type: "select",
       param: "client",
