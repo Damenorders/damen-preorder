@@ -110,6 +110,22 @@ export default function OrderForm({
       })
       .slice(0, 6);
   }, [clientName, clients]);
+
+  // Inline ghost completion: typing "Bistro" shows " du Port" in light grey.
+  // Accepted with Tab / → / Enter.
+  const ghostRemainder = useMemo(() => {
+    if (!clientName.trim()) return "";
+    const lower = clientName.toLowerCase();
+    const match = clients.find(
+      (name) =>
+        name.toLowerCase().startsWith(lower) && name.length > clientName.length,
+    );
+    return match ? match.slice(clientName.length) : "";
+  }, [clientName, clients]);
+
+  function acceptGhost() {
+    if (ghostRemainder) setClientName(clientName + ghostRemainder);
+  }
   const activeProduct = builder.productId
     ? (productById.get(builder.productId) ?? null)
     : null;
@@ -255,16 +271,40 @@ export default function OrderForm({
         <div className="relative mt-4">
           <label className="block text-sm font-medium text-neutral-700">
             Client
-            <input
-              type="text"
-              value={clientName}
-              onChange={(e) => setClientName(e.target.value)}
-              onFocus={() => setClientFocused(true)}
-              onBlur={() => setClientFocused(false)}
-              placeholder="Start typing — pick a match or enter a new client"
-              autoComplete="off"
-              className={inputClass}
-            />
+            <span className="relative mt-1.5 block">
+              <input
+                type="text"
+                value={clientName}
+                onChange={(e) => setClientName(e.target.value)}
+                onFocus={() => setClientFocused(true)}
+                onBlur={() => setClientFocused(false)}
+                onKeyDown={(e) => {
+                  if (!ghostRemainder) return;
+                  const atEnd =
+                    e.currentTarget.selectionStart === clientName.length;
+                  if (
+                    e.key === "Tab" ||
+                    e.key === "Enter" ||
+                    (e.key === "ArrowRight" && atEnd)
+                  ) {
+                    e.preventDefault();
+                    acceptGhost();
+                  }
+                }}
+                placeholder="Start typing — pick a match or enter a new client"
+                autoComplete="off"
+                className="block w-full rounded-xl border border-neutral-300 bg-white px-4 py-3 text-base outline-none focus:border-accent-600 focus:ring-2 focus:ring-accent-100"
+              />
+              {clientFocused && ghostRemainder && (
+                <span
+                  aria-hidden
+                  className="pointer-events-none absolute inset-0 flex items-center overflow-hidden whitespace-pre rounded-xl border border-transparent px-4 text-base"
+                >
+                  <span className="invisible">{clientName}</span>
+                  <span className="text-neutral-400">{ghostRemainder}</span>
+                </span>
+              )}
+            </span>
           </label>
           {clientFocused && clientSuggestions.length > 0 && (
             <ul className="absolute left-0 right-0 z-20 mt-1 overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-lg">
