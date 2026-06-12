@@ -6,6 +6,7 @@ import { departmentLabels, isDepartment } from "@/lib/labels";
 import PageShell from "@/components/PageShell";
 import SubmissionCard from "@/components/SubmissionCard";
 import LiveRefresh from "@/components/LiveRefresh";
+import SortPills from "@/components/SortPills";
 
 // Submissions, one module at a time, sorted by submission date — SPEC.md §13.
 // Reps see only their own orders (enforced in getSubmissions).
@@ -19,9 +20,19 @@ export default async function SubmissionsPage({
   const { department } = await params;
   if (!isDepartment(department)) notFound();
 
-  const editMode = (await searchParams).mode === "edit";
+  const sp = await searchParams;
+  const editMode = sp.mode === "edit";
+  const sortBy = sp.sortBy === "submitted" ? ("submitted" as const) : ("delivery" as const);
   const user = await requireRole("rep", "buyer");
-  const submissions = await getSubmissions(user, department);
+  const submissions = await getSubmissions(user, department, sortBy);
+
+  const sortHref = (value: string) => {
+    const p = new URLSearchParams();
+    if (editMode) p.set("mode", "edit");
+    if (value === "submitted") p.set("sortBy", "submitted");
+    const qs = p.toString();
+    return `/orders/${department}/submissions${qs ? `?${qs}` : ""}`;
+  };
 
   return (
     <PageShell
@@ -33,11 +44,20 @@ export default async function SubmissionsPage({
         editMode
           ? "Choose an order to edit."
           : user.role === "rep"
-            ? "Your submissions, earliest delivery first. Tap a row for details."
-            : "All submissions, earliest delivery first. Tap a row for details."
+            ? "Your submissions. Tap a row for details."
+            : "All submissions. Tap a row for details."
       }
     >
       <LiveRefresh />
+      <div className="mb-4">
+        <SortPills
+          value={sortBy}
+          options={[
+            { value: "delivery", label: "By delivery date", href: sortHref("delivery") },
+            { value: "submitted", label: "By order date", href: sortHref("submitted") },
+          ]}
+        />
+      </div>
       {submissions.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-neutral-300 px-4 py-10 text-center">
           <p className="text-neutral-500">No submissions yet.</p>

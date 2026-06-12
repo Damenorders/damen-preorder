@@ -49,6 +49,8 @@ export interface SubmissionFilters {
   createdDate?: string; // "submission date"
   updatedDate?: string;
   hasNotes?: boolean;
+  /** "delivery" (default): earliest delivery first; "submitted": newest order first */
+  sortBy?: "delivery" | "submitted";
 }
 
 export async function getAllSubmissions(
@@ -74,8 +76,11 @@ export async function getAllSubmissions(
 
   const orderRows = await db.query.orders.findMany({
     where: conditions.length ? and(...conditions) : undefined,
-    // earliest delivery first; newest submission within the same day
-    orderBy: [orders.deliveryDate, desc(orders.createdAt)],
+    orderBy:
+      filters.sortBy === "submitted"
+        ? [desc(orders.createdAt)]
+        : // earliest delivery first; newest submission within the same day
+          [orders.deliveryDate, desc(orders.createdAt)],
   });
   if (orderRows.length === 0) return [];
 

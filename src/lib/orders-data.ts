@@ -106,15 +106,17 @@ async function productIdMap(department: Department) {
   return new Map(rows.map((p) => [p.productName, p.id]));
 }
 
+export type SubmissionSort = "delivery" | "submitted";
+
 /**
- * Submissions for one module (SPEC.md §13), earliest delivery date first
- * (per owner request, superseding the submission-date order), newest
- * submission first within the same delivery day.
- * Reps get only their own orders; buyers/admins get all.
+ * Submissions for one module (SPEC.md §13). Default order: earliest delivery
+ * date first, newest submission within the same day; "submitted" orders by
+ * order date, newest first. Reps get only their own orders.
  */
 export async function getSubmissions(
   user: User,
   department: Department,
+  sortBy: SubmissionSort = "delivery",
 ): Promise<SubmissionView[]> {
   const where =
     user.role === "rep"
@@ -123,7 +125,10 @@ export async function getSubmissions(
 
   const orderRows = await db.query.orders.findMany({
     where,
-    orderBy: [orders.deliveryDate, desc(orders.createdAt)],
+    orderBy:
+      sortBy === "submitted"
+        ? [desc(orders.createdAt)]
+        : [orders.deliveryDate, desc(orders.createdAt)],
   });
   if (orderRows.length === 0) return [];
 
