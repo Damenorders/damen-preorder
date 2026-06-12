@@ -84,12 +84,20 @@ export default function OrderForm({
 }: OrderFormProps) {
   const router = useRouter();
 
+  // Sections with a single product (Other Preorders) skip the product picker
+  // and open straight on that product's questions.
+  const singleProduct = products.length === 1 ? products[0] : null;
+  const initialBuilder = (): BuilderState =>
+    singleProduct
+      ? { ...emptyBuilder, productId: singleProduct.id }
+      : emptyBuilder;
+
   const [clientName, setClientName] = useState(initial?.clientName ?? "");
   const [clientFocused, setClientFocused] = useState(false);
   const [deliveryDate, setDeliveryDate] = useState(initial?.deliveryDate ?? "");
   const [orderNotes, setOrderNotes] = useState(initial?.notes ?? "");
   const [lines, setLines] = useState<FormLine[]>(initial?.lines ?? []);
-  const [builder, setBuilder] = useState<BuilderState>(emptyBuilder);
+  const [builder, setBuilder] = useState<BuilderState>(initialBuilder);
   const [builderError, setBuilderError] = useState<string | null>(null);
   const [serverError, setServerError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -203,7 +211,7 @@ export default function OrderForm({
         ? prev.map((l) => (l.key === builder.editingKey ? line : l))
         : [...prev, line],
     );
-    setBuilder(emptyBuilder);
+    setBuilder(initialBuilder());
     setBuilderError(null);
   }
 
@@ -221,7 +229,7 @@ export default function OrderForm({
 
   function removeLine(key: string) {
     setLines((prev) => prev.filter((l) => l.key !== key));
-    if (builder.editingKey === key) setBuilder(emptyBuilder);
+    if (builder.editingKey === key) setBuilder(initialBuilder());
   }
 
   // ----- submit ---------------------------------------------------------------
@@ -401,7 +409,7 @@ export default function OrderForm({
                           line.notes || null,
                         ]
                           .filter(Boolean)
-                          .join(" · ")}
+                          .join(" Â· ")}
                       </p>
                     </div>
                     <div className="flex shrink-0 gap-1">
@@ -462,15 +470,17 @@ export default function OrderForm({
               <p className="text-lg font-semibold text-accent-800">
                 {activeProduct.productName}
               </p>
-              <button
-                type="button"
-                onClick={() =>
-                  setBuilder((b) => ({ ...emptyBuilder, editingKey: b.editingKey }))
-                }
-                className="rounded-lg px-3 py-2 text-sm font-medium text-neutral-500 hover:bg-neutral-100"
-              >
-                Change product
-              </button>
+              {!singleProduct && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setBuilder((b) => ({ ...emptyBuilder, editingKey: b.editingKey }))
+                  }
+                  className="rounded-lg px-3 py-2 text-sm font-medium text-neutral-500 hover:bg-neutral-100"
+                >
+                  Change product
+                </button>
+              )}
             </div>
 
             {/* Dynamic questions from form_config */}
@@ -583,7 +593,7 @@ export default function OrderForm({
                 <button
                   type="button"
                   onClick={() => {
-                    setBuilder(emptyBuilder);
+                    setBuilder(initialBuilder());
                     setBuilderError(null);
                   }}
                   className="rounded-xl border border-neutral-300 px-4 py-3.5 text-base font-medium text-neutral-700 hover:bg-neutral-50"

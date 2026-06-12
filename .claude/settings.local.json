@@ -24,7 +24,8 @@
       "PowerShell(Receive-Job *)",
       "Bash(gh --version)",
       "PowerShell(try { $r = Invoke-WebRequest http://localhost:3000/login -UseBasicParsing; \"APP RUNNING: $\\($r.StatusCode\\)\" } catch { \"APP DOWN: $\\($_.Exception.Message\\)\" })",
-      "PowerShell(git *)"
+      "PowerShell(git *)",
+      "PowerShell($c = Get-Content \"src\\\\components\\\\order-form\\\\OrderForm.tsx\" -Raw; $c = $c.Replace\\('useState<BuilderState>\\(emptyBuilder\\)', 'useState<BuilderState>\\(initialBuilder\\)'\\).Replace\\('setBuilder\\(emptyBuilder\\)', 'setBuilder\\(initialBuilder\\(\\)\\)'\\); [System.IO.File]::WriteAllText\\(\"$PWD\\\\src\\\\components\\\\order-form\\\\OrderForm.tsx\", $c, \\(New-Object System.Text.UTF8Encoding $false\\)\\); Select-String -Path \"src\\\\components\\\\order-form\\\\OrderForm.tsx\" -Pattern 'initialBuilder|emptyBuilder' | Select-Object -ExpandProperty LineNumber)"
     ]
   }
 }
