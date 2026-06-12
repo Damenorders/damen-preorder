@@ -197,7 +197,9 @@ export default async function BuyerTablePage({
                 : "border border-neutral-300 text-neutral-700 hover:border-accent-600"
             }`}
           >
-            Newest date first{newestFirst ? " ✓" : ""}
+            {newestFirst
+              ? "Dates: latest first ✓"
+              : "Dates: earliest first"}
           </Link>
         </div>
         <FilterBar fields={fields} activeCount={activeCount} />
