@@ -40,6 +40,10 @@ export interface ProductFormConfig {
   weightLabel?: string;
   /** Weight must be filled in (meats); default false */
   weightRequired?: boolean;
+  /** Hide the weight input entirely (free-text Other orders) */
+  hideWeight?: boolean;
+  /** Hide the line-notes input */
+  hideNotes?: boolean;
 }
 
 export type SpecsJson = Record<string, string>;

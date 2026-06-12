@@ -511,7 +511,7 @@ export default function OrderForm({
             ))}
 
             <div
-              className={`mt-4 grid gap-3 ${activeProduct.formConfig.quantity ? "grid-cols-2" : "grid-cols-1"}`}
+              className={`mt-4 grid gap-3 ${activeProduct.formConfig.quantity && !activeProduct.formConfig.hideWeight ? "grid-cols-2" : "grid-cols-1"}`}
             >
               {activeProduct.formConfig.quantity && (
                 <label className="block text-sm font-medium text-neutral-700">
@@ -530,36 +530,40 @@ export default function OrderForm({
                   />
                 </label>
               )}
-              <label className="block text-sm font-medium text-neutral-700">
-                {activeProduct.formConfig.weightLabel ?? "Weight (kg)"}
-                {!activeProduct.formConfig.weightRequired && (
-                  <span className="font-normal text-neutral-400"> (optional)</span>
-                )}
-                <input
-                  type="number"
-                  inputMode="decimal"
-                  min="0"
-                  step="0.1"
-                  value={builder.weight}
-                  onChange={(e) =>
-                    setBuilder((b) => ({ ...b, weight: e.target.value }))
-                  }
-                  className={inputClass}
-                  placeholder="e.g. 42"
-                />
-              </label>
+              {!activeProduct.formConfig.hideWeight && (
+                <label className="block text-sm font-medium text-neutral-700">
+                  {activeProduct.formConfig.weightLabel ?? "Weight (kg)"}
+                  {!activeProduct.formConfig.weightRequired && (
+                    <span className="font-normal text-neutral-400"> (optional)</span>
+                  )}
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    min="0"
+                    step="0.1"
+                    value={builder.weight}
+                    onChange={(e) =>
+                      setBuilder((b) => ({ ...b, weight: e.target.value }))
+                    }
+                    className={inputClass}
+                    placeholder="e.g. 42"
+                  />
+                </label>
+              )}
             </div>
 
-            <label className="mt-4 block text-sm font-medium text-neutral-700">
-              Line notes <span className="font-normal text-neutral-400">(optional)</span>
-              <input
-                type="text"
-                value={builder.notes}
-                onChange={(e) => setBuilder((b) => ({ ...b, notes: e.target.value }))}
-                className={inputClass}
-                placeholder="Notes for this product only"
-              />
-            </label>
+            {!activeProduct.formConfig.hideNotes && (
+              <label className="mt-4 block text-sm font-medium text-neutral-700">
+                Line notes <span className="font-normal text-neutral-400">(optional)</span>
+                <input
+                  type="text"
+                  value={builder.notes}
+                  onChange={(e) => setBuilder((b) => ({ ...b, notes: e.target.value }))}
+                  className={inputClass}
+                  placeholder="Notes for this product only"
+                />
+              </label>
+            )}
 
             {builderError && (
               <p role="alert" className="mt-3 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">

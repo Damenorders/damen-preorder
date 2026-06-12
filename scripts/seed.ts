@@ -131,6 +131,14 @@ const otherConfig: ProductFormConfig = {
   quantity: { min: 1, max: 999 },
 };
 
+// The Other Preorders section is description-only: no quantity, weight, or notes.
+const otherPreorderConfig: ProductFormConfig = {
+  ...otherConfig,
+  quantity: null,
+  hideWeight: true,
+  hideNotes: true,
+};
+
 const SEED_PRODUCTS: Array<{
   name: string;
   department: schema.Department;
@@ -148,7 +156,7 @@ const SEED_PRODUCTS: Array<{
   // One free-text "Other" card per section
   { name: "Other", department: "fish", productType: "Fish", formConfig: otherConfig },
   { name: "Other", department: "meat", productType: "Meat", formConfig: otherConfig },
-  { name: "Other", department: "other", productType: "Other", formConfig: otherConfig },
+  { name: "Other", department: "other", productType: "Other", formConfig: otherPreorderConfig },
 ];
 
 async function main() {
