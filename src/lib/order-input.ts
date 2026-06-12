@@ -10,8 +10,8 @@ export interface OrderLineInput {
   productId: number;
   specsJson: SpecsJson;
   quantity: number;
-  /** Weight in KG */
-  weight: number;
+  /** Weight in KG — optional */
+  weight: number | null;
   notes: string;
 }
 

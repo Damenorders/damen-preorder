@@ -28,8 +28,16 @@ export interface ProductField {
 
 export interface ProductFormConfig {
   fields: ProductField[];
-  /** Bounds for the standard Quantity input (SPEC.md §8: 1–20) */
-  quantity: { min: number; max: number };
+  /**
+   * Bounds for the piece-count Quantity input (SPEC.md §8: 1–20).
+   * null → no quantity input for this product (stored as 1); used by meats,
+   * which are ordered purely by KG via the weight input.
+   */
+  quantity: { min: number; max: number } | null;
+  /** Label for the weight input (default "Weight (kg)"); meats use "Quantity (KG)" */
+  weightLabel?: string;
+  /** Weight must be filled in (meats); default false */
+  weightRequired?: boolean;
 }
 
 export type SpecsJson = Record<string, string>;

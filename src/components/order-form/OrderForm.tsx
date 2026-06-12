@@ -53,7 +53,8 @@ interface BuilderState {
   editingKey: string | null; // which list line is being edited, if any
   productId: number | null;
   specsJson: SpecsJson;
-  quantity: number;
+  // kept as text so the field can be cleared while typing
+  quantity: string;
   weight: string;
   notes: string;
 }
@@ -62,7 +63,7 @@ const emptyBuilder: BuilderState = {
   editingKey: null,
   productId: null,
   specsJson: {},
-  quantity: 1,
+  quantity: "1",
   weight: "",
   notes: "",
 };
@@ -137,7 +138,6 @@ export default function OrderForm({
       ...emptyBuilder,
       editingKey: b.editingKey,
       productId: id,
-      quantity: 1,
     }));
     setBuilderError(null);
   }
@@ -154,17 +154,26 @@ export default function OrderForm({
         return `Please choose ${field.label}.`;
       }
     }
-    const { min, max } = config.quantity ?? { min: 1, max: 20 };
-    if (
-      !Number.isInteger(builder.quantity) ||
-      builder.quantity < min ||
-      builder.quantity > max
-    ) {
-      return `Quantity must be between ${min} and ${max}.`;
+    if (config.quantity) {
+      const { min, max } = config.quantity;
+      const qty = Number(builder.quantity);
+      if (
+        builder.quantity.trim() === "" ||
+        !Number.isInteger(qty) ||
+        qty < min ||
+        qty > max
+      ) {
+        return `Quantity must be between ${min} and ${max}.`;
+      }
     }
-    const w = Number(builder.weight);
-    if (!builder.weight || !Number.isFinite(w) || w <= 0) {
-      return "Enter a weight in KG.";
+    const weightLabel = config.weightLabel ?? "Weight (kg)";
+    if (builder.weight.trim() === "") {
+      if (config.weightRequired) return `Enter ${weightLabel}.`;
+    } else {
+      const w = Number(builder.weight);
+      if (!Number.isFinite(w) || w <= 0) {
+        return `${weightLabel} must be a positive number.`;
+      }
     }
     return null;
   }
@@ -182,7 +191,10 @@ export default function OrderForm({
         : undefined,
       productId: builder.productId!,
       specsJson: builder.specsJson,
-      quantity: builder.quantity,
+      // products without a quantity input (meats) are stored as quantity 1
+      quantity: activeProduct!.formConfig.quantity
+        ? Number(builder.quantity)
+        : 1,
       weight: builder.weight,
       notes: builder.notes,
     };
@@ -200,7 +212,7 @@ export default function OrderForm({
       editingKey: line.key,
       productId: line.productId,
       specsJson: { ...line.specsJson },
-      quantity: line.quantity,
+      quantity: String(line.quantity),
       weight: line.weight,
       notes: line.notes,
     });
@@ -239,7 +251,7 @@ export default function OrderForm({
         productId: l.productId,
         specsJson: l.specsJson,
         quantity: l.quantity,
-        weight: Number(l.weight),
+        weight: l.weight.trim() === "" ? null : Number(l.weight),
         notes: l.notes,
       })),
     };
@@ -381,8 +393,15 @@ export default function OrderForm({
                         <p className="mt-0.5 text-sm text-neutral-500">{specs}</p>
                       )}
                       <p className="mt-0.5 text-sm text-neutral-700">
-                        Qty {line.quantity} · {line.weight} kg
-                        {line.notes ? ` · ${line.notes}` : ""}
+                        {[
+                          product?.formConfig.quantity
+                            ? `Qty ${line.quantity}`
+                            : null,
+                          line.weight.trim() !== "" ? `${line.weight} kg` : null,
+                          line.notes || null,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ")}
                       </p>
                     </div>
                     <div className="flex shrink-0 gap-1">
@@ -480,24 +499,31 @@ export default function OrderForm({
               </div>
             ))}
 
-            <div className="mt-4 grid grid-cols-2 gap-3">
+            <div
+              className={`mt-4 grid gap-3 ${activeProduct.formConfig.quantity ? "grid-cols-2" : "grid-cols-1"}`}
+            >
+              {activeProduct.formConfig.quantity && (
+                <label className="block text-sm font-medium text-neutral-700">
+                  Quantity ({activeProduct.formConfig.quantity.min}–
+                  {activeProduct.formConfig.quantity.max})
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    min={activeProduct.formConfig.quantity.min}
+                    max={activeProduct.formConfig.quantity.max}
+                    value={builder.quantity}
+                    onChange={(e) =>
+                      setBuilder((b) => ({ ...b, quantity: e.target.value }))
+                    }
+                    className={inputClass}
+                  />
+                </label>
+              )}
               <label className="block text-sm font-medium text-neutral-700">
-                Quantity ({activeProduct.formConfig.quantity?.min ?? 1}–
-                {activeProduct.formConfig.quantity?.max ?? 20})
-                <input
-                  type="number"
-                  inputMode="numeric"
-                  min={activeProduct.formConfig.quantity?.min ?? 1}
-                  max={activeProduct.formConfig.quantity?.max ?? 20}
-                  value={builder.quantity}
-                  onChange={(e) =>
-                    setBuilder((b) => ({ ...b, quantity: Number(e.target.value) }))
-                  }
-                  className={inputClass}
-                />
-              </label>
-              <label className="block text-sm font-medium text-neutral-700">
-                Weight (kg)
+                {activeProduct.formConfig.weightLabel ?? "Weight (kg)"}
+                {!activeProduct.formConfig.weightRequired && (
+                  <span className="font-normal text-neutral-400"> (optional)</span>
+                )}
                 <input
                   type="number"
                   inputMode="decimal"

@@ -39,7 +39,7 @@ interface ValidLine {
   specs: string;
   specsJson: SpecsJson;
   quantity: number;
-  weight: string;
+  weight: string | null;
   notes: string | null;
 }
 
@@ -68,14 +68,28 @@ function validateLine(
     specsJson[field.key] = value;
   }
 
-  const { min, max } = config.quantity ?? { min: 1, max: 20 };
-  if (!Number.isInteger(line.quantity) || line.quantity < min || line.quantity > max) {
-    return { error: `${product.productName}: quantity must be between ${min} and ${max}.` };
+  // Quantity applies only to products configured with a piece count;
+  // KG-only products (meats) are always stored as quantity 1.
+  let quantity = 1;
+  if (config.quantity) {
+    const { min, max } = config.quantity;
+    if (!Number.isInteger(line.quantity) || line.quantity < min || line.quantity > max) {
+      return { error: `${product.productName}: quantity must be between ${min} and ${max}.` };
+    }
+    quantity = line.quantity;
   }
 
-  const weight = Number(line.weight);
-  if (!Number.isFinite(weight) || weight <= 0) {
-    return { error: `${product.productName}: weight must be a positive number.` };
+  // Weight: required when the product says so, positive when provided.
+  const weightLabel = config.weightLabel ?? "weight";
+  let weight: string | null = null;
+  if (line.weight !== null && line.weight !== undefined) {
+    const w = Number(line.weight);
+    if (!Number.isFinite(w) || w <= 0) {
+      return { error: `${product.productName}: ${weightLabel} must be a positive number.` };
+    }
+    weight = w.toFixed(2);
+  } else if (config.weightRequired) {
+    return { error: `${product.productName}: ${weightLabel} is required.` };
   }
 
   return {
@@ -83,8 +97,8 @@ function validateLine(
     product,
     specs: formatSpecs(config, specsJson),
     specsJson,
-    quantity: line.quantity,
-    weight: weight.toFixed(2),
+    quantity,
+    weight,
     notes: line.notes?.trim() || null,
   };
 }

@@ -61,6 +61,62 @@ const loupDeMerConfig: ProductFormConfig = {
   ],
 };
 
+// Meats are ordered by KG: no piece-count input, one required "Quantity (KG)"
+// field (stored in the weight column), plus any cut options.
+const KG = {
+  quantity: null,
+  weightLabel: "Quantity (KG)",
+  weightRequired: true,
+} as const;
+
+function meatConfig(fields: ProductFormConfig["fields"] = []): ProductFormConfig {
+  return { fields, ...KG };
+}
+
+const MEAT_PRODUCTS: Array<{ name: string; formConfig: ProductFormConfig }> = [
+  {
+    name: "Chicken Breast",
+    formConfig: meatConfig([
+      { key: "trim", label: "Trim", type: "select", options: ["Standard", "Full Trim"], required: true, display: "{value} Trim" },
+      { key: "skin", label: "Skin", type: "select", options: ["On", "Off"], required: true, display: "Skin {value}" },
+    ]),
+  },
+  {
+    name: "Chicken Thigh",
+    formConfig: meatConfig([
+      { key: "skin", label: "Skin", type: "select", options: ["On", "Off"], required: true, display: "Skin {value}" },
+      { key: "bone", label: "Bone", type: "select", options: ["On", "Off"], required: true, display: "Bone {value}" },
+    ]),
+  },
+  { name: "Ground Beef", formConfig: meatConfig() },
+  { name: "Boneless Chicken Legs", formConfig: meatConfig() },
+  { name: "Beef Shoulder", formConfig: meatConfig() },
+  { name: "Pork Shoulder", formConfig: meatConfig() },
+  {
+    name: "Bavette",
+    formConfig: meatConfig([
+      { key: "trim", label: "Trim", type: "select", options: ["Standard", "Trimmed"], required: true, display: "{value}" },
+    ]),
+  },
+  { name: "Filet Mignon", formConfig: meatConfig() },
+  { name: "Denuded Inside Round", formConfig: meatConfig() },
+  { name: "Striploin", formConfig: meatConfig() },
+  { name: "Flank Steak", formConfig: meatConfig() },
+  { name: "Frozen Lamb Shoulder", formConfig: meatConfig() },
+  { name: "Ground Chicken", formConfig: meatConfig() },
+  {
+    name: "Ribeye",
+    formConfig: meatConfig([
+      { key: "bone", label: "Bone", type: "select", options: ["In", "Off"], required: true, display: "Bone {value}" },
+    ]),
+  },
+  {
+    // Counted in units, not KG
+    name: "Chicken Bone",
+    formConfig: { fields: [], quantity: { min: 1, max: 999 } },
+  },
+];
+
 const SEED_PRODUCTS: Array<{
   name: string;
   department: schema.Department;
@@ -69,6 +125,12 @@ const SEED_PRODUCTS: Array<{
 }> = [
   { name: "Salmon", department: "fish", productType: "Fish", formConfig: salmonConfig },
   { name: "Loup de Mer", department: "fish", productType: "Fish", formConfig: loupDeMerConfig },
+  ...MEAT_PRODUCTS.map((m) => ({
+    name: m.name,
+    department: "meat" as schema.Department,
+    productType: "Meat",
+    formConfig: m.formConfig,
+  })),
 ];
 
 async function main() {
