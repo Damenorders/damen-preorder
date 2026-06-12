@@ -6,6 +6,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { departmentLabels, submissionStatusLabels } from "@/lib/labels";
+import { formatDate, formatDateTime } from "@/lib/dates";
 import StatusSelect from "@/components/StatusSelect";
 import type { SubmissionView } from "@/lib/orders-data";
 
@@ -16,29 +17,6 @@ const statusStyles: Record<SubmissionView["submissionStatus"], string> = {
   ready: "bg-green-100 text-green-800",
   shipped: "bg-emerald-800 text-white",
 };
-
-function formatDateTime(value: Date | string) {
-  return new Date(value).toLocaleString("en-US", {
-    timeZone: "America/Montreal",
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
-
-// "Jun 12, 2026" — for plain dates (delivery) and timestamps (submission)
-function formatDate(value: Date | string) {
-  const date =
-    typeof value === "string" ? new Date(`${value}T12:00:00`) : value;
-  return date.toLocaleDateString("en-US", {
-    timeZone: "America/Montreal",
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-}
 
 export default function SubmissionCard({
   submission,

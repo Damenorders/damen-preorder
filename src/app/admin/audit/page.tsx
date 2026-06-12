@@ -5,6 +5,7 @@ import { auditLogs } from "@/db/schema";
 import PageShell from "@/components/PageShell";
 import FilterBar, { type FilterField } from "@/components/FilterBar";
 import LiveRefresh from "@/components/LiveRefresh";
+import { formatDateTime } from "@/lib/dates";
 
 // Audit History — admin only (SPEC.md §27): who changed what, old → new, when.
 
@@ -26,16 +27,6 @@ function describeValue(value: unknown): string {
   if (value === null || value === undefined) return "—";
   if (typeof value === "string") return value;
   return JSON.stringify(value);
-}
-
-function formatWhen(value: Date) {
-  return value.toLocaleString("en-CA", {
-    timeZone: "America/Montreal",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
 }
 
 export default async function AuditPage({
@@ -134,7 +125,7 @@ export default async function AuditPage({
                     </span>
                   </p>
                   <p className="text-xs text-neutral-400">
-                    {formatWhen(entry.createdAt)}
+                    {formatDateTime(entry.createdAt)}
                   </p>
                 </div>
                 {(entry.oldValue !== null || entry.newValue !== null) && (

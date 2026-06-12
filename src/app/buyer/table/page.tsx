@@ -7,6 +7,7 @@ import {
   getFilterOptions,
 } from "@/lib/buyer-data";
 import { buyerTableStatusLabels } from "@/lib/labels";
+import { formatDate, formatDateTime } from "@/lib/dates";
 import type { BuyerTableStatus } from "@/db/schema";
 import PageShell from "@/components/PageShell";
 import FilterBar, { type FilterField } from "@/components/FilterBar";
@@ -35,25 +36,6 @@ const chipColors = [
   "bg-violet-100 text-violet-900",
   "bg-teal-100 text-teal-900",
 ];
-
-function formatDateTime(value: Date) {
-  return value.toLocaleString("en-US", {
-    timeZone: "America/Montreal",
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
-
-// "Jun 12, 2026" for the Delivery Date column
-function formatDate(value: string) {
-  return new Date(`${value}T12:00:00`).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-}
 
 export default async function BuyerTablePage({
   searchParams,

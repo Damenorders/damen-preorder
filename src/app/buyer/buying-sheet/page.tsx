@@ -9,17 +9,10 @@ import {
 import PageShell from "@/components/PageShell";
 import FilterBar, { type FilterField } from "@/components/FilterBar";
 import LiveRefresh from "@/components/LiveRefresh";
+import { formatDate } from "@/lib/dates";
 
 // Grouped Buying Sheet — buyer/admin only (SPEC.md §20).
 // Default: Pending orders delivering today/tomorrow = what still must be bought.
-
-function formatDay(date: string) {
-  return new Date(`${date}T12:00:00`).toLocaleDateString("en-CA", {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-  });
-}
 
 export default async function BuyingSheetPage({
   searchParams,
@@ -116,7 +109,7 @@ export default async function BuyingSheetPage({
           [...byDate.entries()].map(([date, dateGroups]) => (
             <section key={date}>
               <h2 className="px-1 text-sm font-semibold uppercase tracking-wide text-neutral-500">
-                Delivery {formatDay(date)}
+                Delivery {formatDate(date)}
                 {date === today ? " (today)" : date === tomorrow ? " (tomorrow)" : ""}
               </h2>
               <ul className="mt-2 flex flex-col gap-3">
