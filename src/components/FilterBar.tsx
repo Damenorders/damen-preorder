@@ -27,7 +27,14 @@ export interface CheckboxField {
   param: string;
   label: string;
 }
-export type FilterField = SelectField | DateField | CheckboxField;
+export interface MultiField {
+  type: "multi";
+  param: string;
+  label: string;
+  /** Toggle chips; selected values are comma-joined into the param */
+  options: Array<{ value: string; label: string }>;
+}
+export type FilterField = SelectField | DateField | CheckboxField | MultiField;
 
 export default function FilterBar({
   fields,
@@ -136,6 +143,40 @@ export default function FilterBar({
                     ))}
                   </select>
                 </label>
+              );
+            }
+            if (field.type === "multi") {
+              const selected = raw.split(",").filter(Boolean);
+              const toggleValue = (value: string) => {
+                const next = selected.includes(value)
+                  ? selected.filter((v) => v !== value)
+                  : [...selected, value];
+                setParam(field.param, next.join(","));
+              };
+              return (
+                <div key={key} className="col-span-2 sm:col-span-3">
+                  <p className="text-xs font-medium text-neutral-600">{field.label}</p>
+                  <div className="mt-1 flex flex-wrap gap-1.5">
+                    {field.options.map((o) => {
+                      const on = selected.includes(o.value);
+                      return (
+                        <button
+                          key={o.value}
+                          type="button"
+                          onClick={() => toggleValue(o.value)}
+                          className={`rounded-full px-3 py-1.5 text-sm font-medium transition ${
+                            on
+                              ? "bg-accent-600 text-white"
+                              : "border border-neutral-300 text-neutral-700 hover:border-accent-600"
+                          }`}
+                        >
+                          {o.label}
+                          {on ? " ✓" : ""}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               );
             }
             const current = raw;

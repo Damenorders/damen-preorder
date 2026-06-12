@@ -60,10 +60,12 @@ export default async function BuyerTablePage({
   const statusFirst = get("sort") === "status";
   const newestFirst = get("dates") === "newest";
 
+  const departments = (get("module") ?? "").split(",").filter(Boolean);
+
   const filters = {
     status,
     delivery,
-    department: get("module"),
+    departments,
     clientName: get("client"),
     repName: get("rep"),
     product: get("product"),
@@ -101,8 +103,8 @@ export default async function BuyerTablePage({
   const activeCount =
     (status !== "all" ? 1 : 0) +
     (delivery !== "all" ? 1 : 0) +
+    (departments.length > 0 ? 1 : 0) +
     [
-      filters.department,
       filters.clientName,
       filters.repName,
       filters.product,
@@ -139,10 +141,9 @@ export default async function BuyerTablePage({
     },
     { type: "date", param: "delivery", label: "Delivery date (pick)" },
     {
-      type: "select",
+      type: "multi",
       param: "module",
-      label: "Category",
-      emptyLabel: "All categories",
+      label: "Category (pick any)",
       options: DEPARTMENTS.map((d) => ({ value: d, label: departmentLabels[d] })),
     },
     {

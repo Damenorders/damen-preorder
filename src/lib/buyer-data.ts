@@ -138,7 +138,7 @@ export async function getAllSubmissions(
 export interface BuyerTableFilters {
   status?: string; // buyer table status | "all"
   delivery?: string; // "today_tomorrow" (default) | "today" | "tomorrow" | "all" | YYYY-MM-DD
-  department?: string; // meat | fish | other
+  departments?: string[]; // any combination of meat | fish | other
   clientName?: string;
   repName?: string;
   product?: string;
@@ -218,8 +218,9 @@ export async function getBuyerTable(
   }
   // "all" → no delivery condition
 
-  if (filters.department && isDepartment(filters.department)) {
-    conditions.push(eq(orders.department, filters.department));
+  const departments = (filters.departments ?? []).filter(isDepartment);
+  if (departments.length > 0) {
+    conditions.push(inArray(orders.department, departments));
   }
   if (filters.clientName) conditions.push(eq(orders.clientName, filters.clientName));
   if (filters.repName) conditions.push(eq(orders.repName, filters.repName));
