@@ -17,7 +17,9 @@ export interface OrderLineInput {
 
 export interface OrderInput {
   department: Department;
-  clientId: number;
+  /** Free-typed client name — matched case-insensitively to an existing
+   *  client, or auto-created as a new one (the client list learns itself). */
+  clientName: string;
   /** YYYY-MM-DD */
   deliveryDate: string;
   notes: string;

@@ -46,7 +46,7 @@ export default async function EditOrderPage({
     );
   }
 
-  const { order, clientId } = result;
+  const { order } = result;
   const [clients, products] = await Promise.all([
     getActiveClients(),
     getProductsForDepartment(order.department),
@@ -74,12 +74,12 @@ export default async function EditOrderPage({
     >
       <OrderForm
         department={order.department}
-        clients={clients.map((c) => ({ id: c.id, clientName: c.clientName }))}
+        clients={clients.map((c) => c.clientName)}
         products={products}
         mode="edit"
         initial={{
           orderId: order.id,
-          clientId,
+          clientName: order.clientName,
           deliveryDate: order.deliveryDate,
           notes: order.notes ?? "",
           lines: initialLines,

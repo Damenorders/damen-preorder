@@ -30,7 +30,7 @@ export default async function NewOrderPage({
     >
       <OrderForm
         department={department}
-        clients={clients.map((c) => ({ id: c.id, clientName: c.clientName }))}
+        clients={clients.map((c) => c.clientName)}
         products={products}
         mode="create"
         doneHref={`/orders/${department}/submissions`}

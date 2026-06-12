@@ -1,14 +1,16 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { eq, inArray } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   clients,
   orders,
   orderLines,
   products,
+  type Client,
   type Product,
+  type User,
 } from "@/db/schema";
 import { requireRole } from "@/lib/auth";
 import { logAudit, type AuditEntry } from "@/lib/audit";
@@ -89,7 +91,42 @@ function validateLine(
 
 type OrderValidation =
   | { valid: false; error: string }
-  | { valid: true; client: typeof clients.$inferSelect; validLines: ValidLine[] };
+  | { valid: true; clientName: string; validLines: ValidLine[] };
+
+/**
+ * Matches a typed client name to an existing client (case-insensitive) or
+ * creates a new one, so the client list learns itself from order entry.
+ * Reusing a match keeps one canonical spelling per client.
+ */
+async function resolveClient(name: string, user: User): Promise<Client> {
+  const [existing] = await db
+    .select()
+    .from(clients)
+    .where(sql`lower(${clients.clientName}) = ${name.toLowerCase()}`)
+    .limit(1);
+  if (existing) return existing;
+
+  return db.transaction(async (tx) => {
+    const [created] = await tx
+      .insert(clients)
+      .values({ clientName: name })
+      .returning();
+    const externalId = formatExternalId("client", created.id);
+    await tx
+      .update(clients)
+      .set({ externalId })
+      .where(eq(clients.id, created.id));
+    await logAudit(tx, user, [
+      {
+        action: "create",
+        recordType: "client",
+        recordId: created.id,
+        newValue: { clientName: name },
+      },
+    ]);
+    return { ...created, externalId };
+  });
+}
 
 async function validateOrderInput(input: OrderInput): Promise<OrderValidation> {
   if (!isDepartment(input.department)) {
@@ -102,11 +139,9 @@ async function validateOrderInput(input: OrderInput): Promise<OrderValidation> {
     return { valid: false, error: "Add at least one product to the order." };
   }
 
-  const client = await db.query.clients.findFirst({
-    where: eq(clients.id, input.clientId),
-  });
-  if (!client || !client.active) {
-    return { valid: false, error: "Please choose a client." };
+  const clientName = input.clientName?.trim();
+  if (!clientName) {
+    return { valid: false, error: "Please enter a client name." };
   }
 
   const productRows = await db.query.products.findMany({
@@ -125,7 +160,7 @@ async function validateOrderInput(input: OrderInput): Promise<OrderValidation> {
     validLines.push(result);
   }
 
-  return { valid: true, client, validLines };
+  return { valid: true, clientName, validLines };
 }
 
 // ---------------------------------------------------------------------------
@@ -137,7 +172,8 @@ export async function createOrder(input: OrderInput): Promise<ActionResult> {
 
   const validated = await validateOrderInput(input);
   if (!validated.valid) return { ok: false, error: validated.error };
-  const { client, validLines } = validated;
+  const { validLines } = validated;
+  const client = await resolveClient(validated.clientName, user);
 
   const orderId = await db.transaction(async (tx) => {
     const [created] = await tx
@@ -297,7 +333,8 @@ export async function updateOrder(
 
   const validated = await validateOrderInput(input);
   if (!validated.valid) return { ok: false, error: validated.error };
-  const { client, validLines } = validated;
+  const { validLines } = validated;
+  const client = await resolveClient(validated.clientName, user);
 
   const existingLines = await db.query.orderLines.findMany({
     where: eq(orderLines.orderId, orderId),

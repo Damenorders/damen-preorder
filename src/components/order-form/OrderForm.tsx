@@ -16,11 +16,6 @@ import {
 import type { Department } from "@/db/schema";
 import type { OrderInput } from "@/lib/order-input";
 
-export interface FormClient {
-  id: number;
-  clientName: string;
-}
-
 export interface FormProduct {
   id: number;
   productName: string;
@@ -39,12 +34,13 @@ export interface FormLine {
 
 interface OrderFormProps {
   department: Department;
-  clients: FormClient[];
+  /** Existing client names, used for autocomplete suggestions */
+  clients: string[];
   products: FormProduct[];
   mode: "create" | "edit";
   initial?: {
     orderId: number;
-    clientId: number | null;
+    clientName: string;
     deliveryDate: string;
     notes: string;
     lines: FormLine[];
@@ -87,9 +83,7 @@ export default function OrderForm({
 }: OrderFormProps) {
   const router = useRouter();
 
-  const [clientId, setClientId] = useState<string>(
-    initial?.clientId ? String(initial.clientId) : "",
-  );
+  const [clientName, setClientName] = useState(initial?.clientName ?? "");
   const [deliveryDate, setDeliveryDate] = useState(initial?.deliveryDate ?? "");
   const [orderNotes, setOrderNotes] = useState(initial?.notes ?? "");
   const [lines, setLines] = useState<FormLine[]>(initial?.lines ?? []);
@@ -192,8 +186,8 @@ export default function OrderForm({
 
   async function handleSubmit() {
     setServerError(null);
-    if (!clientId) {
-      setServerError("Please choose a client.");
+    if (!clientName.trim()) {
+      setServerError("Please enter a client name.");
       return;
     }
     if (!deliveryDate) {
@@ -207,7 +201,7 @@ export default function OrderForm({
 
     const input: OrderInput = {
       department,
-      clientId: Number(clientId),
+      clientName: clientName.trim(),
       deliveryDate,
       notes: orderNotes,
       lines: lines.map((l) => ({
@@ -246,18 +240,23 @@ export default function OrderForm({
         <h2 className="text-base font-semibold">Order details</h2>
         <label className="mt-4 block text-sm font-medium text-neutral-700">
           Client
-          <select
-            value={clientId}
-            onChange={(e) => setClientId(e.target.value)}
+          <input
+            type="text"
+            list="damen-client-suggestions"
+            value={clientName}
+            onChange={(e) => setClientName(e.target.value)}
+            placeholder="Start typing — pick a match or enter a new client"
+            autoComplete="off"
             className={inputClass}
-          >
-            <option value="">Choose a client…</option>
-            {clients.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.clientName}
-              </option>
+          />
+          <datalist id="damen-client-suggestions">
+            {clients.map((name) => (
+              <option key={name} value={name} />
             ))}
-          </select>
+          </datalist>
+          <span className="mt-1 block text-xs font-normal text-neutral-400">
+            New names are saved automatically for next time.
+          </span>
         </label>
         <label className="mt-4 block text-sm font-medium text-neutral-700">
           Delivery date
