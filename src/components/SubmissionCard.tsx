@@ -57,7 +57,6 @@ export default function SubmissionCard({
 }) {
   const [open, setOpen] = useState(false);
 
-  const totalQty = submission.lines.reduce((sum, l) => sum + l.quantity, 0);
   const totalWeight = submission.lines.reduce(
     (sum, l) => sum + (l.weight ? Number(l.weight) : 0),
     0,
@@ -80,12 +79,8 @@ export default function SubmissionCard({
         >
           <p className="truncate font-medium">{submission.clientName}</p>
           <p className="mt-0.5 truncate text-sm text-neutral-500">
-            {showDepartment ? `${departmentLabels[submission.department]} · ` : ""}
-            Submitted {formatDate(submission.createdAt)} · Delivery{" "}
-            {formatDate(submission.deliveryDate)} · {productSummary} · Qty{" "}
-            {totalQty}
+            {formatDate(submission.deliveryDate)} · {productSummary}
             {totalWeight > 0 ? ` · ${totalWeight.toFixed(1)} kg` : ""}
-            {showRep ? ` · ${submission.repName}` : ""}
           </p>
         </button>
         {manageStatus ? (
@@ -134,7 +129,12 @@ export default function SubmissionCard({
 
           <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-neutral-400">
             <span>
-              {submission.externalId} · Submitted {formatDateTime(submission.createdAt)}
+              {submission.externalId}
+              {showDepartment
+                ? ` · ${departmentLabels[submission.department]}`
+                : ""}
+              {showRep ? ` · ${submission.repName}` : ""} · Submitted{" "}
+              {formatDateTime(submission.createdAt)}
               {+submission.updatedAt !== +submission.createdAt
                 ? ` · Updated ${formatDateTime(submission.updatedAt)}`
                 : ""}
