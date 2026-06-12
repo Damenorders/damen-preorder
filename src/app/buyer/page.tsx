@@ -23,7 +23,7 @@ export default async function BuyerDashboard() {
               title={departmentLabels[dep]}
               links={[
                 { label: "Fill Form", href: `/orders/${dep}/new` },
-                { label: "Edit Form", href: `/orders/${dep}/submissions` },
+                { label: "Edit Form", href: `/orders/${dep}/submissions?mode=edit` },
                 { label: "Submissions", href: `/orders/${dep}/submissions` },
               ]}
             />

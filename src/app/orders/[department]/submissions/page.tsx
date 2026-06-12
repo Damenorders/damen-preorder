@@ -11,12 +11,15 @@ import LiveRefresh from "@/components/LiveRefresh";
 // Reps see only their own orders (enforced in getSubmissions).
 export default async function SubmissionsPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ department: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { department } = await params;
   if (!isDepartment(department)) notFound();
 
+  const editMode = (await searchParams).mode === "edit";
   const user = await requireRole("rep", "buyer");
   const submissions = await getSubmissions(user, department);
 
@@ -25,11 +28,13 @@ export default async function SubmissionsPage({
       user={user}
       backHref={homePathFor(user.role)}
       backLabel="Dashboard"
-      title={`${departmentLabels[department]} — Submissions`}
+      title={`${departmentLabels[department]} — ${editMode ? "Edit Form" : "Submissions"}`}
       subtitle={
-        user.role === "rep"
-          ? "Your submissions, newest first. Tap a row for details."
-          : "All submissions, newest first. Tap a row for details."
+        editMode
+          ? "Choose an order to edit."
+          : user.role === "rep"
+            ? "Your submissions, newest first. Tap a row for details."
+            : "All submissions, newest first. Tap a row for details."
       }
     >
       <LiveRefresh />
@@ -51,6 +56,7 @@ export default async function SubmissionsPage({
               submission={s}
               showRep={user.role !== "rep"}
               manageStatus={user.role !== "rep"}
+              editButton={editMode}
               canEdit={
                 user.role !== "rep" || s.submissionStatus === "pending"
               }

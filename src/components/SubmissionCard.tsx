@@ -25,6 +25,7 @@ export default function SubmissionCard({
   showRep,
   showDepartment = false,
   manageStatus = false,
+  editButton = false,
 }: {
   submission: SubmissionView;
   canEdit: boolean;
@@ -33,6 +34,8 @@ export default function SubmissionCard({
   showDepartment?: boolean;
   /** Buyer/admin only: render the submission-status editor (SPEC.md §11) */
   manageStatus?: boolean;
+  /** Edit Form mode: show an Edit button in place of the status */
+  editButton?: boolean;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -62,7 +65,14 @@ export default function SubmissionCard({
             {totalWeight > 0 ? ` · ${totalWeight.toFixed(1)} kg` : ""}
           </p>
         </button>
-        {manageStatus ? (
+        {editButton && canEdit ? (
+          <Link
+            href={`/orders/edit/${submission.id}`}
+            className="shrink-0 rounded-xl bg-accent-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-accent-700"
+          >
+            Edit
+          </Link>
+        ) : manageStatus ? (
           <StatusSelect
             kind="submission"
             orderId={submission.id}
