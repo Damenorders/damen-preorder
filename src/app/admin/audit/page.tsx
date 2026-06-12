@@ -43,7 +43,10 @@ export default async function AuditPage({
 
   const conditions: SQL[] = [];
   const recordType = get("type");
-  if (recordType && ["order", "order_line"].includes(recordType)) {
+  if (
+    recordType &&
+    ["order", "order_line", "client", "product", "user"].includes(recordType)
+  ) {
     conditions.push(eq(auditLogs.recordType, recordType));
   }
   const userName = get("user");
@@ -73,6 +76,9 @@ export default async function AuditPage({
       options: [
         { value: "order", label: "Order" },
         { value: "order_line", label: "Order line" },
+        { value: "client", label: "Client" },
+        { value: "product", label: "Product" },
+        { value: "user", label: "User" },
       ],
     },
     {

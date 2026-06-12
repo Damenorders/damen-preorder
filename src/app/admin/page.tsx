@@ -42,9 +42,9 @@ export default async function AdminDashboard() {
             title="Administration"
             subtitle="System management"
             links={[
-              { label: "Manage Users" },
-              { label: "Manage Clients" },
-              { label: "Manage Products" },
+              { label: "Manage Users", href: "/admin/users" },
+              { label: "Manage Clients", href: "/admin/clients" },
+              { label: "Manage Products", href: "/admin/products" },
               { label: "Audit History", href: "/admin/audit" },
             ]}
           />
