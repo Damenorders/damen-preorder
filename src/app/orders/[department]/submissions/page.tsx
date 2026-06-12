@@ -50,6 +50,7 @@ export default async function SubmissionsPage({
               key={s.id}
               submission={s}
               showRep={user.role !== "rep"}
+              manageStatus={user.role !== "rep"}
               canEdit={
                 user.role !== "rep" || s.submissionStatus === "pending"
               }
