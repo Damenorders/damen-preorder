@@ -41,6 +41,8 @@ function onBusinessDate(column: AnyColumn, date: string): SQL {
 
 export interface SubmissionFilters {
   department?: string;
+  /** Multi-select alternative to department (picker view) */
+  departments?: string[];
   status?: string; // submission status
   clientName?: string;
   repName?: string;
@@ -59,6 +61,10 @@ export async function getAllSubmissions(
   const conditions: SQL[] = [];
   if (filters.department && isDepartment(filters.department)) {
     conditions.push(eq(orders.department, filters.department));
+  }
+  const multiDepartments = (filters.departments ?? []).filter(isDepartment);
+  if (multiDepartments.length > 0) {
+    conditions.push(inArray(orders.department, multiDepartments));
   }
   if (
     filters.status &&

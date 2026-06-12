@@ -29,6 +29,7 @@ const SEED_USERS: Array<{
   { name: "Vinny", email: "vincent@damenalimentaire.com", role: "admin" },
   { name: "David", email: "david@damenalimentaire.com", role: "buyer" },
   { name: "Commandes", email: "commandes@damenalimentaire.com", role: "rep" },
+  { name: "Picker", email: "soccervinny3@hotmail.com", role: "picker" },
 ];
 
 const SEED_CLIENTS = [

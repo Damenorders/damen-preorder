@@ -15,7 +15,8 @@ import {
 // Enums
 // ---------------------------------------------------------------------------
 
-export const roleEnum = pgEnum("user_role", ["admin", "buyer", "rep"]);
+// picker: warehouse role — sees all submissions (read-only), nothing else
+export const roleEnum = pgEnum("user_role", ["admin", "buyer", "rep", "picker"]);
 
 // SPEC.md §2 — Meat Orders / Fish Orders / Other Preorders
 export const departmentEnum = pgEnum("department", ["meat", "fish", "other"]);

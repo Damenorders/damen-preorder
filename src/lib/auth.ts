@@ -13,6 +13,8 @@ export function homePathFor(role: Role): string {
       return "/buyer";
     case "rep":
       return "/rep";
+    case "picker":
+      return "/picker";
   }
 }
 
