@@ -55,14 +55,19 @@ function validateLine(
 
   const specsJson: SpecsJson = {};
   for (const field of config.fields) {
-    const value = line.specsJson?.[field.key];
-    if (value === undefined || value === "") {
+    const raw = line.specsJson?.[field.key];
+    const value = typeof raw === "string" ? raw.trim() : "";
+    if (value === "") {
       if (field.required !== false) {
         return { error: `${product.productName}: "${field.label}" is required.` };
       }
       continue;
     }
-    if (!field.options.includes(value)) {
+    if (field.type === "text") {
+      if (value.length > 300) {
+        return { error: `${product.productName}: "${field.label}" is too long (max 300 characters).` };
+      }
+    } else if (!field.options?.includes(value)) {
       return { error: `${product.productName}: invalid value for "${field.label}".` };
     }
     specsJson[field.key] = value;

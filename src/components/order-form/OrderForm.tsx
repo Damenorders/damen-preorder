@@ -477,25 +477,36 @@ export default function OrderForm({
             {activeProduct.formConfig.fields.map((field) => (
               <div key={field.key} className="mt-4">
                 <p className="text-sm font-medium text-neutral-700">{field.label}</p>
-                <div className="mt-1.5 flex flex-wrap gap-2">
-                  {field.options.map((option) => {
-                    const selected = builder.specsJson[field.key] === option;
-                    return (
-                      <button
-                        key={option}
-                        type="button"
-                        onClick={() => setSpec(field.key, option)}
-                        className={`rounded-xl border px-4 py-2.5 text-base font-medium transition ${
-                          selected
-                            ? "border-accent-600 bg-accent-600 text-white"
-                            : "border-neutral-300 hover:border-accent-600"
-                        }`}
-                      >
-                        {option}
-                      </button>
-                    );
-                  })}
-                </div>
+                {field.type === "text" ? (
+                  <textarea
+                    value={builder.specsJson[field.key] ?? ""}
+                    onChange={(e) => setSpec(field.key, e.target.value)}
+                    rows={3}
+                    maxLength={300}
+                    placeholder="Write the order in your own words"
+                    className={inputClass}
+                  />
+                ) : (
+                  <div className="mt-1.5 flex flex-wrap gap-2">
+                    {(field.options ?? []).map((option) => {
+                      const selected = builder.specsJson[field.key] === option;
+                      return (
+                        <button
+                          key={option}
+                          type="button"
+                          onClick={() => setSpec(field.key, option)}
+                          className={`rounded-xl border px-4 py-2.5 text-base font-medium transition ${
+                            selected
+                              ? "border-accent-600 bg-accent-600 text-white"
+                              : "border-neutral-300 hover:border-accent-600"
+                          }`}
+                        >
+                          {option}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             ))}
 

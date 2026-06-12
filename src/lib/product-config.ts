@@ -10,8 +10,10 @@ export interface ProductField {
   key: string;
   /** Label shown above the input, e.g. "Head & Skin" */
   label: string;
-  type: "select";
-  options: string[];
+  /** "select" renders option chips; "text" renders a free-text input */
+  type: "select" | "text";
+  /** Choices for select fields; unused for text fields */
+  options?: string[];
   required?: boolean;
   /**
    * Template for the readable specs string (SPEC.md §25), with {value}

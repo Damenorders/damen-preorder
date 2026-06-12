@@ -9,7 +9,7 @@ config({ path: ".env.local" });
 
 import { createClient as createSupabaseAdmin } from "@supabase/supabase-js";
 import { drizzle } from "drizzle-orm/postgres-js";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import postgres from "postgres";
 import * as schema from "../src/db/schema";
 import {
@@ -117,6 +117,20 @@ const MEAT_PRODUCTS: Array<{ name: string; formConfig: ProductFormConfig }> = [
   },
 ];
 
+// "Other": the user writes the order manually in a free-text box.
+const otherConfig: ProductFormConfig = {
+  fields: [
+    {
+      key: "description",
+      label: "Describe the order",
+      type: "text",
+      required: true,
+      display: "{value}",
+    },
+  ],
+  quantity: { min: 1, max: 999 },
+};
+
 const SEED_PRODUCTS: Array<{
   name: string;
   department: schema.Department;
@@ -131,6 +145,10 @@ const SEED_PRODUCTS: Array<{
     productType: "Meat",
     formConfig: m.formConfig,
   })),
+  // One free-text "Other" card per section
+  { name: "Other", department: "fish", productType: "Fish", formConfig: otherConfig },
+  { name: "Other", department: "meat", productType: "Meat", formConfig: otherConfig },
+  { name: "Other", department: "other", productType: "Other", formConfig: otherConfig },
 ];
 
 async function main() {
@@ -218,7 +236,10 @@ async function main() {
   console.log("Seeding products…");
   for (const p of SEED_PRODUCTS) {
     const existing = await db.query.products.findFirst({
-      where: eq(schema.products.productName, p.name),
+      where: and(
+        eq(schema.products.productName, p.name),
+        eq(schema.products.department, p.department),
+      ),
     });
     if (existing) {
       // Keep form config current with the spec on re-runs
