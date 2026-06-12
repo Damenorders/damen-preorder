@@ -186,6 +186,9 @@ export async function createOrder(input: OrderInput): Promise<ActionResult> {
         repUserId: user.id,
         repName: user.name,
         repEmail: user.email,
+        // every new order starts Pending in both workflows (SPEC.md §11–12)
+        submissionStatus: "pending",
+        buyerTableStatus: "pending",
         notes: input.notes?.trim() || null,
       })
       .returning({ id: orders.id });
