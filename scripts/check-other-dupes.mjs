@@ -22,9 +22,10 @@ const tr = await fetch(
 const session = await tr.json();
 const cookie = `sb-${ref}-auth-token=base64-${Buffer.from(JSON.stringify(session)).toString("base64url")}`;
 
-const res = await fetch("http://localhost:3000/buyer/table?status=all&delivery=all", {
+// default view → filter panel starts open, so the dropdowns are in the HTML
+const res = await fetch("http://localhost:3000/buyer/table", {
   headers: { Cookie: cookie },
 });
 const html = (await res.text()).replace(/<script[\s\S]*?<\/script>/g, "");
-const count = (html.match(/<option value="Other">Other<\/option>/g) ?? []).length;
-console.log(`"Other" appears ${count}x in dropdowns — ${count <= 1 ? "PASS" : "FAIL"}`);
+const count = (html.match(/value="Other"/g) ?? []).length;
+console.log(`value="Other" appears ${count}x — ${count === 1 ? "PASS (exactly once)" : count === 0 ? "FAIL (missing)" : "FAIL (duplicates)"}`);
