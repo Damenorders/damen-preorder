@@ -206,6 +206,68 @@ export async function createOrder(input: OrderInput): Promise<ActionResult> {
 }
 
 // ---------------------------------------------------------------------------
+// Quick weight edit from the submissions page. Same permission rules as a
+// full edit: buyer/admin any order, rep only own + Pending (SPEC.md §16).
+// ---------------------------------------------------------------------------
+
+export async function updateLineWeight(
+  lineId: number,
+  weight: number,
+): Promise<ActionResult> {
+  const user = await requireRole("rep", "buyer");
+
+  if (!Number.isFinite(weight) || weight <= 0) {
+    return { ok: false, error: "Weight must be a positive number." };
+  }
+
+  const line = await db.query.orderLines.findFirst({
+    where: eq(orderLines.id, lineId),
+  });
+  if (!line) return { ok: false, error: "Line not found." };
+  const order = await db.query.orders.findFirst({
+    where: eq(orders.id, line.orderId),
+  });
+  if (!order) return { ok: false, error: "Order not found." };
+
+  if (user.role === "rep") {
+    if (order.repUserId !== user.id) {
+      return { ok: false, error: "You can only edit your own submissions." };
+    }
+    if (order.submissionStatus !== "pending") {
+      return { ok: false, error: "This order is no longer Pending and can't be edited." };
+    }
+  }
+
+  const newWeight = weight.toFixed(2);
+  if ((line.weight ?? null) === newWeight) return { ok: true, orderId: order.id };
+
+  await db.transaction(async (tx) => {
+    const now = new Date();
+    await tx
+      .update(orderLines)
+      .set({ weight: newWeight, updatedAt: now })
+      .where(eq(orderLines.id, lineId));
+    await tx
+      .update(orders)
+      .set({ updatedAt: now })
+      .where(eq(orders.id, order.id));
+    await logAudit(tx, user, [
+      {
+        action: "update:weight",
+        recordType: "order_line",
+        recordId: lineId,
+        oldValue: line.weight,
+        newValue: newWeight,
+      },
+    ]);
+  });
+
+  revalidatePath(`/orders/${order.department}/submissions`);
+  await notifyOrdersChanged();
+  return { ok: true, orderId: order.id };
+}
+
+// ---------------------------------------------------------------------------
 // Update — rep: own + Pending only (SPEC.md §16); buyer/admin: any order.
 // Logs every changed field per SPEC.md §27.
 // ---------------------------------------------------------------------------

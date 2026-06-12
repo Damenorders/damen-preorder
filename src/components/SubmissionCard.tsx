@@ -8,6 +8,7 @@ import Link from "next/link";
 import { departmentLabels, submissionStatusLabels } from "@/lib/labels";
 import { formatDate, formatDateTime } from "@/lib/dates";
 import StatusSelect from "@/components/StatusSelect";
+import LineWeightInput from "@/components/LineWeightInput";
 import type { SubmissionView } from "@/lib/orders-data";
 
 // Same colour language as the buyer's dropdowns:
@@ -86,9 +87,13 @@ export default function SubmissionCard({
                 {line.specs && (
                   <p className="mt-0.5 text-sm text-neutral-600">{line.specs}</p>
                 )}
-                <p className="mt-0.5 text-sm text-neutral-700">
-                  Qty {line.quantity}
-                  {line.weight ? ` · ${line.weight} kg` : ""}
+                <p className="mt-1 flex items-center gap-2 text-sm text-neutral-700">
+                  <span>Qty {line.quantity}</span>
+                  {canEdit ? (
+                    <LineWeightInput lineId={line.id} initial={line.weight} />
+                  ) : (
+                    <span>{line.weight ? `${line.weight} kg` : "—"}</span>
+                  )}
                 </p>
                 {line.notes && (
                   <p className="mt-0.5 text-sm italic text-neutral-500">
