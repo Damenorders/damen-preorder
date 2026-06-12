@@ -84,6 +84,7 @@ export default function OrderForm({
   const router = useRouter();
 
   const [clientName, setClientName] = useState(initial?.clientName ?? "");
+  const [clientFocused, setClientFocused] = useState(false);
   const [deliveryDate, setDeliveryDate] = useState(initial?.deliveryDate ?? "");
   const [orderNotes, setOrderNotes] = useState(initial?.notes ?? "");
   const [lines, setLines] = useState<FormLine[]>(initial?.lines ?? []);
@@ -96,6 +97,19 @@ export default function OrderForm({
     () => new Map(products.map((p) => [p.id, p])),
     [products],
   );
+
+  // Live client suggestions: substring match, hidden once the field is an
+  // exact match (nothing left to suggest).
+  const clientSuggestions = useMemo(() => {
+    const typed = clientName.trim().toLowerCase();
+    if (!typed) return [];
+    return clients
+      .filter((name) => {
+        const lower = name.toLowerCase();
+        return lower.includes(typed) && lower !== typed;
+      })
+      .slice(0, 6);
+  }, [clientName, clients]);
   const activeProduct = builder.productId
     ? (productById.get(builder.productId) ?? null)
     : null;
@@ -238,26 +252,44 @@ export default function OrderForm({
       {/* Order header — SPEC.md §9 */}
       <section className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
         <h2 className="text-base font-semibold">Order details</h2>
-        <label className="mt-4 block text-sm font-medium text-neutral-700">
-          Client
-          <input
-            type="text"
-            list="damen-client-suggestions"
-            value={clientName}
-            onChange={(e) => setClientName(e.target.value)}
-            placeholder="Start typing — pick a match or enter a new client"
-            autoComplete="off"
-            className={inputClass}
-          />
-          <datalist id="damen-client-suggestions">
-            {clients.map((name) => (
-              <option key={name} value={name} />
-            ))}
-          </datalist>
+        <div className="relative mt-4">
+          <label className="block text-sm font-medium text-neutral-700">
+            Client
+            <input
+              type="text"
+              value={clientName}
+              onChange={(e) => setClientName(e.target.value)}
+              onFocus={() => setClientFocused(true)}
+              onBlur={() => setClientFocused(false)}
+              placeholder="Start typing — pick a match or enter a new client"
+              autoComplete="off"
+              className={inputClass}
+            />
+          </label>
+          {clientFocused && clientSuggestions.length > 0 && (
+            <ul className="absolute left-0 right-0 z-20 mt-1 overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-lg">
+              {clientSuggestions.map((name) => (
+                <li key={name}>
+                  <button
+                    type="button"
+                    // onMouseDown so the pick lands before the input blurs
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      setClientName(name);
+                      setClientFocused(false);
+                    }}
+                    className="w-full px-4 py-3 text-left text-base hover:bg-accent-50"
+                  >
+                    {name}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
           <span className="mt-1 block text-xs font-normal text-neutral-400">
             New names are saved automatically for next time.
           </span>
-        </label>
+        </div>
         <label className="mt-4 block text-sm font-medium text-neutral-700">
           Delivery date
           <input
