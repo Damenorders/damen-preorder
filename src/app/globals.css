@@ -21,3 +21,17 @@ body {
   color: #171717;
   font-family: var(--font-sans);
 }
+
+/* The whole UI is rem-based, so scaling the root font on big screens makes
+   text, cards, buttons, logo, and layout widths grow together. Phones and
+   laptops keep the default 16px. */
+@media (min-width: 1280px) {
+  html {
+    font-size: 18px;
+  }
+}
+@media (min-width: 1760px) {
+  html {
+    font-size: 20px;
+  }
+}
