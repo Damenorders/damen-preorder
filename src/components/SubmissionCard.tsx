@@ -18,10 +18,25 @@ const statusStyles: Record<SubmissionView["submissionStatus"], string> = {
 };
 
 function formatDateTime(value: Date | string) {
-  return new Date(value).toLocaleString("en-CA", {
+  return new Date(value).toLocaleString("en-US", {
     timeZone: "America/Montreal",
-    dateStyle: "medium",
-    timeStyle: "short",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+// "Jun 12, 2026" — for plain dates (delivery) and timestamps (submission)
+function formatDate(value: Date | string) {
+  const date =
+    typeof value === "string" ? new Date(`${value}T12:00:00`) : value;
+  return date.toLocaleDateString("en-US", {
+    timeZone: "America/Montreal",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
   });
 }
 
@@ -66,7 +81,9 @@ export default function SubmissionCard({
           <p className="truncate font-medium">{submission.clientName}</p>
           <p className="mt-0.5 truncate text-sm text-neutral-500">
             {showDepartment ? `${departmentLabels[submission.department]} · ` : ""}
-            {submission.deliveryDate} · {productSummary} · Qty {totalQty}
+            Submitted {formatDate(submission.createdAt)} · Delivery{" "}
+            {formatDate(submission.deliveryDate)} · {productSummary} · Qty{" "}
+            {totalQty}
             {totalWeight > 0 ? ` · ${totalWeight.toFixed(1)} kg` : ""}
             {showRep ? ` · ${submission.repName}` : ""}
           </p>

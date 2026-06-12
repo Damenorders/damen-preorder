@@ -23,7 +23,8 @@
       "PowerShell(winget install *)",
       "PowerShell(Receive-Job *)",
       "Bash(gh --version)",
-      "PowerShell(try { $r = Invoke-WebRequest http://localhost:3000/login -UseBasicParsing; \"APP RUNNING: $\\($r.StatusCode\\)\" } catch { \"APP DOWN: $\\($_.Exception.Message\\)\" })"
+      "PowerShell(try { $r = Invoke-WebRequest http://localhost:3000/login -UseBasicParsing; \"APP RUNNING: $\\($r.StatusCode\\)\" } catch { \"APP DOWN: $\\($_.Exception.Message\\)\" })",
+      "PowerShell(git *)"
     ]
   }
 }

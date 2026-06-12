@@ -37,12 +37,21 @@ const chipColors = [
 ];
 
 function formatDateTime(value: Date) {
-  return value.toLocaleString("en-CA", {
+  return value.toLocaleString("en-US", {
     timeZone: "America/Montreal",
     month: "short",
     day: "numeric",
-    hour: "2-digit",
+    hour: "numeric",
     minute: "2-digit",
+  });
+}
+
+// "Jun 12, 2026" for the Delivery Date column
+function formatDate(value: string) {
+  return new Date(`${value}T12:00:00`).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
   });
 }
 
@@ -214,7 +223,7 @@ export default async function BuyerTablePage({
                         />
                       </td>
                       <td className={`${tdClass} whitespace-nowrap`}>
-                        {row.deliveryDate}
+                        {formatDate(row.deliveryDate)}
                         {tag && (
                           <span className="ml-1.5 rounded-full bg-accent-50 px-1.5 py-0.5 text-[11px] font-medium text-accent-800">
                             {tag}
