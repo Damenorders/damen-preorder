@@ -199,7 +199,9 @@ export default async function BuyerTablePage({
                   return (
                     <tr
                       key={row.lineId}
-                      className={i % 2 === 1 ? "bg-neutral-50/50" : ""}
+                      className={`transition-colors hover:bg-accent-50 ${
+                        i % 2 === 1 ? "bg-neutral-100" : "bg-white"
+                      }`}
                     >
                       <td className={`${tdClass} font-medium`}>
                         {row.clientName}

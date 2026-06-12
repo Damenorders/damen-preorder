@@ -5,7 +5,7 @@
 // (SPEC.md §14) and the Buyer Table (§18) with different field sets.
 
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export interface SelectField {
   type: "select";
@@ -41,6 +41,36 @@ export default function FilterBar({
   const searchParams = useSearchParams();
   const [open, setOpen] = useState(activeCount > 0);
 
+  // Filter memory: each page remembers its last-used filters on this device.
+  const storageKey = `damen-filters:${pathname}`;
+
+  // Restore on arrival when the URL carries no filters of its own.
+  useEffect(() => {
+    if (searchParams.toString() !== "") return;
+    let saved: string | null = null;
+    try {
+      saved = window.localStorage.getItem(storageKey);
+    } catch {
+      // storage unavailable (private mode etc.) — just show defaults
+    }
+    if (saved) {
+      router.replace(`${pathname}?${saved}`, { scroll: false });
+    }
+    // run once per mount — restoring is an arrival-time decision only
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Remember every filter change.
+  useEffect(() => {
+    const qs = searchParams.toString();
+    if (qs === "") return;
+    try {
+      window.localStorage.setItem(storageKey, qs);
+    } catch {
+      // ignore — filters still work for this visit
+    }
+  }, [searchParams, storageKey]);
+
   function setParam(param: string, value: string) {
     const params = new URLSearchParams(searchParams.toString());
     if (value) {
@@ -52,6 +82,11 @@ export default function FilterBar({
   }
 
   function clearAll() {
+    try {
+      window.localStorage.removeItem(storageKey);
+    } catch {
+      // ignore
+    }
     router.replace(pathname, { scroll: false });
   }
 
