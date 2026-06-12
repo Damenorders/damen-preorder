@@ -74,7 +74,8 @@ export async function getAllSubmissions(
 
   const orderRows = await db.query.orders.findMany({
     where: conditions.length ? and(...conditions) : undefined,
-    orderBy: desc(orders.createdAt),
+    // earliest delivery first; newest submission within the same day
+    orderBy: [orders.deliveryDate, desc(orders.createdAt)],
   });
   if (orderRows.length === 0) return [];
 

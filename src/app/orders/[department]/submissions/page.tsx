@@ -33,8 +33,8 @@ export default async function SubmissionsPage({
         editMode
           ? "Choose an order to edit."
           : user.role === "rep"
-            ? "Your submissions, newest first. Tap a row for details."
-            : "All submissions, newest first. Tap a row for details."
+            ? "Your submissions, earliest delivery first. Tap a row for details."
+            : "All submissions, earliest delivery first. Tap a row for details."
       }
     >
       <LiveRefresh />

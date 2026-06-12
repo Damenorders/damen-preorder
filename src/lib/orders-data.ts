@@ -107,7 +107,9 @@ async function productIdMap(department: Department) {
 }
 
 /**
- * Submissions for one module (SPEC.md §13), newest submission first.
+ * Submissions for one module (SPEC.md §13), earliest delivery date first
+ * (per owner request, superseding the submission-date order), newest
+ * submission first within the same delivery day.
  * Reps get only their own orders; buyers/admins get all.
  */
 export async function getSubmissions(
@@ -121,7 +123,7 @@ export async function getSubmissions(
 
   const orderRows = await db.query.orders.findMany({
     where,
-    orderBy: desc(orders.createdAt),
+    orderBy: [orders.deliveryDate, desc(orders.createdAt)],
   });
   if (orderRows.length === 0) return [];
 

@@ -92,7 +92,7 @@ export default async function AllSubmissionsPage({
       backHref={homePathFor(user.role)}
       backLabel="Dashboard"
       title="All Submissions"
-      subtitle={`${submissions.length} order${submissions.length === 1 ? "" : "s"} · newest first`}
+      subtitle={`${submissions.length} order${submissions.length === 1 ? "" : "s"} · earliest delivery first`}
       wide
     >
       <LiveRefresh />
