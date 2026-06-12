@@ -9,10 +9,12 @@ import { departmentLabels, submissionStatusLabels } from "@/lib/labels";
 import StatusSelect from "@/components/StatusSelect";
 import type { SubmissionView } from "@/lib/orders-data";
 
+// Same colour language as the buyer's dropdowns:
+// Pending yellow, Ready green, Shipped dark green.
 const statusStyles: Record<SubmissionView["submissionStatus"], string> = {
-  pending: "bg-amber-50 text-amber-800",
-  ready: "bg-accent-50 text-accent-800",
-  shipped: "bg-neutral-100 text-neutral-600",
+  pending: "bg-amber-100 text-amber-900",
+  ready: "bg-green-100 text-green-800",
+  shipped: "bg-emerald-800 text-white",
 };
 
 function formatDateTime(value: Date | string) {
@@ -52,13 +54,15 @@ export default function SubmissionCard({
 
   return (
     <li className="rounded-2xl border border-neutral-200 bg-white shadow-sm">
-      {/* Compact row: Client | Delivery | Product | Qty | Weight | Status */}
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
-      >
-        <div className="min-w-0">
+      {/* Compact row: Client | Delivery | Product | Qty | Weight | Status.
+          With manageStatus, the status is an inline dropdown — no need to
+          open the order to change it. */}
+      <div className="flex w-full items-center justify-between gap-3 px-4 py-3">
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          className="min-w-0 flex-1 text-left"
+        >
           <p className="truncate font-medium">{submission.clientName}</p>
           <p className="mt-0.5 truncate text-sm text-neutral-500">
             {showDepartment ? `${departmentLabels[submission.department]} · ` : ""}
@@ -66,13 +70,21 @@ export default function SubmissionCard({
             {totalWeight > 0 ? ` · ${totalWeight.toFixed(1)} kg` : ""}
             {showRep ? ` · ${submission.repName}` : ""}
           </p>
-        </div>
-        <span
-          className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${statusStyles[submission.submissionStatus]}`}
-        >
-          {submissionStatusLabels[submission.submissionStatus]}
-        </span>
-      </button>
+        </button>
+        {manageStatus ? (
+          <StatusSelect
+            kind="submission"
+            orderId={submission.id}
+            value={submission.submissionStatus}
+          />
+        ) : (
+          <span
+            className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${statusStyles[submission.submissionStatus]}`}
+          >
+            {submissionStatusLabels[submission.submissionStatus]}
+          </span>
+        )}
+      </div>
 
       {/* Expanded detail: specs, notes, times */}
       {open && (
@@ -110,23 +122,14 @@ export default function SubmissionCard({
                 ? ` · Updated ${formatDateTime(submission.updatedAt)}`
                 : ""}
             </span>
-            <span className="flex items-center gap-2">
-              {manageStatus && (
-                <StatusSelect
-                  kind="submission"
-                  orderId={submission.id}
-                  value={submission.submissionStatus}
-                />
-              )}
-              {canEdit && (
-                <Link
-                  href={`/orders/edit/${submission.id}`}
-                  className="rounded-lg bg-accent-50 px-3 py-2 text-sm font-medium text-accent-800 hover:bg-accent-100"
-                >
-                  Edit
-                </Link>
-              )}
-            </span>
+            {canEdit && (
+              <Link
+                href={`/orders/edit/${submission.id}`}
+                className="rounded-lg bg-accent-50 px-3 py-2 text-sm font-medium text-accent-800 hover:bg-accent-100"
+              >
+                Edit
+              </Link>
+            )}
           </div>
         </div>
       )}

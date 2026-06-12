@@ -19,7 +19,11 @@
       "PowerShell(Start-Sleep -Seconds 6; node scripts/smoke-test.mjs commandes@damenalimentaire.com / /rep /orders/fish/new /orders/fish/submissions /buyer /buyer/table /admin /admin/audit; node scripts/smoke-test.mjs david@damenalimentaire.com / /buyer/submissions /buyer/table /buyer/buying-sheet /buyer/exports /admin; node scripts/smoke-test.mjs orders@damenalimentaire.com / /admin/audit; node scripts/smoke-test.mjs vincent@damenalimentaire.com /)",
       "PowerShell(node scripts/check-visibility.mjs; node scripts/check-buyer-table.mjs; node scripts/check-exports.mjs 2>&1 | Select-Object -First 12; node scripts/check-realtime.mjs)",
       "PowerShell(node scripts/list-orders.mjs)",
-      "PowerShell(Remove-Item *)"
+      "PowerShell(Remove-Item *)",
+      "PowerShell(winget install *)",
+      "PowerShell(Receive-Job *)",
+      "Bash(gh --version)",
+      "PowerShell(try { $r = Invoke-WebRequest http://localhost:3000/login -UseBasicParsing; \"APP RUNNING: $\\($r.StatusCode\\)\" } catch { \"APP DOWN: $\\($_.Exception.Message\\)\" })"
     ]
   }
 }

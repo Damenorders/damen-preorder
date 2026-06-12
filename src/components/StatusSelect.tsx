@@ -19,6 +19,18 @@ type Props =
   | { kind: "submission"; orderId: number; value: SubmissionStatus }
   | { kind: "buyer"; orderId: number; value: BuyerTableStatus };
 
+// Colour coding: Pending yellow, Ready green, Received/Shipped dark green;
+// in-between buyer states get their own tints.
+const statusColors: Record<string, string> = {
+  pending: "border-amber-300 bg-amber-100 text-amber-900",
+  ready: "border-green-300 bg-green-100 text-green-800",
+  shipped: "border-emerald-800 bg-emerald-800 text-white",
+  ordered: "border-sky-300 bg-sky-100 text-sky-800",
+  pending_delivery: "border-orange-300 bg-orange-100 text-orange-800",
+  pending_pickup: "border-violet-300 bg-violet-100 text-violet-800",
+  received: "border-emerald-800 bg-emerald-800 text-white",
+};
+
 export default function StatusSelect(props: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -50,13 +62,15 @@ export default function StatusSelect(props: Props) {
         value={props.value}
         disabled={pending}
         onChange={(e) => handleChange(e.target.value)}
-        className="rounded-lg border border-neutral-300 bg-white px-2.5 py-2 text-sm font-medium outline-none focus:border-accent-600 disabled:opacity-50"
+        className={`rounded-lg border px-2.5 py-2 text-sm font-medium outline-none focus:ring-2 focus:ring-accent-100 disabled:opacity-50 ${
+          statusColors[props.value] ?? "border-neutral-300 bg-white"
+        }`}
         aria-label={
           props.kind === "submission" ? "Submission status" : "Buyer status"
         }
       >
         {Object.entries(labels).map(([value, label]) => (
-          <option key={value} value={value}>
+          <option key={value} value={value} className="bg-white text-neutral-900">
             {label}
           </option>
         ))}

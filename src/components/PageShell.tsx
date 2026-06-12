@@ -9,6 +9,7 @@ export default function PageShell({
   title,
   subtitle,
   wide = false,
+  full = false,
   children,
 }: {
   user: User;
@@ -17,13 +18,14 @@ export default function PageShell({
   title: string;
   subtitle?: string;
   wide?: boolean;
+  full?: boolean;
   children: React.ReactNode;
 }) {
   return (
     <>
       <AppHeader user={user} />
       <main
-        className={`mx-auto w-full flex-1 px-4 py-6 ${wide ? "max-w-5xl" : "max-w-2xl"}`}
+        className={`mx-auto w-full flex-1 px-4 py-6 ${full ? "max-w-[1500px]" : wide ? "max-w-5xl" : "max-w-2xl"}`}
       >
         <Link
           href={backHref}

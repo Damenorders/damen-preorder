@@ -1,10 +1,10 @@
+import Link from "next/link";
 import { requireRole, homePathFor } from "@/lib/auth";
 import {
   businessToday,
   businessTomorrow,
   getBuyerTable,
   getFilterOptions,
-  type BuyerTableRow,
 } from "@/lib/buyer-data";
 import { buyerTableStatusLabels } from "@/lib/labels";
 import type { BuyerTableStatus } from "@/db/schema";
@@ -13,9 +13,10 @@ import FilterBar, { type FilterField } from "@/components/FilterBar";
 import StatusSelect from "@/components/StatusSelect";
 import LiveRefresh from "@/components/LiveRefresh";
 
-// Buyer Table — buyer/admin only (SPEC.md §17). Default view: status Pending,
-// delivery today/tomorrow (§18). Always sorted delivery date → status
-// priority → updated time (§19), whatever the filters.
+// Buyer Table — buyer/admin only. A real spreadsheet-style table, one row per
+// order line, with the exact SPEC.md §17 columns. Default view: status
+// Pending + delivery today/tomorrow (§18). Sort always follows §19:
+// delivery date → status priority → updated time, whatever the filters.
 
 const STATUS_ORDER: BuyerTableStatus[] = [
   "pending",
@@ -25,13 +26,15 @@ const STATUS_ORDER: BuyerTableStatus[] = [
   "received",
 ];
 
-function formatDay(date: string) {
-  return new Date(`${date}T12:00:00`).toLocaleDateString("en-CA", {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-  });
-}
+// Spec chips cycle through soft tints, Jotform-style.
+const chipColors = [
+  "bg-pink-100 text-pink-900",
+  "bg-orange-100 text-orange-900",
+  "bg-amber-100 text-amber-900",
+  "bg-sky-100 text-sky-900",
+  "bg-violet-100 text-violet-900",
+  "bg-teal-100 text-teal-900",
+];
 
 function formatDateTime(value: Date) {
   return value.toLocaleString("en-CA", {
@@ -136,19 +139,14 @@ export default async function BuyerTablePage({
     { type: "checkbox", param: "notes", label: "With notes" },
   ];
 
-  // Group rows: delivery date → status (§19 example layout)
-  const byDate = new Map<string, Map<BuyerTableStatus, BuyerTableRow[]>>();
-  for (const row of rows) {
-    if (!byDate.has(row.deliveryDate)) byDate.set(row.deliveryDate, new Map());
-    const byStatus = byDate.get(row.deliveryDate)!;
-    if (!byStatus.has(row.status)) byStatus.set(row.status, []);
-    byStatus.get(row.status)!.push(row);
-  }
-
   const today = businessToday();
   const tomorrow = businessTomorrow();
   const dateTag = (d: string) =>
-    d === today ? " (today)" : d === tomorrow ? " (tomorrow)" : "";
+    d === today ? "today" : d === tomorrow ? "tomorrow" : null;
+
+  const thClass =
+    "sticky top-0 whitespace-nowrap border-b border-neutral-200 bg-neutral-50 px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-neutral-500";
+  const tdClass = "border-b border-neutral-100 px-3 py-2 align-top text-sm";
 
   return (
     <PageShell
@@ -161,7 +159,7 @@ export default async function BuyerTablePage({
           ? `Needs action: Pending, delivering today or tomorrow · ${rows.length} line${rows.length === 1 ? "" : "s"}`
           : `${rows.length} line${rows.length === 1 ? "" : "s"}`
       }
-      wide
+      full
     >
       <LiveRefresh />
       <div className="flex flex-col gap-4">
@@ -174,64 +172,108 @@ export default async function BuyerTablePage({
               : "No orders match these filters."}
           </div>
         ) : (
-          [...byDate.entries()].map(([date, byStatus]) => (
-            <section key={date}>
-              <h2 className="px-1 text-sm font-semibold uppercase tracking-wide text-neutral-500">
-                Delivery {formatDay(date)}
-                {dateTag(date)}
-              </h2>
-              {STATUS_ORDER.filter((s) => byStatus.has(s)).map((s) => (
-                <div key={s} className="mt-2">
-                  <h3 className="px-1 text-xs font-semibold text-accent-700">
-                    {buyerTableStatusLabels[s]} · {byStatus.get(s)!.length}
-                  </h3>
-                  <ul className="mt-1.5 flex flex-col gap-2">
-                    {byStatus.get(s)!.map((row) => (
-                      <li
-                        key={row.lineId}
-                        className="rounded-2xl border border-neutral-200 bg-white px-4 py-3 shadow-sm"
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <p className="font-medium">
-                              {row.clientName}
-                              <span className="ml-2 text-sm font-normal text-neutral-500">
-                                {row.repName}
-                              </span>
-                            </p>
-                            <p className="mt-0.5 text-sm font-medium text-neutral-800">
-                              {row.product}
-                              <span className="font-normal text-neutral-600">
-                                {row.specs ? ` — ${row.specs}` : ""}
-                              </span>
-                            </p>
-                            <p className="mt-0.5 text-sm text-neutral-700">
-                              Qty {row.quantity}
-                              {row.weight ? ` · ${row.weight} kg` : ""}
-                            </p>
-                            {(row.lineNotes || row.orderNotes) && (
-                              <p className="mt-0.5 text-sm italic text-neutral-500">
-                                {row.lineNotes ?? row.orderNotes}
-                              </p>
-                            )}
-                            <p className="mt-1 text-xs text-neutral-400">
-                              Created {formatDateTime(row.createdAt)} · Updated{" "}
-                              {formatDateTime(row.updatedAt)}
-                            </p>
-                          </div>
-                          <StatusSelect
-                            kind="buyer"
-                            orderId={row.orderId}
-                            value={row.status}
-                          />
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
-            </section>
-          ))
+          <div className="overflow-x-auto rounded-2xl border border-neutral-200 bg-white shadow-sm">
+            <table className="w-full min-w-[1100px] border-collapse">
+              <thead>
+                <tr>
+                  <th className={thClass}>Client Name</th>
+                  <th className={thClass}>Status</th>
+                  <th className={thClass}>Delivery Date</th>
+                  <th className={thClass}>Product</th>
+                  <th className={thClass}>Specs</th>
+                  <th className={`${thClass} text-right`}>Qty</th>
+                  <th className={`${thClass} text-right`}>Weight</th>
+                  <th className={thClass}>Notes</th>
+                  <th className={thClass}>Created</th>
+                  <th className={thClass}>Updated</th>
+                  <th className={thClass}>Rep</th>
+                  <th className={thClass}></th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row, i) => {
+                  const tag = dateTag(row.deliveryDate);
+                  const notes = [row.lineNotes, row.orderNotes]
+                    .filter(Boolean)
+                    .join(" — ");
+                  return (
+                    <tr
+                      key={row.lineId}
+                      className={i % 2 === 1 ? "bg-neutral-50/50" : ""}
+                    >
+                      <td className={`${tdClass} font-medium`}>
+                        {row.clientName}
+                      </td>
+                      <td className={tdClass}>
+                        <StatusSelect
+                          kind="buyer"
+                          orderId={row.orderId}
+                          value={row.status}
+                        />
+                      </td>
+                      <td className={`${tdClass} whitespace-nowrap`}>
+                        {row.deliveryDate}
+                        {tag && (
+                          <span className="ml-1.5 rounded-full bg-accent-50 px-1.5 py-0.5 text-[11px] font-medium text-accent-800">
+                            {tag}
+                          </span>
+                        )}
+                      </td>
+                      <td className={`${tdClass} whitespace-nowrap font-medium`}>
+                        {row.product}
+                      </td>
+                      <td className={tdClass}>
+                        <span className="flex flex-wrap gap-1">
+                          {row.specs
+                            ? row.specs.split(" · ").map((part, idx) => (
+                                <span
+                                  key={idx}
+                                  className={`whitespace-nowrap rounded-md px-1.5 py-0.5 text-xs font-medium ${chipColors[idx % chipColors.length]}`}
+                                >
+                                  {part}
+                                </span>
+                              ))
+                            : "—"}
+                        </span>
+                      </td>
+                      <td className={`${tdClass} text-right tabular-nums`}>
+                        {row.quantity}
+                      </td>
+                      <td className={`${tdClass} whitespace-nowrap text-right tabular-nums`}>
+                        {row.weight ? `${row.weight} kg` : "—"}
+                      </td>
+                      <td className={`${tdClass} max-w-[200px]`}>
+                        {notes ? (
+                          <span className="line-clamp-2 text-neutral-600" title={notes}>
+                            {notes}
+                          </span>
+                        ) : (
+                          "—"
+                        )}
+                      </td>
+                      <td className={`${tdClass} whitespace-nowrap text-neutral-500`}>
+                        {formatDateTime(row.createdAt)}
+                      </td>
+                      <td className={`${tdClass} whitespace-nowrap text-neutral-500`}>
+                        {formatDateTime(row.updatedAt)}
+                      </td>
+                      <td className={`${tdClass} whitespace-nowrap text-neutral-500`}>
+                        {row.repName}
+                      </td>
+                      <td className={tdClass}>
+                        <Link
+                          href={`/orders/edit/${row.orderId}`}
+                          className="rounded-lg bg-accent-50 px-2.5 py-1.5 text-xs font-medium text-accent-800 hover:bg-accent-100"
+                        >
+                          Edit
+                        </Link>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </PageShell>
