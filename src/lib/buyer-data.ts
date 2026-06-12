@@ -143,6 +143,12 @@ export interface BuyerTableFilters {
   createdDate?: string;
   updatedDate?: string;
   hasNotes?: boolean;
+  /**
+   * "date" (default): SPEC.md §19 — delivery date, then status priority.
+   * "status": status priority first (Pending top, Received bottom), then
+   * delivery date newest → oldest within each status.
+   */
+  sort?: "date" | "status";
 }
 
 export interface BuyerTableRow {
@@ -242,10 +248,19 @@ export async function getBuyerTable(
     .innerJoin(orders, eq(orderLines.orderId, orders.id))
     .where(conditions.length ? and(...conditions) : undefined)
     .orderBy(
-      orders.deliveryDate,
-      STATUS_PRIORITY,
-      desc(orders.updatedAt),
-      orderLines.id,
+      ...(filters.sort === "status"
+        ? [
+            STATUS_PRIORITY,
+            desc(orders.deliveryDate),
+            desc(orders.updatedAt),
+            orderLines.id,
+          ]
+        : [
+            orders.deliveryDate,
+            STATUS_PRIORITY,
+            desc(orders.updatedAt),
+            orderLines.id,
+          ]),
     );
 
   return rows;

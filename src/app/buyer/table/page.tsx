@@ -53,6 +53,7 @@ export default async function BuyerTablePage({
   const hasAnyParam = Object.keys(params).length > 0;
   const status = get("status") ?? (hasAnyParam ? "all" : "pending");
   const delivery = get("delivery") ?? (hasAnyParam ? "all" : "today_tomorrow");
+  const sort = get("sort") === "status" ? ("status" as const) : ("date" as const);
 
   const filters = {
     status,
@@ -63,7 +64,31 @@ export default async function BuyerTablePage({
     createdDate: get("created"),
     updatedDate: get("updated"),
     hasNotes: get("notes") === "1",
+    sort,
   };
+
+  // Sort-toggle links carry the current effective view along, so switching
+  // the sort never changes which rows are shown.
+  function sortHref(target: "date" | "status") {
+    const p = new URLSearchParams();
+    p.set("status", status);
+    p.set("delivery", delivery);
+    for (const [key, param] of [
+      ["client", "client"],
+      ["rep", "rep"],
+      ["product", "product"],
+      ["created", "created"],
+      ["updated", "updated"],
+      ["notes", "notes"],
+    ] as const) {
+      const v = get(param);
+      if (v) p.set(key, v);
+    }
+    if (target === "status") p.set("sort", "status");
+    return `/buyer/table?${p.toString()}`;
+  }
+
+  const isDefaultView = status === "pending" && delivery === "today_tomorrow";
 
   const [rows, options] = await Promise.all([
     getBuyerTable(filters),
@@ -146,7 +171,7 @@ export default async function BuyerTablePage({
       backLabel="Dashboard"
       title="Buyer Table"
       subtitle={
-        !hasAnyParam
+        isDefaultView
           ? `Needs action: Pending, delivering today or tomorrow · ${rows.length} line${rows.length === 1 ? "" : "s"}`
           : `${rows.length} line${rows.length === 1 ? "" : "s"}`
       }
@@ -154,11 +179,34 @@ export default async function BuyerTablePage({
     >
       <LiveRefresh />
       <div className="flex flex-col gap-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs font-medium text-neutral-500">Sort:</span>
+          <Link
+            href={sortHref("date")}
+            className={`rounded-full px-3.5 py-2 text-sm font-medium transition ${
+              sort === "date"
+                ? "bg-accent-600 text-white"
+                : "border border-neutral-300 text-neutral-700 hover:border-accent-600"
+            }`}
+          >
+            By delivery date
+          </Link>
+          <Link
+            href={sortHref("status")}
+            className={`rounded-full px-3.5 py-2 text-sm font-medium transition ${
+              sort === "status"
+                ? "bg-accent-600 text-white"
+                : "border border-neutral-300 text-neutral-700 hover:border-accent-600"
+            }`}
+          >
+            Status first
+          </Link>
+        </div>
         <FilterBar fields={fields} activeCount={activeCount} />
 
         {rows.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-neutral-300 px-4 py-10 text-center text-neutral-500">
-            {!hasAnyParam
+            {isDefaultView
               ? "Nothing needs action for today or tomorrow. Use the filters to see more."
               : "No orders match these filters."}
           </div>
