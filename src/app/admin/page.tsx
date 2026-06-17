@@ -35,7 +35,16 @@ export default async function AdminDashboard() {
               { label: "Buyer Table", href: "/buyer/table", primary: true },
               { label: "All Submissions", href: "/buyer/submissions" },
               { label: "Grouped Buying Sheet", href: "/buyer/buying-sheet" },
+              { label: "Order Errors", href: "/buyer/errors" },
               { label: "Exports", href: "/buyer/exports" },
+            ]}
+          />
+          <DashboardCard
+            title="Order Errors"
+            subtitle="Report or review order errors"
+            links={[
+              { label: "Report an Error", href: "/errors/new" },
+              { label: "Error Reports Table", href: "/buyer/errors" },
             ]}
           />
           <DashboardCard

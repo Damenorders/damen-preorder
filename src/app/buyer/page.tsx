@@ -35,8 +35,14 @@ export default async function BuyerDashboard() {
               { label: "Buyer Table", href: "/buyer/table", primary: true },
               { label: "All Submissions", href: "/buyer/submissions" },
               { label: "Grouped Buying Sheet", href: "/buyer/buying-sheet" },
+              { label: "Order Errors", href: "/buyer/errors" },
               { label: "Exports", href: "/buyer/exports" },
             ]}
+          />
+          <DashboardCard
+            title="Order Errors"
+            subtitle="Report a delivery or order error"
+            links={[{ label: "Report an Error", href: "/errors/new" }]}
           />
         </div>
       </main>

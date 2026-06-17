@@ -43,6 +43,15 @@ export const odooSyncStatusEnum = pgEnum("odoo_sync_status", [
   "error",
 ]);
 
+// Order Errors form (separate from the order workflow entirely)
+export const errorTypeEnum = pgEnum("error_type", [
+  "wrong_item",
+  "not_delivered",
+  "damaged_product",
+  "not_scheduled",
+  "shorted_items",
+]);
+
 // ---------------------------------------------------------------------------
 // Tables — SPEC.md §24, with Odoo-ready fields per §22 on every record
 // ---------------------------------------------------------------------------
@@ -168,6 +177,35 @@ export const orderLines = pgTable("order_lines", {
     .defaultNow(),
 });
 
+// Order Errors — a standalone report, deliberately NOT linked to orders and
+// never shown in the buyer table. Buyer/admin review it in its own table.
+export const orderErrors = pgTable("order_errors", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  externalId: text("external_id").unique(),
+  odooId: integer("odoo_id"),
+  customerName: text("customer_name").notNull(),
+  customerExternalId: text("customer_external_id"),
+  errorDate: date("error_date").notNull(),
+  orderNumber: text("order_number"),
+  errorType: errorTypeEnum("error_type").notNull(),
+  department: departmentEnum("department").notNull(),
+  note: text("note"),
+  submittedByUserId: uuid("submitted_by_user_id")
+    .notNull()
+    .references(() => users.id),
+  submittedByName: text("submitted_by_name").notNull(),
+  odooSyncStatus: odooSyncStatusEnum("odoo_sync_status")
+    .notNull()
+    .default("not_synced"),
+  lastSyncedAt: timestamp("last_synced_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
 export const auditLogs = pgTable("audit_logs", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
   userId: uuid("user_id"),
@@ -191,7 +229,10 @@ export type Client = typeof clients.$inferSelect;
 export type Product = typeof products.$inferSelect;
 export type Order = typeof orders.$inferSelect;
 export type OrderLine = typeof orderLines.$inferSelect;
+export type OrderError = typeof orderErrors.$inferSelect;
 export type AuditLog = typeof auditLogs.$inferSelect;
+
+export type ErrorType = OrderError["errorType"];
 
 export type Role = User["role"];
 export type Department = Order["department"];

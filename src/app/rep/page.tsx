@@ -28,6 +28,11 @@ export default async function RepDashboard() {
               ]}
             />
           ))}
+          <DashboardCard
+            title="Order Errors"
+            subtitle="Report a delivery or order error"
+            links={[{ label: "Report an Error", href: "/errors/new", primary: true }]}
+          />
         </div>
       </main>
     </>

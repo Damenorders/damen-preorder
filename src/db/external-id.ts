@@ -2,7 +2,7 @@
 // Examples: damen_order_000001, damen_order_line_000001, damen_client_000001
 
 export function formatExternalId(
-  prefix: "order" | "order_line" | "client" | "user",
+  prefix: "order" | "order_line" | "order_error" | "client" | "user",
   id: number,
 ): string {
   return `damen_${prefix}_${String(id).padStart(6, "0")}`;

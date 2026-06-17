@@ -9,7 +9,13 @@ type AuditExecutor = Pick<typeof db, "insert">;
 
 export interface AuditEntry {
   action: string; // e.g. "create", "update:quantity", "update:status"
-  recordType: "order" | "order_line" | "client" | "product" | "user";
+  recordType:
+    | "order"
+    | "order_line"
+    | "order_error"
+    | "client"
+    | "product"
+    | "user";
   recordId: string | number;
   oldValue?: unknown;
   newValue?: unknown;
