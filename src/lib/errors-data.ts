@@ -2,7 +2,7 @@ import "server-only";
 import { and, desc, eq, type SQL } from "drizzle-orm";
 import { db } from "@/db";
 import { orderErrors, type OrderError } from "@/db/schema";
-import { isDepartment, isErrorType } from "@/lib/labels";
+import { isErrorDepartment, isErrorType } from "@/lib/labels";
 
 export interface ErrorFilters {
   department?: string;
@@ -16,7 +16,7 @@ export async function getOrderErrors(
   filters: ErrorFilters,
 ): Promise<OrderError[]> {
   const conditions: SQL[] = [];
-  if (filters.department && isDepartment(filters.department)) {
+  if (filters.department && isErrorDepartment(filters.department)) {
     conditions.push(eq(orderErrors.department, filters.department));
   }
   if (filters.errorType && isErrorType(filters.errorType)) {

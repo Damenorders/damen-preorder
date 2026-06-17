@@ -1,7 +1,7 @@
 import { requireRole, homePathFor } from "@/lib/auth";
 import { getOrderErrors, getErrorFilterOptions } from "@/lib/errors-data";
 import {
-  DEPARTMENTS,
+  ERROR_DEPARTMENTS,
   departmentLabels,
   ERROR_TYPES,
   errorTypeLabels,
@@ -43,7 +43,7 @@ export default async function ErrorsPage({
       param: "module",
       label: "Department",
       emptyLabel: "All departments",
-      options: DEPARTMENTS.map((d) => ({ value: d, label: departmentLabels[d] })),
+      options: ERROR_DEPARTMENTS.map((d) => ({ value: d, label: departmentLabels[d] })),
     },
     {
       type: "select",

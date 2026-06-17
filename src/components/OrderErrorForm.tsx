@@ -8,7 +8,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createOrderError } from "@/app/actions/errors";
 import {
-  DEPARTMENTS,
+  ERROR_DEPARTMENTS,
   departmentLabels,
   ERROR_TYPES,
   errorTypeLabels,
@@ -163,7 +163,7 @@ export default function OrderErrorForm({
         <div className="mt-4">
           <p className="text-sm font-medium text-neutral-700">Department</p>
           <div className="mt-1.5 flex flex-wrap gap-2">
-            {DEPARTMENTS.map((d) => (
+            {ERROR_DEPARTMENTS.map((d) => (
               <button
                 key={d}
                 type="button"

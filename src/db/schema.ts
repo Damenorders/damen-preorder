@@ -18,8 +18,15 @@ import {
 // picker: warehouse role — sees all submissions (read-only), nothing else
 export const roleEnum = pgEnum("user_role", ["admin", "buyer", "rep", "picker"]);
 
-// SPEC.md §2 — Meat Orders / Fish Orders / Other Preorders
-export const departmentEnum = pgEnum("department", ["meat", "fish", "other"]);
+// SPEC.md §2 — Meat Orders / Fish Orders / Other Preorders.
+// "warehouse" is used ONLY by the Order Errors form (not an order section);
+// the order flows restrict themselves to meat/fish/other in code.
+export const departmentEnum = pgEnum("department", [
+  "meat",
+  "fish",
+  "other",
+  "warehouse",
+]);
 
 // SPEC.md §11 — visible to reps
 export const submissionStatusEnum = pgEnum("submission_status", [

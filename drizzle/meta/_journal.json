@@ -36,6 +36,13 @@
       "when": 1781735245820,
       "tag": "0004_order_errors_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1781736942933,
+      "tag": "0005_warehouse_department",
+      "breakpoints": true
     }
   ]
 }

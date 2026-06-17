@@ -5,14 +5,27 @@ import type {
   ErrorType,
 } from "@/db/schema";
 
+// Order sections (SPEC.md §2) — orders only ever use these three.
 export const DEPARTMENTS: Department[] = ["meat", "fish", "other"];
 
-// SPEC.md §2
+// Order Errors can additionally be attributed to the Warehouse.
+export const ERROR_DEPARTMENTS: Department[] = [
+  "meat",
+  "fish",
+  "other",
+  "warehouse",
+];
+
 export const departmentLabels: Record<Department, string> = {
   meat: "Meat Orders",
   fish: "Fish Orders",
   other: "Other Preorders",
+  warehouse: "Warehouse",
 };
+
+export function isErrorDepartment(value: string): value is Department {
+  return (ERROR_DEPARTMENTS as string[]).includes(value);
+}
 
 // SPEC.md §11
 export const submissionStatusLabels: Record<SubmissionStatus, string> = {

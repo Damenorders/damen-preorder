@@ -12,7 +12,7 @@ import { requireRole } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { resolveClient } from "@/lib/clients";
 import { formatExternalId } from "@/db/external-id";
-import { isDepartment, isErrorType } from "@/lib/labels";
+import { isErrorDepartment, isErrorType } from "@/lib/labels";
 
 export interface OrderErrorInput {
   customerName: string;
@@ -40,7 +40,7 @@ export async function createOrderError(
   if (!isErrorType(input.errorType)) {
     return { ok: false, error: "Choose an error type." };
   }
-  if (!isDepartment(input.department)) {
+  if (!isErrorDepartment(input.department)) {
     return { ok: false, error: "Choose a department." };
   }
   const errorType = input.errorType;
