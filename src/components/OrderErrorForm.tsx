@@ -9,7 +9,7 @@ import { useRouter } from "next/navigation";
 import { createOrderError } from "@/app/actions/errors";
 import {
   ERROR_DEPARTMENTS,
-  departmentLabels,
+  errorDepartmentLabels,
   ERROR_TYPES,
   errorTypeLabels,
 } from "@/lib/labels";
@@ -174,7 +174,7 @@ export default function OrderErrorForm({
                     : "border-neutral-300 hover:border-accent-600"
                 }`}
               >
-                {departmentLabels[d]}
+                {errorDepartmentLabels[d]}
               </button>
             ))}
           </div>

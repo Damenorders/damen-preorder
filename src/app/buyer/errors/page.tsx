@@ -2,7 +2,7 @@ import { requireRole, homePathFor } from "@/lib/auth";
 import { getOrderErrors, getErrorFilterOptions } from "@/lib/errors-data";
 import {
   ERROR_DEPARTMENTS,
-  departmentLabels,
+  errorDepartmentLabels,
   ERROR_TYPES,
   errorTypeLabels,
 } from "@/lib/labels";
@@ -43,7 +43,7 @@ export default async function ErrorsPage({
       param: "module",
       label: "Department",
       emptyLabel: "All departments",
-      options: ERROR_DEPARTMENTS.map((d) => ({ value: d, label: departmentLabels[d] })),
+      options: ERROR_DEPARTMENTS.map((d) => ({ value: d, label: errorDepartmentLabels[d] })),
     },
     {
       type: "select",
@@ -117,7 +117,7 @@ export default async function ErrorsPage({
                       {e.orderNumber || "—"}
                     </td>
                     <td className={`${tdClass} whitespace-nowrap`}>
-                      {departmentLabels[e.department]}
+                      {errorDepartmentLabels[e.department]}
                     </td>
                     <td className={tdClass}>
                       <span

@@ -8,13 +8,21 @@ import type {
 // Order sections (SPEC.md §2) — orders only ever use these three.
 export const DEPARTMENTS: Department[] = ["meat", "fish", "other"];
 
-// Order Errors can additionally be attributed to the Warehouse.
+// Order Errors can additionally be attributed to the Warehouse, and use
+// shorter department names than the order sections.
 export const ERROR_DEPARTMENTS: Department[] = [
   "meat",
   "fish",
   "other",
   "warehouse",
 ];
+
+export const errorDepartmentLabels: Record<Department, string> = {
+  meat: "Meat",
+  fish: "Fish",
+  other: "Order Desk",
+  warehouse: "Warehouse",
+};
 
 export const departmentLabels: Record<Department, string> = {
   meat: "Meat Orders",
