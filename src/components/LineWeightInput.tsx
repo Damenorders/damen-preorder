@@ -10,9 +10,11 @@ import { updateLineWeight } from "@/app/actions/orders";
 export default function LineWeightInput({
   lineId,
   initial,
+  unit = "kg",
 }: {
   lineId: number;
   initial: string | null;
+  unit?: string;
 }) {
   const initialValue = initial ? String(Number(initial)) : "";
   const [value, setValue] = useState(initialValue);
@@ -49,9 +51,9 @@ export default function LineWeightInput({
             if (e.key === "Enter" && dirty) save();
           }}
           className="w-20 rounded-lg border border-neutral-300 px-2 py-1.5 text-sm font-semibold outline-none focus:border-accent-600 focus:ring-2 focus:ring-accent-100 disabled:opacity-50"
-          aria-label="Weight in kg"
+          aria-label={`Weight in ${unit}`}
         />
-        <span className="text-sm text-neutral-500">kg</span>
+        <span className="text-sm text-neutral-500">{unit}</span>
         {dirty && (
           <button
             type="button"

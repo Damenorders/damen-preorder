@@ -10,6 +10,7 @@ import {
   buyerTableStatusLabels,
   DEPARTMENTS,
   departmentLabels,
+  weightUnit,
 } from "@/lib/labels";
 import { formatDate, formatDateTime } from "@/lib/dates";
 import type { BuyerTableStatus } from "@/db/schema";
@@ -298,7 +299,7 @@ export default async function BuyerTablePage({
                         )}
                       </td>
                       <td className={`${tdClass} whitespace-nowrap text-right tabular-nums`}>
-                        {row.weight ? `${row.weight} kg` : "—"}
+                        {row.weight ? `${row.weight} ${weightUnit(row.department)}` : "—"}
                       </td>
                       <td className={`${tdClass} whitespace-nowrap font-medium`}>
                         {row.product}

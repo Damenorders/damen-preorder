@@ -5,6 +5,7 @@ import {
   DEPARTMENTS,
   departmentLabels,
   buyerTableStatusLabels,
+  weightUnit,
 } from "@/lib/labels";
 import PageShell from "@/components/PageShell";
 import FilterBar, { type FilterField } from "@/components/FilterBar";
@@ -131,7 +132,9 @@ export default async function BuyingSheetPage({
                         <p className="text-xl font-semibold">
                           {g.totalWeight.toFixed(1)}
                         </p>
-                        <p className="text-xs text-neutral-500">Total KG</p>
+                        <p className="text-xs text-neutral-500">
+                          Total {weightUnit(g.department).toUpperCase()}
+                        </p>
                       </div>
                       <div className="rounded-xl bg-neutral-50 px-2 py-3">
                         <p className="text-xl font-semibold">{g.clientCount}</p>

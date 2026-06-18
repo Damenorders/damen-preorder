@@ -6,7 +6,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { departmentLabels, submissionStatusLabels } from "@/lib/labels";
+import { departmentLabels, submissionStatusLabels, weightUnit } from "@/lib/labels";
 import { formatDate, formatDateTime } from "@/lib/dates";
 import { deleteOrder } from "@/app/actions/orders";
 import StatusSelect from "@/components/StatusSelect";
@@ -43,6 +43,7 @@ export default function SubmissionCard({
   canDelete?: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const unit = weightUnit(submission.department);
   const router = useRouter();
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -87,7 +88,7 @@ export default function SubmissionCard({
               <>
                 {" · "}
                 <span className="font-semibold text-neutral-700">
-                  {totalWeight.toFixed(1)} kg
+                  {totalWeight.toFixed(1)} {unit}
                 </span>
               </>
             ) : (
@@ -135,10 +136,14 @@ export default function SubmissionCard({
                 <p className="mt-1 flex items-center gap-2 text-sm text-neutral-700">
                   {line.quantity != null && <span>Qty {line.quantity}</span>}
                   {canEdit ? (
-                    <LineWeightInput lineId={line.id} initial={line.weight} />
+                    <LineWeightInput
+                      lineId={line.id}
+                      initial={line.weight}
+                      unit={unit}
+                    />
                   ) : line.weight ? (
                     <span>
-                      <span className="font-semibold">{line.weight}</span> kg
+                      <span className="font-semibold">{line.weight}</span> {unit}
                     </span>
                   ) : (
                     <span>—</span>

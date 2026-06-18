@@ -69,6 +69,11 @@ export function isDepartment(value: string): value is Department {
   return (DEPARTMENTS as string[]).includes(value);
 }
 
+// Fish is ordered/weighed in pounds; meat and other use kilograms.
+export function weightUnit(department: Department): "lb" | "kg" {
+  return department === "fish" ? "lb" : "kg";
+}
+
 // Order Errors form
 export const ERROR_TYPES: ErrorType[] = [
   "wrong_item",

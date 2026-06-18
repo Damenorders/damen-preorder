@@ -65,7 +65,7 @@ function seaBassBreamConfig(): ProductFormConfig {
     quantityLabel: "Quantity of Fish",
     weightLabel: "Weight (lbs)",
     fields: [
-      { key: "size", label: "Size", type: "select", options: ["406oz", "608oz", "810oz"], required: true, display: "{value}" },
+      { key: "size", label: "Size", type: "select", options: ["400-600", "600-800", "800-1000"], required: true, display: "{value}" },
       { key: "cut", label: "Cut", type: "select", options: ["Whole", "Cut"], required: true, display: "{value}" },
       { key: "style", label: "Style", type: "select", options: ["Fillet", "Butterfly"], required: true, display: "{value}", showWhen: { field: "cut", equals: "Cut" } },
       { key: "skin", label: "Skin", type: "select", options: ["On", "Off"], required: true, display: "Skin {value}", showWhen: { field: "style", equals: "Fillet" } },
@@ -117,7 +117,7 @@ const liveLobsterConfig: ProductFormConfig = {
   quantityOptional: true,
   hideWeight: true,
   fields: [
-    { key: "size", label: "Size", type: "select", options: ["1.25-1.5lbs", "1.5-2lbs"], required: true, display: "{value}" },
+    { key: "size", label: "Size", type: "select", options: ["1-1.5lbs", "1.5-2lbs"], required: true, display: "{value}" },
   ],
 };
 

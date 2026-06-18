@@ -541,7 +541,7 @@ export default function OrderForm({
                   onClick={() =>
                     setBuilder((b) => ({ ...emptyBuilder, editingKey: b.editingKey }))
                   }
-                  className="rounded-lg px-3 py-2 text-sm font-medium text-neutral-500 hover:bg-neutral-100"
+                  className="rounded-lg border border-neutral-300 bg-neutral-100 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-200"
                 >
                   Change product
                 </button>
