@@ -3,6 +3,7 @@ import {
   DEPARTMENTS,
   departmentLabels,
   departmentCardCorner,
+  submissionLabels,
 } from "@/lib/labels";
 import AppHeader from "@/components/AppHeader";
 import { DashboardCard } from "@/components/DashboardCard";
@@ -29,7 +30,7 @@ export default async function SchedulingDashboard() {
               corner={departmentCardCorner[dep]}
               links={[
                 {
-                  label: "Submissions",
+                  label: submissionLabels[dep],
                   href: `/orders/${dep}/submissions`,
                   primary: true,
                 },

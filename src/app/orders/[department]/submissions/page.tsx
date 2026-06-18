@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireRole, homePathFor } from "@/lib/auth";
 import { getSubmissions } from "@/lib/orders-data";
-import { departmentLabels, isDepartment } from "@/lib/labels";
+import { departmentLabels, submissionLabels, isDepartment } from "@/lib/labels";
 import PageShell from "@/components/PageShell";
 import SubmissionCard from "@/components/SubmissionCard";
 import LiveRefresh from "@/components/LiveRefresh";
@@ -39,7 +39,7 @@ export default async function SubmissionsPage({
       user={user}
       backHref={homePathFor(user.role)}
       backLabel="Dashboard"
-      title={`${departmentLabels[department]} — ${editMode ? "Edit Form" : "Submissions"}`}
+      title={editMode ? `${departmentLabels[department]} — Edit Form` : submissionLabels[department]}
       subtitle={
         editMode
           ? "Choose an order to edit."

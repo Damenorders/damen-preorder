@@ -31,6 +31,14 @@ export const departmentLabels: Record<Department, string> = {
   warehouse: "Warehouse",
 };
 
+// Per-section submission labels (dashboard links + submissions page title).
+export const submissionLabels: Record<Department, string> = {
+  meat: "Meat Submissions",
+  fish: "Fish Submissions",
+  other: "Other Submissions",
+  warehouse: "Warehouse Submissions",
+};
+
 // Coloured corner accent on each order section's dashboard card, so they're
 // easy to tell apart at a glance: meat red, fish blue, other orange.
 export type CardCorner = {
