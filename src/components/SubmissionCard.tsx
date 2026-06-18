@@ -29,8 +29,10 @@ export default function SubmissionCard({
   manageStatus = false,
   editButton = false,
   canDelete = false,
+  canEditWeight = false,
 }: {
   submission: SubmissionView;
+  /** Full edit: shows the Edit link to the order edit page */
   canEdit: boolean;
   showRep: boolean;
   /** Show the module name (used on the cross-module All Submissions page) */
@@ -41,7 +43,10 @@ export default function SubmissionCard({
   editButton?: boolean;
   /** Buyer/admin only: allow deleting the submission */
   canDelete?: boolean;
+  /** Inline weight editing without full edit rights (e.g. Scheduling) */
+  canEditWeight?: boolean;
 }) {
+  const weightEditable = canEdit || canEditWeight;
   const [open, setOpen] = useState(false);
   const unit = weightUnit(submission.department);
   const router = useRouter();
@@ -135,7 +140,7 @@ export default function SubmissionCard({
                 )}
                 <p className="mt-1 flex items-center gap-2 text-sm text-neutral-700">
                   {line.quantity != null && <span>Qty {line.quantity}</span>}
-                  {canEdit ? (
+                  {weightEditable ? (
                     <LineWeightInput
                       lineId={line.id}
                       initial={line.weight}

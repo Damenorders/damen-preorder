@@ -7,6 +7,7 @@ const roleLabels: Record<User["role"], string> = {
   buyer: "Buyer",
   rep: "Rep",
   picker: "Picker",
+  scheduling: "Scheduling",
 };
 
 export default function AppHeader({ user }: { user: User }) {

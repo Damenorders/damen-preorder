@@ -23,7 +23,7 @@ export default async function SubmissionsPage({
   const sp = await searchParams;
   const editMode = sp.mode === "edit";
   const sortBy = sp.sortBy === "submitted" ? ("submitted" as const) : ("delivery" as const);
-  const user = await requireRole("rep", "buyer");
+  const user = await requireRole("rep", "buyer", "scheduling");
   const submissions = await getSubmissions(user, department, sortBy);
 
   const sortHref = (value: string) => {
@@ -70,19 +70,23 @@ export default async function SubmissionsPage({
         </div>
       ) : (
         <ul className="flex flex-col gap-3">
-          {submissions.map((s) => (
-            <SubmissionCard
-              key={s.id}
-              submission={s}
-              showRep={user.role !== "rep"}
-              manageStatus={user.role !== "rep"}
-              editButton={editMode}
-              canEdit={
-                user.role !== "rep" || s.submissionStatus === "pending"
-              }
-              canDelete={user.role !== "rep"}
-            />
-          ))}
+          {submissions.map((s) => {
+            const isRep = user.role === "rep";
+            const isManager = user.role === "buyer" || user.role === "admin";
+            // Scheduling: view all, edit weight + status only (no full edit/delete).
+            return (
+              <SubmissionCard
+                key={s.id}
+                submission={s}
+                showRep={!isRep}
+                manageStatus={!isRep}
+                editButton={editMode}
+                canEdit={isRep ? s.submissionStatus === "pending" : isManager}
+                canEditWeight={isRep ? s.submissionStatus === "pending" : true}
+                canDelete={isManager}
+              />
+            );
+          })}
         </ul>
       )}
     </PageShell>

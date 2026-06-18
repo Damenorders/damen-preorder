@@ -16,7 +16,7 @@ import {
 // ---------------------------------------------------------------------------
 
 // picker: warehouse role — sees all submissions (read-only), nothing else
-export const roleEnum = pgEnum("user_role", ["admin", "buyer", "rep", "picker"]);
+export const roleEnum = pgEnum("user_role", ["admin", "buyer", "rep", "picker", "scheduling"]);
 
 // SPEC.md §2 — Meat Orders / Fish Orders / Other Preorders.
 // "warehouse" is used ONLY by the Order Errors form (not an order section);

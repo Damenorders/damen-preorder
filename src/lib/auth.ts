@@ -15,6 +15,8 @@ export function homePathFor(role: Role): string {
       return "/rep";
     case "picker":
       return "/picker";
+    case "scheduling":
+      return "/scheduling";
   }
 }
 

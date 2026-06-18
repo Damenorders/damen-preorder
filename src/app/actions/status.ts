@@ -28,7 +28,7 @@ export async function setSubmissionStatus(
   orderId: number,
   status: SubmissionStatus,
 ): Promise<{ ok: boolean; error?: string }> {
-  const user = await requireRole("buyer");
+  const user = await requireRole("buyer", "scheduling");
   if (!SUBMISSION_STATUSES.includes(status)) {
     return { ok: false, error: "Invalid status." };
   }

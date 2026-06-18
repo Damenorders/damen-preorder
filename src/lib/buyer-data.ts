@@ -80,13 +80,15 @@ export async function getAllSubmissions(
   if (filters.createdDate) conditions.push(onBusinessDate(orders.createdAt, filters.createdDate));
   if (filters.updatedDate) conditions.push(onBusinessDate(orders.updatedAt, filters.updatedDate));
 
+  // Shipped orders always sink to the bottom, regardless of the chosen sort.
+  const shippedLast = sql`case when ${orders.submissionStatus} = 'shipped' then 1 else 0 end`;
   const orderRows = await db.query.orders.findMany({
     where: conditions.length ? and(...conditions) : undefined,
     orderBy:
       filters.sortBy === "submitted"
-        ? [desc(orders.createdAt)]
+        ? [shippedLast, desc(orders.createdAt)]
         : // earliest delivery first; newest submission within the same day
-          [orders.deliveryDate, desc(orders.createdAt)],
+          [shippedLast, orders.deliveryDate, desc(orders.createdAt)],
   });
   if (orderRows.length === 0) return [];
 

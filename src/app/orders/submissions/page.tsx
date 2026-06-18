@@ -19,8 +19,9 @@ export default async function RepAllSubmissionsPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const user = await requireRole("rep", "buyer");
+  const user = await requireRole("rep", "buyer", "scheduling");
   const isRep = user.role === "rep";
+  const isManager = user.role === "buyer" || user.role === "admin";
   const params = await searchParams;
   const get = (key: string) => {
     const v = params[key];
@@ -151,13 +152,16 @@ export default async function RepAllSubmissionsPage({
                   showRep
                   showDepartment
                   // No Edit button next to the status here — Edit lives only in
-                  // the expanded dropdown. Reps may edit their own Pending
-                  // orders; buyer/admin may edit any.
+                  // the expanded dropdown. Reps edit their own Pending orders;
+                  // buyer/admin edit any; Scheduling edits weight + status only.
                   manageStatus={!isRep}
                   canEdit={
+                    isRep ? own && s.submissionStatus === "pending" : isManager
+                  }
+                  canEditWeight={
                     isRep ? own && s.submissionStatus === "pending" : true
                   }
-                  canDelete={!isRep}
+                  canDelete={isManager}
                 />
               );
             })}

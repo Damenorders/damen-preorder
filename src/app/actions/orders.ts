@@ -246,15 +246,15 @@ export async function createOrder(input: OrderInput): Promise<ActionResult> {
 }
 
 // ---------------------------------------------------------------------------
-// Quick weight edit from the submissions page. Same permission rules as a
-// full edit: buyer/admin any order, rep only own + Pending (SPEC.md §16).
+// Quick weight edit from the submissions page. Buyer/admin/scheduling: any
+// order; rep: only own + Pending (SPEC.md §16).
 // ---------------------------------------------------------------------------
 
 export async function updateLineWeight(
   lineId: number,
   weight: number,
 ): Promise<ActionResult> {
-  const user = await requireRole("rep", "buyer");
+  const user = await requireRole("rep", "buyer", "scheduling");
 
   if (!Number.isFinite(weight) || weight <= 0) {
     return { ok: false, error: "Weight must be a positive number." };

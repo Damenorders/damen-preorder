@@ -1,5 +1,5 @@
 import "server-only";
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   clients,
@@ -126,12 +126,14 @@ export async function getSubmissions(
       ? and(eq(orders.department, department), eq(orders.repUserId, user.id))
       : eq(orders.department, department);
 
+  // Shipped orders always sink to the bottom, regardless of the chosen sort.
+  const shippedLast = sql`case when ${orders.submissionStatus} = 'shipped' then 1 else 0 end`;
   const orderRows = await db.query.orders.findMany({
     where,
     orderBy:
       sortBy === "submitted"
-        ? [desc(orders.createdAt)]
-        : [orders.deliveryDate, desc(orders.createdAt)],
+        ? [shippedLast, desc(orders.createdAt)]
+        : [shippedLast, orders.deliveryDate, desc(orders.createdAt)],
   });
   if (orderRows.length === 0) return [];
 
