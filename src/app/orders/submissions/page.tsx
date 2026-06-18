@@ -150,9 +150,9 @@ export default async function RepAllSubmissionsPage({
                   submission={s}
                   showRep
                   showDepartment
-                  // Reps: Edit only on their own Pending orders; status is
-                  // read-only. Buyer/admin keep full status management.
-                  editButton={isRep && own && s.submissionStatus === "pending"}
+                  // No Edit button next to the status here — Edit lives only in
+                  // the expanded dropdown. Reps may edit their own Pending
+                  // orders; buyer/admin may edit any.
                   manageStatus={!isRep}
                   canEdit={
                     isRep ? own && s.submissionStatus === "pending" : true

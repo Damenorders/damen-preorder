@@ -68,7 +68,8 @@ const emptyBuilder: BuilderState = {
   editingKey: null,
   productId: null,
   specsJson: {},
-  quantity: "1",
+  // Blank so users can type a number straight away (no pre-filled 1 to delete).
+  quantity: "",
   weight: "",
   notes: "",
 };
@@ -616,6 +617,7 @@ export default function OrderForm({
                       setBuilder((b) => ({ ...b, quantity: e.target.value }))
                     }
                     className={inputClass}
+                    placeholder="Enter a number"
                   />
                 </label>
               )}
