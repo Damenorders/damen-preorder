@@ -40,25 +40,84 @@ const SEED_CLIENTS = [
   "Marché Côtier",
 ];
 
-// SPEC.md §8 — exact options. display templates produce the §25 readable
-// string, e.g. "10/12 · Skin On · Bone Off · Deep Clean · Head & Skin Yes"
+// Fish products. display templates produce the §25 readable string.
+// Conditional options use showWhen (only shown/required when a parent answer
+// matches); "info" fields record a fixed fact (e.g. Cod USA = fillets 10lb box).
+
 const salmonConfig: ProductFormConfig = {
-  quantity: { min: 1, max: 20 },
+  quantity: { min: 1, max: 999 },
+  quantityLabel: "Quantity of Fish",
+  weightLabel: "Weight (lbs)",
   fields: [
-    { key: "size", label: "Size", type: "select", options: ["8/10", "10/12", "12/14"], required: true, display: "{value}" },
-    { key: "skin", label: "Skin", type: "select", options: ["On", "Off"], required: true, display: "Skin {value}" },
-    { key: "bone", label: "Bone", type: "select", options: ["On", "Off"], required: true, display: "Bone {value}" },
-    { key: "clean", label: "Clean", type: "select", options: ["Simple", "Deep"], required: true, display: "{value} Clean" },
-    { key: "headAndSkin", label: "Head & Skin", type: "select", options: ["Yes", "No"], required: true, display: "Head & Skin {value}" },
+    { key: "size", label: "Size", type: "select", options: ["10/12", "12/14", "14/16"], required: true, display: "{value}" },
+    { key: "portioned", label: "Portioned 7oz", type: "select", options: ["Yes", "No"], required: true, display: "Portioned 7oz {value}" },
+    { key: "skin", label: "Skin", type: "select", options: ["On", "Off"], required: true, display: "Skin {value}", showWhen: { field: "portioned", equals: "No" } },
+    { key: "bone", label: "Bone", type: "select", options: ["On", "Off"], required: true, display: "Bone {value}", showWhen: { field: "portioned", equals: "No" } },
+    { key: "clean", label: "Clean", type: "select", options: ["Simple Clean", "Deep Clean"], required: true, display: "{value}", showWhen: { field: "portioned", equals: "No" } },
+    { key: "headAndSkin", label: "Head & Skin in Box", type: "select", options: ["Yes", "No"], required: true, display: "Head & Skin {value}" },
   ],
 };
 
-const loupDeMerConfig: ProductFormConfig = {
-  quantity: { min: 1, max: 20 },
+// Sea Bass and Sea Bream share the exact same options.
+function seaBassBreamConfig(): ProductFormConfig {
+  return {
+    quantity: { min: 1, max: 999 },
+    quantityLabel: "Quantity of Fish",
+    weightLabel: "Weight (lbs)",
+    fields: [
+      { key: "size", label: "Size", type: "select", options: ["406oz", "608oz", "810oz"], required: true, display: "{value}" },
+      { key: "cut", label: "Cut", type: "select", options: ["Whole", "Cut"], required: true, display: "{value}" },
+      { key: "style", label: "Style", type: "select", options: ["Fillet", "Butterfly"], required: true, display: "{value}", showWhen: { field: "cut", equals: "Cut" } },
+      { key: "skin", label: "Skin", type: "select", options: ["On", "Off"], required: true, display: "Skin {value}", showWhen: { field: "style", equals: "Fillet" } },
+      { key: "withHead", label: "With Head", type: "select", options: ["Yes", "No"], required: true, display: "With Head {value}", showWhen: { field: "style", equals: "Butterfly" } },
+    ],
+  };
+}
+
+const codConfig: ProductFormConfig = {
+  // Count shown once a Type is picked: "Number of boxes" for USA (fixed fillets
+  // 10 lb box), "Quantity of Fish" for Icelandic (which also asks Weight (lbs)).
+  quantity: { min: 1, max: 999 },
+  quantityLabel: "Quantity of Fish",
+  quantityShowWhen: { field: "type", equals: ["USA", "Icelandic"] },
+  quantityLabelWhen: {
+    field: "type",
+    map: { USA: "Number of boxes", Icelandic: "Quantity of Fish" },
+  },
+  weightLabel: "Weight (lbs)",
+  weightShowWhen: { field: "type", equals: "Icelandic" },
   fields: [
-    { key: "format", label: "Format", type: "select", options: ["Whole", "Fillet"], required: true, display: "{value}" },
-    { key: "size", label: "Size", type: "select", options: ["Small", "Medium", "Big"], required: true, display: "{value}" },
-    { key: "headAndSkin", label: "Head & Skin", type: "select", options: ["Yes", "No"], required: true, display: "Head & Skin {value}" },
+    { key: "type", label: "Type", type: "select", options: ["USA", "Icelandic"], required: true, display: "{value}" },
+    { key: "usaFormat", label: "Format", type: "info", text: "Fillets · 10 lb box", display: "{value}", showWhen: { field: "type", equals: "USA" } },
+    { key: "cut", label: "Cut", type: "select", options: ["Whole", "Fillet"], required: true, display: "{value}", showWhen: { field: "type", equals: "Icelandic" } },
+    { key: "skin", label: "Skin", type: "select", options: ["On", "Off"], required: true, display: "Skin {value}", showWhen: { field: "cut", equals: "Fillet" } },
+    { key: "bone", label: "Bone", type: "select", options: ["On", "Off"], required: true, display: "Bone {value}", showWhen: { field: "cut", equals: "Fillet" } },
+  ],
+};
+
+const musselsConfig: ProductFormConfig = {
+  quantity: { min: 1, max: 999 },
+  quantityLabel: "Number of boxes",
+  hideWeight: true,
+  fields: [
+    { key: "size", label: "Size", type: "select", options: ["2lbs", "25lbs"], required: true, display: "{value}" },
+  ],
+};
+
+const pastaClamsConfig: ProductFormConfig = {
+  quantity: { min: 1, max: 999 },
+  quantityLabel: "Number of boxes",
+  hideWeight: true,
+  fields: [],
+};
+
+const liveLobsterConfig: ProductFormConfig = {
+  quantity: { min: 1, max: 999 },
+  quantityLabel: "Number of Lobsters",
+  quantityOptional: true,
+  hideWeight: true,
+  fields: [
+    { key: "size", label: "Size", type: "select", options: ["1.25-1.5lbs", "1.5-2lbs"], required: true, display: "{value}" },
   ],
 };
 
@@ -101,13 +160,21 @@ const MEAT_PRODUCTS: Array<{ name: string; formConfig: ProductFormConfig }> = [
   },
   { name: "Filet Mignon", formConfig: meatConfig() },
   { name: "Denuded Inside Round", formConfig: meatConfig() },
-  { name: "Striploin", formConfig: meatConfig() },
+  {
+    name: "Striploin",
+    formConfig: meatConfig([
+      { key: "cut", label: "Cut", type: "select", options: ["Whole", "Portioned"], required: true, display: "{value}" },
+      { key: "size", label: "Size", type: "select", options: ["8oz", "10oz", "12oz", "14oz", "16oz"], required: true, display: "{value}", showWhen: { field: "cut", equals: "Portioned" } },
+    ]),
+  },
   { name: "Flank Steak", formConfig: meatConfig() },
   { name: "Frozen Lamb Shoulder", formConfig: meatConfig() },
   { name: "Ground Chicken", formConfig: meatConfig() },
   {
-    name: "Ribeye",
+    name: "Ribeye Steak",
     formConfig: meatConfig([
+      { key: "cut", label: "Cut", type: "select", options: ["Whole", "Portioned"], required: true, display: "{value}" },
+      { key: "size", label: "Size", type: "select", options: ["8oz", "10oz", "12oz", "14oz", "16oz"], required: true, display: "{value}", showWhen: { field: "cut", equals: "Portioned" } },
       { key: "bone", label: "Bone", type: "select", options: ["In", "Off"], required: true, display: "Bone {value}" },
     ]),
   },
@@ -147,7 +214,12 @@ const SEED_PRODUCTS: Array<{
   formConfig: ProductFormConfig;
 }> = [
   { name: "Salmon", department: "fish", productType: "Fish", formConfig: salmonConfig },
-  { name: "Loup de Mer", department: "fish", productType: "Fish", formConfig: loupDeMerConfig },
+  { name: "Sea Bass", department: "fish", productType: "Fish", formConfig: seaBassBreamConfig() },
+  { name: "Sea Bream", department: "fish", productType: "Fish", formConfig: seaBassBreamConfig() },
+  { name: "Cod", department: "fish", productType: "Fish", formConfig: codConfig },
+  { name: "Mussels", department: "fish", productType: "Fish", formConfig: musselsConfig },
+  { name: "Pasta Clams 10lbs", department: "fish", productType: "Fish", formConfig: pastaClamsConfig },
+  { name: "Live Lobster", department: "fish", productType: "Fish", formConfig: liveLobsterConfig },
   ...MEAT_PRODUCTS.map((m) => ({
     name: m.name,
     department: "meat" as schema.Department,

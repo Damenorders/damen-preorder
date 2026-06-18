@@ -84,7 +84,7 @@ export default async function EditOrderPage({
           notes: order.notes ?? "",
           lines: initialLines,
         }}
-        doneHref={`/orders/${order.department}/submissions`}
+        dashboardHref={homePathFor(user.role)}
       />
     </PageShell>
   );

@@ -9,7 +9,8 @@ export interface OrderLineInput {
   id?: number;
   productId: number;
   specsJson: SpecsJson;
-  quantity: number;
+  /** Piece count — null when the product has no count, or an optional count left blank */
+  quantity: number | null;
   /** Weight in KG — optional */
   weight: number | null;
   notes: string;

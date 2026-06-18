@@ -80,6 +80,7 @@ export default async function SubmissionsPage({
               canEdit={
                 user.role !== "rep" || s.submissionStatus === "pending"
               }
+              canDelete={user.role !== "rep"}
             />
           ))}
         </ul>

@@ -47,7 +47,7 @@ export interface SubmissionLineView {
   product: string;
   specs: string;
   specsJson: Record<string, string>;
-  quantity: number;
+  quantity: number | null;
   weight: string | null;
   notes: string | null;
   productId: number | null;
@@ -60,6 +60,8 @@ export interface SubmissionView {
   clientName: string;
   deliveryDate: string;
   repName: string;
+  /** Owner of the order — used to decide edit rights on shared views */
+  repUserId: string;
   submissionStatus: SubmissionStatus;
   notes: string | null;
   createdAt: Date;
@@ -79,6 +81,7 @@ function toSubmissionView(
     clientName: order.clientName,
     deliveryDate: order.deliveryDate,
     repName: order.repName,
+    repUserId: order.repUserId,
     submissionStatus: order.submissionStatus,
     notes: order.notes,
     createdAt: order.createdAt,

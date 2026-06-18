@@ -96,7 +96,7 @@ export async function getBuyingSheet(
       };
       groups.set(key, group);
     }
-    group.totalQuantity += row.quantity;
+    group.totalQuantity += row.quantity ?? 0;
     group.totalWeight += row.weight ? Number(row.weight) : 0;
     group.clientSet.add(row.clientName);
   }

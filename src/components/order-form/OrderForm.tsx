@@ -10,11 +10,16 @@ import { useRouter } from "next/navigation";
 import { createOrder, updateOrder } from "@/app/actions/orders";
 import {
   formatSpecs,
+  isFieldVisible,
+  isQuantityVisible,
+  isWeightVisible,
+  quantityLabelFor,
   type ProductFormConfig,
   type SpecsJson,
 } from "@/lib/product-config";
 import type { Department } from "@/db/schema";
 import type { OrderInput } from "@/lib/order-input";
+import DateField from "@/components/DateField";
 
 export interface FormProduct {
   id: number;
@@ -27,7 +32,7 @@ export interface FormLine {
   id?: number; // db id when editing an existing line
   productId: number;
   specsJson: SpecsJson;
-  quantity: number;
+  quantity: number | null;
   weight: string;
   notes: string;
 }
@@ -45,8 +50,8 @@ interface OrderFormProps {
     notes: string;
     lines: FormLine[];
   };
-  /** Where to go after a successful submit */
-  doneHref: string;
+  /** Dashboard path for the "Confirm" action on the success popup */
+  dashboardHref: string;
 }
 
 interface BuilderState {
@@ -80,7 +85,7 @@ export default function OrderForm({
   products,
   mode,
   initial,
-  doneHref,
+  dashboardHref,
 }: OrderFormProps) {
   const router = useRouter();
 
@@ -101,6 +106,9 @@ export default function OrderForm({
   const [builderError, setBuilderError] = useState<string | null>(null);
   const [serverError, setServerError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // Success confirmation modal shown after a submit/save succeeds.
+  const [submitted, setSubmitted] = useState(false);
+  const [savedOrderId, setSavedOrderId] = useState<number | null>(null);
 
   const productById = useMemo(
     () => new Map(products.map((p) => [p.id, p])),
@@ -151,36 +159,70 @@ export default function OrderForm({
   }
 
   function setSpec(key: string, value: string) {
-    setBuilder((b) => ({ ...b, specsJson: { ...b.specsJson, [key]: value } }));
+    setBuilder((b) => {
+      const specsJson = { ...b.specsJson, [key]: value };
+      // Clear answers for any field this change hides — and, recursively, the
+      // fields those hidden fields controlled (e.g. Cut → Style → Skin), so no
+      // stale deep value lingers when a parent answer changes.
+      const config = b.productId
+        ? productById.get(b.productId)?.formConfig
+        : undefined;
+      if (config) {
+        let changed = true;
+        while (changed) {
+          changed = false;
+          for (const field of config.fields) {
+            if (
+              specsJson[field.key] !== undefined &&
+              !isFieldVisible(field, specsJson)
+            ) {
+              delete specsJson[field.key];
+              changed = true;
+            }
+          }
+        }
+      }
+      // Drop previously-entered weight/quantity if this change hides them.
+      const weight =
+        config && !isWeightVisible(config, specsJson) ? "" : b.weight;
+      const quantity =
+        config && !isQuantityVisible(config, specsJson) ? "" : b.quantity;
+      return { ...b, specsJson, weight, quantity };
+    });
   }
 
   function validateBuilder(): string | null {
     if (!activeProduct) return "Choose a product first.";
     const config = activeProduct.formConfig;
     for (const field of config.fields) {
+      if (!isFieldVisible(field, builder.specsJson)) continue;
+      if (field.type === "info") continue;
       if (field.required !== false && !builder.specsJson[field.key]) {
         return `Please choose ${field.label}.`;
       }
     }
-    if (config.quantity) {
-      const { min, max } = config.quantity;
-      const qty = Number(builder.quantity);
-      if (
-        builder.quantity.trim() === "" ||
-        !Number.isInteger(qty) ||
-        qty < min ||
-        qty > max
-      ) {
-        return `Quantity must be between ${min} and ${max}.`;
+    if (isQuantityVisible(config, builder.specsJson) && config.quantity) {
+      const label = quantityLabelFor(config, builder.specsJson);
+      const blank = builder.quantity.trim() === "";
+      if (blank) {
+        if (!config.quantityOptional) return `${label} is required.`;
+      } else {
+        const { min, max } = config.quantity;
+        const qty = Number(builder.quantity);
+        if (!Number.isInteger(qty) || qty < min || qty > max) {
+          return `${label} must be between ${min} and ${max}.`;
+        }
       }
     }
-    const weightLabel = config.weightLabel ?? "Weight (kg)";
-    if (builder.weight.trim() === "") {
-      if (config.weightRequired) return `Enter ${weightLabel}.`;
-    } else {
-      const w = Number(builder.weight);
-      if (!Number.isFinite(w) || w <= 0) {
-        return `${weightLabel} must be a positive number.`;
+    if (isWeightVisible(config, builder.specsJson)) {
+      const weightLabel = config.weightLabel ?? "Weight (kg)";
+      if (builder.weight.trim() === "") {
+        if (config.weightRequired) return `Enter ${weightLabel}.`;
+      } else {
+        const w = Number(builder.weight);
+        if (!Number.isFinite(w) || w <= 0) {
+          return `${weightLabel} must be a positive number.`;
+        }
       }
     }
     return null;
@@ -199,10 +241,12 @@ export default function OrderForm({
         : undefined,
       productId: builder.productId!,
       specsJson: builder.specsJson,
-      // products without a quantity input (meats) are stored as quantity 1
-      quantity: activeProduct!.formConfig.quantity
-        ? Number(builder.quantity)
-        : 1,
+      // No (visible) quantity input, or an optional one left blank → null.
+      quantity: isQuantityVisible(activeProduct!.formConfig, builder.specsJson)
+        ? builder.quantity.trim() === ""
+          ? null
+          : Number(builder.quantity)
+        : null,
       weight: builder.weight,
       notes: builder.notes,
     };
@@ -220,7 +264,7 @@ export default function OrderForm({
       editingKey: line.key,
       productId: line.productId,
       specsJson: { ...line.specsJson },
-      quantity: String(line.quantity),
+      quantity: line.quantity == null ? "" : String(line.quantity),
       weight: line.weight,
       notes: line.notes,
     });
@@ -274,7 +318,28 @@ export default function OrderForm({
       setSubmitting(false);
       return;
     }
-    router.push(doneHref);
+    // Confirm with a popup instead of navigating away immediately.
+    setSavedOrderId(result.orderId);
+    setSubmitting(false);
+    setSubmitted(true);
+  }
+
+  function goTo(href: string) {
+    router.push(href);
+    router.refresh();
+  }
+
+  // "Place another order" — clear the form and dismiss the confirmation.
+  function startAnother() {
+    setClientName("");
+    setDeliveryDate("");
+    setOrderNotes("");
+    setLines([]);
+    setBuilder(initialBuilder());
+    setBuilderError(null);
+    setServerError(null);
+    setSavedOrderId(null);
+    setSubmitted(false);
     router.refresh();
   }
 
@@ -350,15 +415,13 @@ export default function OrderForm({
             New names are saved automatically for next time.
           </span>
         </div>
-        <label className="mt-4 block text-sm font-medium text-neutral-700">
-          Delivery date
-          <input
-            type="date"
-            value={deliveryDate}
-            onChange={(e) => setDeliveryDate(e.target.value)}
-            className={inputClass}
-          />
-        </label>
+        <DateField
+          label="Delivery date"
+          value={deliveryDate}
+          onChange={setDeliveryDate}
+          labelClassName="mt-4 text-sm font-medium text-neutral-700"
+          inputClassName={inputClass}
+        />
         <label className="mt-4 block text-sm font-medium text-neutral-700">
           General notes <span className="font-normal text-neutral-400">(optional)</span>
           <textarea
@@ -402,10 +465,12 @@ export default function OrderForm({
                       )}
                       <p className="mt-0.5 text-sm text-neutral-700">
                         {[
-                          product?.formConfig.quantity
+                          product?.formConfig.quantity && line.quantity != null
                             ? `Qty ${line.quantity}`
                             : null,
-                          line.weight.trim() !== "" ? `${line.weight} kg` : null,
+                          line.weight.trim() !== ""
+                            ? `${line.weight} ${product?.formConfig.weightLabel?.match(/lb/i) ? "lb" : "kg"}`
+                            : null,
                           line.notes || null,
                         ]
                           .filter(Boolean)
@@ -483,11 +548,18 @@ export default function OrderForm({
               )}
             </div>
 
-            {/* Dynamic questions from form_config */}
-            {activeProduct.formConfig.fields.map((field) => (
+            {/* Dynamic questions from form_config (conditional fields hidden
+                until their controlling answer is chosen) */}
+            {activeProduct.formConfig.fields
+              .filter((field) => isFieldVisible(field, builder.specsJson))
+              .map((field) => (
               <div key={field.key} className="mt-4">
                 <p className="text-sm font-medium text-neutral-700">{field.label}</p>
-                {field.type === "text" ? (
+                {field.type === "info" ? (
+                  <p className="mt-1.5 rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-base text-neutral-600">
+                    {field.text}
+                  </p>
+                ) : field.type === "text" ? (
                   <textarea
                     value={builder.specsJson[field.key] ?? ""}
                     onChange={(e) => setSpec(field.key, e.target.value)}
@@ -521,12 +593,19 @@ export default function OrderForm({
             ))}
 
             <div
-              className={`mt-4 grid gap-3 ${activeProduct.formConfig.quantity && !activeProduct.formConfig.hideWeight ? "grid-cols-2" : "grid-cols-1"}`}
+              className={`mt-4 grid gap-3 ${isQuantityVisible(activeProduct.formConfig, builder.specsJson) && isWeightVisible(activeProduct.formConfig, builder.specsJson) ? "grid-cols-2" : "grid-cols-1"}`}
             >
-              {activeProduct.formConfig.quantity && (
+              {isQuantityVisible(activeProduct.formConfig, builder.specsJson) && activeProduct.formConfig.quantity && (
                 <label className="block text-sm font-medium text-neutral-700">
-                  Quantity ({activeProduct.formConfig.quantity.min}–
-                  {activeProduct.formConfig.quantity.max})
+                  {quantityLabelFor(activeProduct.formConfig, builder.specsJson)}{" "}
+                  {activeProduct.formConfig.quantityOptional ? (
+                    <span className="font-normal text-neutral-400">(optional)</span>
+                  ) : (
+                    <span className="font-normal text-neutral-400">
+                      ({activeProduct.formConfig.quantity.min}–
+                      {activeProduct.formConfig.quantity.max})
+                    </span>
+                  )}
                   <input
                     type="number"
                     inputMode="numeric"
@@ -540,7 +619,7 @@ export default function OrderForm({
                   />
                 </label>
               )}
-              {!activeProduct.formConfig.hideWeight && (
+              {isWeightVisible(activeProduct.formConfig, builder.specsJson) && (
                 <label className="block text-sm font-medium text-neutral-700">
                   {activeProduct.formConfig.weightLabel ?? "Weight (kg)"}
                   {!activeProduct.formConfig.weightRequired && (
@@ -585,7 +664,7 @@ export default function OrderForm({
               <button
                 type="button"
                 onClick={commitLine}
-                className="flex-1 rounded-xl bg-accent-600 px-4 py-3.5 text-base font-semibold text-white transition hover:bg-accent-700"
+                className="flex-1 rounded-xl bg-green-600 px-4 py-3.5 text-base font-semibold text-white transition hover:bg-green-700"
               >
                 {builder.editingKey ? "Update product" : "Add to order"}
               </button>
@@ -624,6 +703,69 @@ export default function OrderForm({
             ? "Submit order"
             : "Save changes"}
       </button>
+
+      {/* Confirmation popup after a successful submit/save */}
+      {submitted && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 text-center shadow-xl">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-green-100">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2.5}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="h-7 w-7 text-green-600"
+                aria-hidden
+              >
+                <path d="M20 6 9 17l-5-5" />
+              </svg>
+            </div>
+            <h3 className="mt-4 text-lg font-semibold">
+              {mode === "create" ? "Order submitted" : "Changes saved"}
+            </h3>
+            <p className="mt-1 text-sm text-neutral-500">
+              {mode === "create"
+                ? "Your order has been sent to the buyer."
+                : "Your changes have been saved."}
+            </p>
+            <div className="mt-5 flex flex-col gap-2">
+              {mode === "create" && (
+                <button
+                  type="button"
+                  onClick={startAnother}
+                  className="rounded-xl border border-neutral-300 px-4 py-3 text-sm font-medium text-neutral-700 transition hover:bg-neutral-50"
+                >
+                  Place another order
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() =>
+                  goTo(
+                    `/orders/edit/${savedOrderId ?? initial?.orderId ?? ""}`,
+                  )
+                }
+                className="rounded-xl border border-neutral-300 px-4 py-3 text-sm font-medium text-neutral-700 transition hover:bg-neutral-50"
+              >
+                Edit order
+              </button>
+              <button
+                type="button"
+                onClick={() => goTo(dashboardHref)}
+                className="rounded-xl bg-accent-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-accent-700"
+              >
+                Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

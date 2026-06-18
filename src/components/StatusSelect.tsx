@@ -15,9 +15,10 @@ import {
 } from "@/lib/labels";
 import type { BuyerTableStatus, SubmissionStatus } from "@/db/schema";
 
-type Props =
+type Props = (
   | { kind: "submission"; orderId: number; value: SubmissionStatus }
-  | { kind: "buyer"; orderId: number; value: BuyerTableStatus };
+  | { kind: "buyer"; orderId: number; value: BuyerTableStatus }
+) & { compact?: boolean };
 
 // Colour coding: Pending yellow, Ready green, Received/Shipped dark green;
 // in-between buyer states get their own tints.
@@ -62,9 +63,9 @@ export default function StatusSelect(props: Props) {
         value={props.value}
         disabled={pending}
         onChange={(e) => handleChange(e.target.value)}
-        className={`rounded-lg border px-2.5 py-2 text-sm font-medium outline-none focus:ring-2 focus:ring-accent-100 disabled:opacity-50 ${
-          statusColors[props.value] ?? "border-neutral-300 bg-white"
-        }`}
+        className={`rounded-lg border font-medium outline-none focus:ring-2 focus:ring-accent-100 disabled:opacity-50 ${
+          props.compact ? "px-1.5 py-1 text-xs" : "px-2.5 py-2 text-sm"
+        } ${statusColors[props.value] ?? "border-neutral-300 bg-white"}`}
         aria-label={
           props.kind === "submission" ? "Submission status" : "Buyer status"
         }

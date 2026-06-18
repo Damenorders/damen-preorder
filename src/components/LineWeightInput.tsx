@@ -48,7 +48,7 @@ export default function LineWeightInput({
           onKeyDown={(e) => {
             if (e.key === "Enter" && dirty) save();
           }}
-          className="w-20 rounded-lg border border-neutral-300 px-2 py-1.5 text-sm outline-none focus:border-accent-600 focus:ring-2 focus:ring-accent-100 disabled:opacity-50"
+          className="w-20 rounded-lg border border-neutral-300 px-2 py-1.5 text-sm font-semibold outline-none focus:border-accent-600 focus:ring-2 focus:ring-accent-100 disabled:opacity-50"
           aria-label="Weight in kg"
         />
         <span className="text-sm text-neutral-500">kg</span>

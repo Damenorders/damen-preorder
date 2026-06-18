@@ -11,13 +11,16 @@ import FilterBar, { type FilterField } from "@/components/FilterBar";
 import LiveRefresh from "@/components/LiveRefresh";
 import SortPills from "@/components/SortPills";
 
-// All Submissions — buyer/admin only, advanced filtering per SPEC.md §14.
-export default async function AllSubmissionsPage({
+// All Submissions for reps (and buyer/admin): everyone's orders are visible,
+// but a rep can only edit their own, still-Pending submissions. Status here is
+// the submission status only — buyer_table_status is never in this payload.
+export default async function RepAllSubmissionsPage({
   searchParams,
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const user = await requireRole("buyer");
+  const user = await requireRole("rep", "buyer");
+  const isRep = user.role === "rep";
   const params = await searchParams;
   const get = (key: string) => {
     const v = params[key];
@@ -49,7 +52,6 @@ export default async function AllSubmissionsPage({
     filters.hasNotes,
   ].filter(Boolean).length;
 
-  // Sort pills keep all current filters in the URL
   const sortHref = (value: string) => {
     const p = new URLSearchParams();
     for (const key of ["module", "status", "client", "rep", "product", "delivery", "submitted", "updated", "notes"]) {
@@ -58,7 +60,7 @@ export default async function AllSubmissionsPage({
     }
     if (value === "submitted") p.set("sortBy", "submitted");
     const qs = p.toString();
-    return `/buyer/submissions${qs ? `?${qs}` : ""}`;
+    return `/orders/submissions${qs ? `?${qs}` : ""}`;
   };
 
   const [submissions, options] = await Promise.all([
@@ -117,7 +119,11 @@ export default async function AllSubmissionsPage({
       backHref={homePathFor(user.role)}
       backLabel="Dashboard"
       title="All Submissions"
-      subtitle={`${submissions.length} order${submissions.length === 1 ? "" : "s"}`}
+      subtitle={
+        isRep
+          ? `Everyone's orders — you can edit your own. ${submissions.length} order${submissions.length === 1 ? "" : "s"}`
+          : `${submissions.length} order${submissions.length === 1 ? "" : "s"}`
+      }
       wide
     >
       <LiveRefresh />
@@ -136,17 +142,25 @@ export default async function AllSubmissionsPage({
           </div>
         ) : (
           <ul className="flex flex-col gap-3">
-            {submissions.map((s) => (
-              <SubmissionCard
-                key={s.id}
-                submission={s}
-                showRep
-                showDepartment
-                canEdit
-                manageStatus
-                canDelete
-              />
-            ))}
+            {submissions.map((s) => {
+              const own = s.repUserId === user.id;
+              return (
+                <SubmissionCard
+                  key={s.id}
+                  submission={s}
+                  showRep
+                  showDepartment
+                  // Reps: Edit only on their own Pending orders; status is
+                  // read-only. Buyer/admin keep full status management.
+                  editButton={isRep && own && s.submissionStatus === "pending"}
+                  manageStatus={!isRep}
+                  canEdit={
+                    isRep ? own && s.submissionStatus === "pending" : true
+                  }
+                  canDelete={!isRep}
+                />
+              );
+            })}
           </ul>
         )}
       </div>

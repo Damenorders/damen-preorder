@@ -3,10 +3,12 @@
 // Compact submission row that expands to full detail — SPEC.md §15.
 // Receives a SubmissionView, which never contains buyer_table_status.
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { departmentLabels, submissionStatusLabels } from "@/lib/labels";
 import { formatDate, formatDateTime } from "@/lib/dates";
+import { deleteOrder } from "@/app/actions/orders";
 import StatusSelect from "@/components/StatusSelect";
 import LineWeightInput from "@/components/LineWeightInput";
 import type { SubmissionView } from "@/lib/orders-data";
@@ -26,6 +28,7 @@ export default function SubmissionCard({
   showDepartment = false,
   manageStatus = false,
   editButton = false,
+  canDelete = false,
 }: {
   submission: SubmissionView;
   canEdit: boolean;
@@ -36,8 +39,26 @@ export default function SubmissionCard({
   manageStatus?: boolean;
   /** Edit Form mode: show an Edit button in place of the status */
   editButton?: boolean;
+  /** Buyer/admin only: allow deleting the submission */
+  canDelete?: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const router = useRouter();
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deleting, startDelete] = useTransition();
+
+  function handleDelete() {
+    setDeleteError(null);
+    startDelete(async () => {
+      const result = await deleteOrder(submission.id);
+      if (!result.ok) {
+        setDeleteError(result.error);
+        return;
+      }
+      router.refresh();
+    });
+  }
 
   const totalWeight = submission.lines.reduce(
     (sum, l) => sum + (l.weight ? Number(l.weight) : 0),
@@ -62,29 +83,43 @@ export default function SubmissionCard({
           <p className="truncate font-medium">{submission.clientName}</p>
           <p className="mt-0.5 truncate text-sm text-neutral-500">
             {formatDate(submission.deliveryDate)} · {productSummary}
-            {totalWeight > 0 ? ` · ${totalWeight.toFixed(1)} kg` : ""}
+            {totalWeight > 0 ? (
+              <>
+                {" · "}
+                <span className="font-semibold text-neutral-700">
+                  {totalWeight.toFixed(1)} kg
+                </span>
+              </>
+            ) : (
+              ""
+            )}
           </p>
         </button>
-        {editButton && canEdit ? (
-          <Link
-            href={`/orders/edit/${submission.id}`}
-            className="shrink-0 rounded-xl bg-accent-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-accent-700"
-          >
-            Edit
-          </Link>
-        ) : manageStatus ? (
-          <StatusSelect
-            kind="submission"
-            orderId={submission.id}
-            value={submission.submissionStatus}
-          />
-        ) : (
-          <span
-            className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${statusStyles[submission.submissionStatus]}`}
-          >
-            {submissionStatusLabels[submission.submissionStatus]}
-          </span>
-        )}
+        {/* Status is always shown; the Edit button appears alongside it (it
+            no longer replaces the status). */}
+        <div className="flex shrink-0 items-center gap-2">
+          {manageStatus ? (
+            <StatusSelect
+              kind="submission"
+              orderId={submission.id}
+              value={submission.submissionStatus}
+            />
+          ) : (
+            <span
+              className={`rounded-full px-2.5 py-1 text-xs font-medium ${statusStyles[submission.submissionStatus]}`}
+            >
+              {submissionStatusLabels[submission.submissionStatus]}
+            </span>
+          )}
+          {editButton && canEdit && (
+            <Link
+              href={`/orders/edit/${submission.id}`}
+              className="rounded-xl bg-accent-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-accent-700"
+            >
+              Edit
+            </Link>
+          )}
+        </div>
       </div>
 
       {/* Expanded detail: specs, notes, times */}
@@ -98,11 +133,15 @@ export default function SubmissionCard({
                   <p className="mt-0.5 text-sm text-neutral-600">{line.specs}</p>
                 )}
                 <p className="mt-1 flex items-center gap-2 text-sm text-neutral-700">
-                  <span>Qty {line.quantity}</span>
+                  {line.quantity != null && <span>Qty {line.quantity}</span>}
                   {canEdit ? (
                     <LineWeightInput lineId={line.id} initial={line.weight} />
+                  ) : line.weight ? (
+                    <span>
+                      <span className="font-semibold">{line.weight}</span> kg
+                    </span>
                   ) : (
-                    <span>{line.weight ? `${line.weight} kg` : "—"}</span>
+                    <span>—</span>
                   )}
                 </p>
                 {line.notes && (
@@ -132,15 +171,52 @@ export default function SubmissionCard({
                 ? ` · Updated ${formatDateTime(submission.updatedAt)}`
                 : ""}
             </span>
-            {canEdit && (
-              <Link
-                href={`/orders/edit/${submission.id}`}
-                className="rounded-lg bg-accent-50 px-3 py-2 text-sm font-medium text-accent-800 hover:bg-accent-100"
-              >
-                Edit
-              </Link>
-            )}
+            <div className="flex items-center gap-2">
+              {canEdit && (
+                <Link
+                  href={`/orders/edit/${submission.id}`}
+                  className="rounded-lg bg-accent-50 px-3 py-2 text-sm font-medium text-accent-800 hover:bg-accent-100"
+                >
+                  Edit
+                </Link>
+              )}
+              {canDelete &&
+                (confirmingDelete ? (
+                  <span className="flex items-center gap-2">
+                    <span className="text-sm text-neutral-600">Delete?</span>
+                    <button
+                      type="button"
+                      onClick={handleDelete}
+                      disabled={deleting}
+                      className="rounded-lg bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-60"
+                    >
+                      {deleting ? "Deleting…" : "Yes, delete"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setConfirmingDelete(false)}
+                      disabled={deleting}
+                      className="rounded-lg border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
+                    >
+                      Cancel
+                    </button>
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setConfirmingDelete(true)}
+                    className="rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-100"
+                  >
+                    Delete
+                  </button>
+                ))}
+            </div>
           </div>
+          {deleteError && (
+            <p role="alert" className="mt-2 text-sm text-red-600">
+              {deleteError}
+            </p>
+          )}
         </div>
       )}
     </li>

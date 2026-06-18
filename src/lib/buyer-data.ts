@@ -110,6 +110,7 @@ export async function getAllSubmissions(
     clientName: o.clientName,
     deliveryDate: o.deliveryDate,
     repName: o.repName,
+    repUserId: o.repUserId,
     submissionStatus: o.submissionStatus,
     notes: o.notes,
     createdAt: o.createdAt,
@@ -176,7 +177,7 @@ export interface BuyerTableRow {
   department: Department;
   product: string;
   specs: string;
-  quantity: number;
+  quantity: number | null;
   weight: string | null;
   lineNotes: string | null;
   orderNotes: string | null;

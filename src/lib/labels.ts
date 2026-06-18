@@ -31,6 +31,20 @@ export const departmentLabels: Record<Department, string> = {
   warehouse: "Warehouse",
 };
 
+// Coloured corner accent on each order section's dashboard card, so they're
+// easy to tell apart at a glance: meat red, fish blue, other orange.
+export type CardCorner = {
+  color: "red" | "blue" | "orange";
+  position: "tl" | "tr";
+};
+
+export const departmentCardCorner: Record<Department, CardCorner> = {
+  meat: { color: "red", position: "tl" },
+  fish: { color: "blue", position: "tl" },
+  other: { color: "orange", position: "tl" },
+  warehouse: { color: "orange", position: "tl" },
+};
+
 export function isErrorDepartment(value: string): value is Department {
   return (ERROR_DEPARTMENTS as string[]).includes(value);
 }
@@ -65,7 +79,7 @@ export const ERROR_TYPES: ErrorType[] = [
 ];
 
 export const errorTypeLabels: Record<ErrorType, string> = {
-  wrong_item: "Wrong Item",
+  wrong_item: "Wrong item Shipped",
   not_delivered: "Not Delivered",
   damaged_product: "Damaged Product",
   not_scheduled: "Not Scheduled",

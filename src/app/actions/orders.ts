@@ -17,6 +17,10 @@ import { formatExternalId } from "@/db/external-id";
 import { isDepartment } from "@/lib/labels";
 import {
   formatSpecs,
+  isFieldVisible,
+  isQuantityVisible,
+  isWeightVisible,
+  quantityLabelFor,
   type ProductFormConfig,
   type SpecsJson,
 } from "@/lib/product-config";
@@ -36,7 +40,7 @@ interface ValidLine {
   product: Product;
   specs: string;
   specsJson: SpecsJson;
-  quantity: number;
+  quantity: number | null;
   weight: string | null;
   notes: string | null;
 }
@@ -53,6 +57,10 @@ function validateLine(
 
   const specsJson: SpecsJson = {};
   for (const field of config.fields) {
+    // Skip fields hidden by an unmet showWhen condition, and read-only info
+    // fields (their value is fixed and recorded by formatSpecs).
+    if (!isFieldVisible(field, specsJson)) continue;
+    if (field.type === "info") continue;
     const raw = line.specsJson?.[field.key];
     const value = typeof raw === "string" ? raw.trim() : "";
     if (value === "") {
@@ -71,28 +79,39 @@ function validateLine(
     specsJson[field.key] = value;
   }
 
-  // Quantity applies only to products configured with a piece count;
-  // KG-only products (meats) are always stored as quantity 1.
-  let quantity = 1;
-  if (config.quantity) {
-    const { min, max } = config.quantity;
-    if (!Number.isInteger(line.quantity) || line.quantity < min || line.quantity > max) {
-      return { error: `${product.productName}: quantity must be between ${min} and ${max}.` };
+  // Quantity applies only to products configured with a piece count. Products
+  // without one store null; an optional count left blank also stores null.
+  const quantityLabel = quantityLabelFor(config, specsJson);
+  let quantity: number | null = null;
+  if (isQuantityVisible(config, specsJson) && config.quantity) {
+    const hasValue = line.quantity !== null && line.quantity !== undefined;
+    if (!hasValue) {
+      if (!config.quantityOptional) {
+        return { error: `${product.productName}: ${quantityLabel} is required.` };
+      }
+    } else {
+      const { min, max } = config.quantity;
+      if (!Number.isInteger(line.quantity) || line.quantity! < min || line.quantity! > max) {
+        return { error: `${product.productName}: ${quantityLabel} must be between ${min} and ${max}.` };
+      }
+      quantity = line.quantity!;
     }
-    quantity = line.quantity;
   }
 
-  // Weight: required when the product says so, positive when provided.
+  // Weight: only when visible (respects hideWeight + weightShowWhen). Required
+  // when the product says so, positive when provided; ignored if hidden.
   const weightLabel = config.weightLabel ?? "weight";
   let weight: string | null = null;
-  if (line.weight !== null && line.weight !== undefined) {
-    const w = Number(line.weight);
-    if (!Number.isFinite(w) || w <= 0) {
-      return { error: `${product.productName}: ${weightLabel} must be a positive number.` };
+  if (isWeightVisible(config, specsJson)) {
+    if (line.weight !== null && line.weight !== undefined) {
+      const w = Number(line.weight);
+      if (!Number.isFinite(w) || w <= 0) {
+        return { error: `${product.productName}: ${weightLabel} must be a positive number.` };
+      }
+      weight = w.toFixed(2);
+    } else if (config.weightRequired) {
+      return { error: `${product.productName}: ${weightLabel} is required.` };
     }
-    weight = w.toFixed(2);
-  } else if (config.weightRequired) {
-    return { error: `${product.productName}: ${weightLabel} is required.` };
   }
 
   return {
@@ -478,6 +497,51 @@ export async function updateOrder(
   });
 
   revalidatePath(`/orders/${existing.department}/submissions`);
+  await notifyOrdersChanged();
+  return { ok: true, orderId };
+}
+
+// ---------------------------------------------------------------------------
+// Delete — buyer/admin only. Removes the order and its lines (cascade).
+// ---------------------------------------------------------------------------
+
+export async function deleteOrder(orderId: number): Promise<ActionResult> {
+  const user = await requireRole("buyer"); // admins pass
+
+  const existing = await db.query.orders.findFirst({
+    where: eq(orders.id, orderId),
+  });
+  if (!existing) return { ok: false, error: "Order not found." };
+
+  await db.transaction(async (tx) => {
+    const lines = await tx.query.orderLines.findMany({
+      where: eq(orderLines.orderId, orderId),
+    });
+    // order_lines have ON DELETE CASCADE, so deleting the order clears them.
+    await tx.delete(orders).where(eq(orders.id, orderId));
+    await logAudit(tx, user, [
+      {
+        action: "delete",
+        recordType: "order",
+        recordId: orderId,
+        oldValue: {
+          client: existing.clientName,
+          deliveryDate: existing.deliveryDate,
+          lines: lines.map((l) => ({
+            product: l.product,
+            specs: l.specs,
+            quantity: l.quantity,
+            weight: l.weight,
+          })),
+        },
+      },
+    ]);
+  });
+
+  revalidatePath(`/orders/${existing.department}/submissions`);
+  revalidatePath("/orders/submissions");
+  revalidatePath("/buyer/submissions");
+  revalidatePath("/buyer/table");
   await notifyOrdersChanged();
   return { ok: true, orderId };
 }

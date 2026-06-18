@@ -5,7 +5,44 @@
 // (SPEC.md §14) and the Buyer Table (§18) with different field sets.
 
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+
+// A date filter whose entire card opens the native picker on click — not just
+// the small calendar icon.
+function DateFilterInput({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const ref = useRef<HTMLInputElement>(null);
+  return (
+    <label
+      className="block cursor-pointer text-xs font-medium text-neutral-600"
+      onClick={() => {
+        // Open the calendar on a click anywhere on the card — including the
+        // input's text area, which the native control alone ignores.
+        try {
+          ref.current?.showPicker?.();
+        } catch {
+          ref.current?.focus();
+        }
+      }}
+    >
+      {label}
+      <input
+        ref={ref}
+        type="date"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="mt-1 block w-full cursor-pointer rounded-lg border border-neutral-300 bg-white px-2.5 py-2 text-sm outline-none focus:border-accent-600"
+      />
+    </label>
+  );
+}
 
 export interface SelectField {
   type: "select";
@@ -182,15 +219,12 @@ export default function FilterBar({
             const current = raw;
             if (field.type === "date") {
               return (
-                <label key={key} className="block text-xs font-medium text-neutral-600">
-                  {field.label}
-                  <input
-                    type="date"
-                    value={current}
-                    onChange={(e) => setParam(field.param, e.target.value)}
-                    className="mt-1 block w-full rounded-lg border border-neutral-300 bg-white px-2.5 py-2 text-sm outline-none focus:border-accent-600"
-                  />
-                </label>
+                <DateFilterInput
+                  key={key}
+                  label={field.label}
+                  value={current}
+                  onChange={(value) => setParam(field.param, value)}
+                />
               );
             }
             return (

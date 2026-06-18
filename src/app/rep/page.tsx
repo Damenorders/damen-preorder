@@ -1,5 +1,5 @@
 import { requireRole } from "@/lib/auth";
-import { DEPARTMENTS, departmentLabels } from "@/lib/labels";
+import { DEPARTMENTS, departmentLabels, departmentCardCorner } from "@/lib/labels";
 import AppHeader from "@/components/AppHeader";
 import { DashboardCard } from "@/components/DashboardCard";
 
@@ -21,13 +21,21 @@ export default async function RepDashboard() {
             <DashboardCard
               key={dep}
               title={departmentLabels[dep]}
+              corner={departmentCardCorner[dep]}
               links={[
-                { label: "Fill Form", href: `/orders/${dep}/new`, primary: true },
+                { label: "Fill Form", href: `/orders/${dep}/new`, primary: true, variant: "highlight" },
                 { label: "Edit Form", href: `/orders/${dep}/submissions?mode=edit` },
                 { label: "Submissions", href: `/orders/${dep}/submissions` },
               ]}
             />
           ))}
+          <DashboardCard
+            title="All Submissions"
+            subtitle="Everyone's orders — edit your own"
+            links={[
+              { label: "View All Submissions", href: "/orders/submissions", primary: true },
+            ]}
+          />
           <DashboardCard
             title="Order Errors"
             subtitle="Report a delivery or order error"

@@ -33,7 +33,7 @@ export default async function NewOrderPage({
         clients={clients.map((c) => c.clientName)}
         products={products}
         mode="create"
-        doneHref={`/orders/${department}/submissions`}
+        dashboardHref={homePathFor(user.role)}
       />
     </PageShell>
   );

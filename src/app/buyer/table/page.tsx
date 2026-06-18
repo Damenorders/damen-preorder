@@ -189,8 +189,8 @@ export default async function BuyerTablePage({
     d === today ? "today" : d === tomorrow ? "tomorrow" : null;
 
   const thClass =
-    "sticky top-0 whitespace-nowrap border-b border-neutral-200 bg-neutral-50 px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-neutral-500";
-  const tdClass = "border-b border-neutral-100 px-3 py-2 align-top text-sm";
+    "sticky top-0 whitespace-nowrap border-b border-neutral-200 bg-neutral-50 px-2 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-neutral-500";
+  const tdClass = "border-b border-neutral-100 px-2 py-1 align-top text-[13px]";
 
   return (
     <PageShell
@@ -280,6 +280,7 @@ export default async function BuyerTablePage({
                           kind="buyer"
                           orderId={row.orderId}
                           value={row.status}
+                          compact
                         />
                       </td>
                       <td className={`${tdClass} whitespace-nowrap`}>
@@ -303,12 +304,12 @@ export default async function BuyerTablePage({
                         {row.product}
                       </td>
                       <td className={tdClass}>
-                        <span className="flex flex-wrap gap-1">
+                        <span className="flex flex-wrap gap-0.5">
                           {row.specs
                             ? row.specs.split(" · ").map((part, idx) => (
                                 <span
                                   key={idx}
-                                  className={`whitespace-nowrap rounded-md px-1.5 py-0.5 text-xs font-medium ${chipColorFor(part)}`}
+                                  className={`whitespace-nowrap rounded px-1 py-0.5 text-[11px] font-medium ${chipColorFor(part)}`}
                                 >
                                   {part}
                                 </span>
@@ -317,11 +318,11 @@ export default async function BuyerTablePage({
                         </span>
                       </td>
                       <td className={`${tdClass} text-right tabular-nums`}>
-                        {row.quantity}
+                        {row.quantity ?? "—"}
                       </td>
-                      <td className={`${tdClass} max-w-[200px]`}>
+                      <td className={`${tdClass} max-w-[180px]`}>
                         {notes ? (
-                          <span className="line-clamp-2 text-neutral-600" title={notes}>
+                          <span className="line-clamp-1 text-neutral-600" title={notes}>
                             {notes}
                           </span>
                         ) : (
@@ -340,7 +341,7 @@ export default async function BuyerTablePage({
                       <td className={tdClass}>
                         <Link
                           href={`/orders/edit/${row.orderId}`}
-                          className="rounded-lg bg-accent-50 px-2.5 py-1.5 text-xs font-medium text-accent-800 hover:bg-accent-100"
+                          className="rounded-md bg-accent-50 px-2 py-1 text-xs font-medium text-accent-800 hover:bg-accent-100"
                         >
                           Edit
                         </Link>

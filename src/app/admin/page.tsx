@@ -1,5 +1,5 @@
 import { requireRole } from "@/lib/auth";
-import { DEPARTMENTS, departmentLabels } from "@/lib/labels";
+import { DEPARTMENTS, departmentLabels, departmentCardCorner } from "@/lib/labels";
 import AppHeader from "@/components/AppHeader";
 import { DashboardCard } from "@/components/DashboardCard";
 
@@ -21,8 +21,9 @@ export default async function AdminDashboard() {
             <DashboardCard
               key={dep}
               title={departmentLabels[dep]}
+              corner={departmentCardCorner[dep]}
               links={[
-                { label: "Fill Form", href: `/orders/${dep}/new`, primary: true },
+                { label: "Fill Form", href: `/orders/${dep}/new`, primary: true, variant: "highlight" },
                 { label: "Edit Form", href: `/orders/${dep}/submissions?mode=edit` },
                 { label: "Submissions", href: `/orders/${dep}/submissions` },
               ]}
@@ -32,7 +33,7 @@ export default async function AdminDashboard() {
             title="Buyer Tools"
             subtitle="Review, statuses, buying"
             links={[
-              { label: "Buyer Table", href: "/buyer/table", primary: true },
+              { label: "Buyer Table", href: "/buyer/table", primary: true, variant: "highlight" },
               { label: "All Submissions", href: "/buyer/submissions" },
               { label: "Grouped Buying Sheet", href: "/buyer/buying-sheet" },
               { label: "Order Errors", href: "/buyer/errors" },

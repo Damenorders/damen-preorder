@@ -10,10 +10,16 @@ export interface ProductField {
   key: string;
   /** Label shown above the input, e.g. "Head & Skin" */
   label: string;
-  /** "select" renders option chips; "text" renders a free-text input */
-  type: "select" | "text";
-  /** Choices for select fields; unused for text fields */
+  /**
+   * "select" renders option chips; "text" renders a free-text input;
+   * "info" is a read-only auto value (no input) — used for fixed facts like
+   * Cod USA = "Fillets · 10 lb box". Its `text` is recorded in the spec string.
+   */
+  type: "select" | "text" | "info";
+  /** Choices for select fields; unused for text/info fields */
   options?: string[];
+  /** Fixed value for "info" fields (recorded into the spec string) */
+  text?: string;
   required?: boolean;
   /**
    * Template for the readable specs string (SPEC.md §25), with {value}
@@ -26,22 +32,103 @@ export interface ProductField {
    *   headAndSkin → "Head & Skin {value}"
    */
   display: string;
+  /**
+   * Conditional visibility: only show (and require/record) this field when
+   * another field equals a given value. e.g. Ribeye "Size" only appears when
+   * "Cut" equals "Portioned".
+   */
+  showWhen?: { field: string; equals: string };
+}
+
+/**
+ * Whether a conditional field should be shown, given the current answers.
+ * Fields without a showWhen are always visible.
+ */
+export function isFieldVisible(
+  field: ProductField,
+  specsJson: SpecsJson,
+): boolean {
+  if (!field.showWhen) return true;
+  return specsJson[field.showWhen.field] === field.showWhen.equals;
+}
+
+/**
+ * Whether the quantity input should be shown for the current answers.
+ * Needs a quantity config, then respects the optional quantityShowWhen.
+ */
+export function isQuantityVisible(
+  config: ProductFormConfig,
+  specsJson: SpecsJson,
+): boolean {
+  if (!config.quantity) return false;
+  if (!config.quantityShowWhen) return true;
+  const value = specsJson[config.quantityShowWhen.field];
+  const { equals } = config.quantityShowWhen;
+  return Array.isArray(equals) ? equals.includes(value) : value === equals;
+}
+
+/** The quantity input's label for the current answers (quantityLabelWhen). */
+export function quantityLabelFor(
+  config: ProductFormConfig,
+  specsJson: SpecsJson,
+): string {
+  if (config.quantityLabelWhen) {
+    const matched =
+      config.quantityLabelWhen.map[specsJson[config.quantityLabelWhen.field]];
+    if (matched) return matched;
+  }
+  return config.quantityLabel ?? "Quantity";
+}
+
+/**
+ * Whether the weight input should be shown for the current answers.
+ * Respects hideWeight and the optional weightShowWhen condition.
+ */
+export function isWeightVisible(
+  config: ProductFormConfig,
+  specsJson: SpecsJson,
+): boolean {
+  if (config.hideWeight) return false;
+  if (!config.weightShowWhen) return true;
+  return specsJson[config.weightShowWhen.field] === config.weightShowWhen.equals;
 }
 
 export interface ProductFormConfig {
   fields: ProductField[];
   /**
    * Bounds for the piece-count Quantity input (SPEC.md §8: 1–20).
-   * null → no quantity input for this product (stored as 1); used by meats,
+   * null → no quantity input for this product (stored as null); used by meats,
    * which are ordered purely by KG via the weight input.
    */
   quantity: { min: number; max: number } | null;
+  /** Label for the quantity input (default "Quantity"); e.g. "Number of Lobsters" */
+  quantityLabel?: string;
+  /**
+   * Vary the quantity label by another field's value, e.g. Cod shows
+   * "Number of boxes" for USA and "Quantity of Fish" for Icelandic. Falls back
+   * to quantityLabel when no value matches.
+   */
+  quantityLabelWhen?: { field: string; map: Record<string, string> };
+  /** Quantity may be left blank (stored as null); default false (required) */
+  quantityOptional?: boolean;
+  /**
+   * Show the quantity input only when another field equals a value (or one of
+   * several values), e.g. Cod count appears once Type is USA or Icelandic.
+   * Without this, quantity follows the quantity bounds alone.
+   */
+  quantityShowWhen?: { field: string; equals: string | string[] };
   /** Label for the weight input (default "Weight (kg)"); meats use "Quantity (KG)" */
   weightLabel?: string;
   /** Weight must be filled in (meats); default false */
   weightRequired?: boolean;
   /** Hide the weight input entirely (free-text Other orders) */
   hideWeight?: boolean;
+  /**
+   * Show the weight input only when another field equals a value, e.g. Cod
+   * weight (lbs) appears only when Type = "USA". Without this, weight follows
+   * hideWeight alone.
+   */
+  weightShowWhen?: { field: string; equals: string };
   /** Hide the line-notes input */
   hideNotes?: boolean;
 }
@@ -83,8 +170,8 @@ export function parseFormConfig(
     if (typeof field.label !== "string" || !field.label.trim()) {
       return { ok: false, error: `${where}: "label" is required.` };
     }
-    if (field.type !== "select" && field.type !== "text") {
-      return { ok: false, error: `${where}: "type" must be "select" or "text".` };
+    if (field.type !== "select" && field.type !== "text" && field.type !== "info") {
+      return { ok: false, error: `${where}: "type" must be "select", "text" or "info".` };
     }
     if (field.type === "select") {
       if (
@@ -95,11 +182,31 @@ export function parseFormConfig(
         return { ok: false, error: `${where}: select fields need an "options" list of texts.` };
       }
     }
+    if (field.type === "info") {
+      if (typeof field.text !== "string" || !field.text.trim()) {
+        return { ok: false, error: `${where}: info fields need a "text" value.` };
+      }
+    }
     if (typeof field.display !== "string" || !field.display.trim()) {
       return { ok: false, error: `${where}: "display" is required (e.g. "Skin {value}").` };
     }
     if (field.required !== undefined && typeof field.required !== "boolean") {
       return { ok: false, error: `${where}: "required" must be true or false.` };
+    }
+    if (field.showWhen !== undefined) {
+      const sw = field.showWhen as Record<string, unknown>;
+      if (
+        typeof sw !== "object" ||
+        sw === null ||
+        typeof sw.field !== "string" ||
+        !sw.field.trim() ||
+        typeof sw.equals !== "string"
+      ) {
+        return {
+          ok: false,
+          error: `${where}: "showWhen" must be {"field": "<key>", "equals": "<value>"}.`,
+        };
+      }
     }
   }
 
@@ -118,13 +225,52 @@ export function parseFormConfig(
       };
     }
   }
-  for (const flag of ["weightRequired", "hideWeight", "hideNotes"] as const) {
+  for (const flag of ["quantityOptional", "weightRequired", "hideWeight", "hideNotes"] as const) {
     if (cfg[flag] !== undefined && typeof cfg[flag] !== "boolean") {
       return { ok: false, error: `"${flag}" must be true or false.` };
     }
   }
-  if (cfg.weightLabel !== undefined && typeof cfg.weightLabel !== "string") {
-    return { ok: false, error: '"weightLabel" must be text.' };
+  for (const label of ["quantityLabel", "weightLabel"] as const) {
+    if (cfg[label] !== undefined && typeof cfg[label] !== "string") {
+      return { ok: false, error: `"${label}" must be text.` };
+    }
+  }
+  for (const cond of ["quantityShowWhen", "weightShowWhen"] as const) {
+    if (cfg[cond] === undefined) continue;
+    const sw = cfg[cond] as Record<string, unknown>;
+    const equalsOk =
+      typeof sw.equals === "string" ||
+      (Array.isArray(sw.equals) &&
+        sw.equals.length > 0 &&
+        sw.equals.every((e) => typeof e === "string"));
+    if (
+      typeof sw !== "object" ||
+      sw === null ||
+      typeof sw.field !== "string" ||
+      !sw.field.trim() ||
+      !equalsOk
+    ) {
+      return {
+        ok: false,
+        error: `"${cond}" must be {"field": "<key>", "equals": "<value>" | ["<value>"...]}.`,
+      };
+    }
+  }
+  if (cfg.quantityLabelWhen !== undefined) {
+    const lw = cfg.quantityLabelWhen as Record<string, unknown>;
+    const mapOk =
+      typeof lw.map === "object" &&
+      lw.map !== null &&
+      !Array.isArray(lw.map) &&
+      Object.values(lw.map as Record<string, unknown>).every(
+        (v) => typeof v === "string",
+      );
+    if (typeof lw !== "object" || lw === null || typeof lw.field !== "string" || !lw.field.trim() || !mapOk) {
+      return {
+        ok: false,
+        error: '"quantityLabelWhen" must be {"field": "<key>", "map": {"<value>": "<label>"}}.',
+      };
+    }
   }
 
   return {
@@ -132,9 +278,20 @@ export function parseFormConfig(
     config: {
       fields: cfg.fields as ProductField[],
       quantity: (cfg.quantity ?? null) as ProductFormConfig["quantity"],
+      ...(cfg.quantityLabel !== undefined ? { quantityLabel: cfg.quantityLabel as string } : {}),
+      ...(cfg.quantityLabelWhen !== undefined
+        ? { quantityLabelWhen: cfg.quantityLabelWhen as ProductFormConfig["quantityLabelWhen"] }
+        : {}),
+      ...(cfg.quantityOptional !== undefined ? { quantityOptional: cfg.quantityOptional as boolean } : {}),
+      ...(cfg.quantityShowWhen !== undefined
+        ? { quantityShowWhen: cfg.quantityShowWhen as ProductFormConfig["quantityShowWhen"] }
+        : {}),
       ...(cfg.weightLabel !== undefined ? { weightLabel: cfg.weightLabel as string } : {}),
       ...(cfg.weightRequired !== undefined ? { weightRequired: cfg.weightRequired as boolean } : {}),
       ...(cfg.hideWeight !== undefined ? { hideWeight: cfg.hideWeight as boolean } : {}),
+      ...(cfg.weightShowWhen !== undefined
+        ? { weightShowWhen: cfg.weightShowWhen as ProductFormConfig["weightShowWhen"] }
+        : {}),
       ...(cfg.hideNotes !== undefined ? { hideNotes: cfg.hideNotes as boolean } : {}),
     },
   };
@@ -150,6 +307,10 @@ export function formatSpecs(
 ): string {
   return config.fields
     .map((field) => {
+      if (!isFieldVisible(field, specsJson)) return null;
+      if (field.type === "info") {
+        return field.text ? field.display.replace("{value}", field.text) : null;
+      }
       const value = specsJson[field.key];
       if (value === undefined || value === "") return null;
       return field.display.replace("{value}", value);

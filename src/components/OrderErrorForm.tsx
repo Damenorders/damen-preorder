@@ -7,6 +7,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createOrderError } from "@/app/actions/errors";
+import DateField from "@/components/DateField";
 import {
   ERROR_DEPARTMENTS,
   errorDepartmentLabels,
@@ -138,15 +139,13 @@ export default function OrderErrorForm({
         </div>
 
         <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <label className="block text-sm font-medium text-neutral-700">
-            Date
-            <input
-              type="date"
-              value={errorDate}
-              onChange={(e) => setErrorDate(e.target.value)}
-              className={inputClass}
-            />
-          </label>
+          <DateField
+            label="Date"
+            value={errorDate}
+            onChange={setErrorDate}
+            labelClassName="text-sm font-medium text-neutral-700"
+            inputClassName={inputClass}
+          />
           <label className="block text-sm font-medium text-neutral-700">
             Order # <span className="font-normal text-neutral-400">(optional)</span>
             <input

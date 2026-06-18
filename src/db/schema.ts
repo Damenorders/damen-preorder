@@ -169,7 +169,7 @@ export const orderLines = pgTable("order_lines", {
   // SPEC.md §25 — specs stored both ways
   specs: text("specs").notNull().default(""),
   specsJson: jsonb("specs_json").notNull().default({}),
-  quantity: integer("quantity").notNull(),
+  quantity: integer("quantity"),
   weight: numeric("weight", { precision: 10, scale: 2 }),
   notes: text("notes"),
   odooSyncStatus: odooSyncStatusEnum("odoo_sync_status")
