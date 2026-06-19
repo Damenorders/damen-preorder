@@ -5,11 +5,14 @@ import {
   errorDepartmentLabels,
   ERROR_TYPES,
   errorTypeLabels,
+  isErrorDepartment,
+  isErrorType,
 } from "@/lib/labels";
 import { formatDate, formatDateTime } from "@/lib/dates";
 import PageShell from "@/components/PageShell";
 import FilterBar, { type FilterField } from "@/components/FilterBar";
 import LiveRefresh from "@/components/LiveRefresh";
+import ErrorsExport from "@/components/ErrorsExport";
 
 // Order Errors table — buyer/admin only. Separate from the buyer table.
 export default async function ErrorsPage({
@@ -28,7 +31,8 @@ export default async function ErrorsPage({
     department: get("module"),
     errorType: get("type"),
     clientName: get("client"),
-    date: get("date"),
+    dateFrom: get("from"),
+    dateTo: get("to"),
   };
   const activeCount = Object.values(filters).filter(Boolean).length;
 
@@ -59,7 +63,8 @@ export default async function ErrorsPage({
       emptyLabel: "All customers",
       options: options.customers.map((c) => ({ value: c, label: c })),
     },
-    { type: "date", param: "date", label: "Date" },
+    { type: "date", param: "from", label: "From date" },
+    { type: "date", param: "to", label: "To date" },
   ];
 
   const thClass =
@@ -74,6 +79,29 @@ export default async function ErrorsPage({
     shorted_items: "bg-violet-100 text-violet-900",
   };
 
+  // Rows + summary for the printable export (mirrors the filtered table).
+  const exportRows = errors.map((e) => ({
+    customer: e.customerName,
+    date: formatDate(e.errorDate),
+    orderNumber: e.orderNumber || "—",
+    department: errorDepartmentLabels[e.department],
+    errorType: errorTypeLabels[e.errorType],
+    note: e.note || "—",
+    reportedBy: e.submittedByName,
+  }));
+
+  const summaryParts: string[] = [];
+  if (filters.department && isErrorDepartment(filters.department))
+    summaryParts.push(errorDepartmentLabels[filters.department]);
+  if (filters.errorType && isErrorType(filters.errorType))
+    summaryParts.push(errorTypeLabels[filters.errorType]);
+  if (filters.clientName) summaryParts.push(`Customer: ${filters.clientName}`);
+  if (filters.dateFrom && filters.dateTo)
+    summaryParts.push(`${formatDate(filters.dateFrom)} – ${formatDate(filters.dateTo)}`);
+  else if (filters.dateFrom) summaryParts.push(`From ${formatDate(filters.dateFrom)}`);
+  else if (filters.dateTo) summaryParts.push(`Until ${formatDate(filters.dateTo)}`);
+  const filterSummary = summaryParts.length ? summaryParts.join(" · ") : "All reports";
+
   return (
     <PageShell
       user={user}
@@ -85,6 +113,12 @@ export default async function ErrorsPage({
     >
       <LiveRefresh />
       <div className="flex flex-col gap-4">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-sm text-neutral-500">
+            Showing {errors.length} report{errors.length === 1 ? "" : "s"}
+          </p>
+          <ErrorsExport rows={exportRows} filterSummary={filterSummary} />
+        </div>
         <FilterBar fields={fields} activeCount={activeCount} />
 
         {errors.length === 0 ? (

@@ -1,14 +1,17 @@
 import "server-only";
-import { and, desc, eq, type SQL } from "drizzle-orm";
+import { and, desc, eq, gte, lte, type SQL } from "drizzle-orm";
 import { db } from "@/db";
 import { orderErrors, type OrderError } from "@/db/schema";
 import { isErrorDepartment, isErrorType } from "@/lib/labels";
+
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 export interface ErrorFilters {
   department?: string;
   errorType?: string;
   clientName?: string;
-  date?: string; // error date
+  dateFrom?: string; // error date >= this
+  dateTo?: string; // error date <= this
 }
 
 // The dedicated Order Errors table — buyer/admin only (gated at the page).
@@ -25,8 +28,11 @@ export async function getOrderErrors(
   if (filters.clientName) {
     conditions.push(eq(orderErrors.customerName, filters.clientName));
   }
-  if (filters.date && /^\d{4}-\d{2}-\d{2}$/.test(filters.date)) {
-    conditions.push(eq(orderErrors.errorDate, filters.date));
+  if (filters.dateFrom && ISO_DATE.test(filters.dateFrom)) {
+    conditions.push(gte(orderErrors.errorDate, filters.dateFrom));
+  }
+  if (filters.dateTo && ISO_DATE.test(filters.dateTo)) {
+    conditions.push(lte(orderErrors.errorDate, filters.dateTo));
   }
 
   return db.query.orderErrors.findMany({
