@@ -254,7 +254,7 @@ export async function updateLineWeight(
   lineId: number,
   weight: number,
 ): Promise<ActionResult> {
-  const user = await requireRole("rep", "buyer", "scheduling");
+  const user = await requireRole("rep", "buyer", "scheduling", "picker");
 
   if (!Number.isFinite(weight) || weight <= 0) {
     return { ok: false, error: "Weight must be a positive number." };

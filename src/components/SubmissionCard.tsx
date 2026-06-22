@@ -133,12 +133,30 @@ export default function SubmissionCard({
         <div className="border-t border-neutral-100 px-4 py-3">
           <ul className="flex flex-col gap-2">
             {submission.lines.map((line) => (
-              <li key={line.id} className="rounded-xl bg-neutral-50 px-3 py-2.5">
-                <p className="font-medium">{line.product}</p>
+              <li
+                key={line.id}
+                className="rounded-xl bg-neutral-50 px-4 py-3.5"
+              >
+                <p className="text-lg font-semibold">{line.product}</p>
                 {line.specs && (
-                  <p className="mt-0.5 text-sm text-neutral-600">{line.specs}</p>
+                  // Each option on its own big chip so it can be scanned at a
+                  // glance instead of read as one long line.
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {line.specs
+                      .split(" · ")
+                      // Hide "Portioned ... No" — it's noise.
+                      .filter((part) => !/^portioned\b.*\bno$/i.test(part.trim()))
+                      .map((part, i) => (
+                        <span
+                          key={i}
+                          className="rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-base font-medium text-neutral-800"
+                        >
+                          {part}
+                        </span>
+                      ))}
+                  </div>
                 )}
-                <p className="mt-1 flex items-center gap-2 text-sm text-neutral-700">
+                <p className="mt-2 flex items-center gap-2 text-base font-medium text-neutral-700">
                   {line.quantity != null && <span>Qty {line.quantity}</span>}
                   {weightEditable ? (
                     <LineWeightInput

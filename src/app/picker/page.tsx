@@ -73,6 +73,7 @@ export default async function PickerPage({
                   showDepartment
                   canEdit={false}
                   manageStatus={false}
+                  canEditWeight
                 />
               ))}
             </ul>
