@@ -139,6 +139,7 @@ const MEAT_PRODUCTS: Array<{ name: string; formConfig: ProductFormConfig }> = [
     formConfig: meatConfig([
       { key: "trim", label: "Trim", type: "select", options: ["Standard", "Full Trim"], required: true, display: "{value} Trim" },
       { key: "skin", label: "Skin", type: "select", options: ["On", "Off"], required: true, display: "Skin {value}" },
+      { key: "fingers", label: "Fingers", type: "select", options: ["On", "Off"], required: true, display: "Fingers {value}" },
     ]),
   },
   {
