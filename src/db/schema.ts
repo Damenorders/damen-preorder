@@ -16,7 +16,13 @@ import {
 // ---------------------------------------------------------------------------
 
 // picker: warehouse role — sees all submissions (read-only), nothing else
-export const roleEnum = pgEnum("user_role", ["admin", "buyer", "rep", "picker", "scheduling"]);
+export const roleEnum = pgEnum("user_role", ["admin", "buyer", "rep", "picker", "scheduling", "clients"]);
+
+export const applicationStatusEnum = pgEnum("application_status", [
+  "new",
+  "approved",
+  "rejected",
+]);
 
 // SPEC.md §2 — Meat Orders / Fish Orders / Other Preorders.
 // "warehouse" is used ONLY by the Order Errors form (not an order section);
@@ -213,6 +219,25 @@ export const orderErrors = pgTable("order_errors", {
     .defaultNow(),
 });
 
+// Online-platform access applications submitted by the "clients" role.
+// Reviewed by admins, who then set up the real account.
+export const applications = pgTable("applications", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  externalId: text("external_id").unique(),
+  businessName: text("business_name").notNull(),
+  contactName: text("contact_name").notNull(),
+  phone: text("phone").notNull(),
+  email: text("email").notNull(),
+  status: applicationStatusEnum("status").notNull().default("new"),
+  submittedByUserId: uuid("submitted_by_user_id").references(() => users.id),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
 export const auditLogs = pgTable("audit_logs", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
   userId: uuid("user_id"),
@@ -237,6 +262,8 @@ export type Product = typeof products.$inferSelect;
 export type Order = typeof orders.$inferSelect;
 export type OrderLine = typeof orderLines.$inferSelect;
 export type OrderError = typeof orderErrors.$inferSelect;
+export type Application = typeof applications.$inferSelect;
+export type ApplicationStatus = Application["status"];
 export type AuditLog = typeof auditLogs.$inferSelect;
 
 export type ErrorType = OrderError["errorType"];

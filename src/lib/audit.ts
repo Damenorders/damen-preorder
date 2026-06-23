@@ -15,7 +15,8 @@ export interface AuditEntry {
     | "order_error"
     | "client"
     | "product"
-    | "user";
+    | "user"
+    | "application";
   recordId: string | number;
   oldValue?: unknown;
   newValue?: unknown;

@@ -19,6 +19,7 @@ const roleLabels: Record<Role, string> = {
   rep: "Rep",
   picker: "Picker",
   scheduling: "Scheduling",
+  clients: "Clients",
 };
 
 const inputClass =

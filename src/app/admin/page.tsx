@@ -60,6 +60,7 @@ export default async function AdminDashboard() {
               { label: "Manage Users", href: "/admin/users" },
               { label: "Manage Clients", href: "/admin/clients" },
               { label: "Manage Products", href: "/admin/products" },
+              { label: "Applications", href: "/admin/applications" },
               { label: "Audit History", href: "/admin/audit" },
             ]}
           />

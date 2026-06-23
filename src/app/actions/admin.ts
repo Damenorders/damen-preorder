@@ -111,7 +111,7 @@ export async function adminUpdateClient(
 // Users
 // ---------------------------------------------------------------------------
 
-const ROLES: Role[] = ["admin", "buyer", "rep", "picker", "scheduling"];
+const ROLES: Role[] = ["admin", "buyer", "rep", "picker", "scheduling", "clients"];
 
 export async function adminCreateUser(input: {
   name: string;
