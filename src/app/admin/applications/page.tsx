@@ -6,9 +6,18 @@ import { formatDateTime } from "@/lib/dates";
 import PageShell from "@/components/PageShell";
 import ApplicationStatusSelect from "@/components/ApplicationStatusSelect";
 
-// Damen Online access applications submitted by clients — admin review.
+const STATUS_LABELS = { new: "New", approved: "Approved", rejected: "Rejected" };
+const STATUS_CHIP: Record<string, string> = {
+  new: "bg-amber-100 text-amber-900",
+  approved: "bg-emerald-800 text-white",
+  rejected: "bg-red-100 text-red-800",
+};
+
+// Damen Online access applications submitted by clients — buyer/admin review.
+// Only admins can change an application's status.
 export default async function ApplicationsPage() {
-  const user = await requireRole("admin");
+  const user = await requireRole("buyer");
+  const canManage = user.role === "admin";
   const rows = await db.query.applications.findMany({
     orderBy: [desc(applications.createdAt)],
   });
@@ -58,7 +67,15 @@ export default async function ApplicationsPage() {
                     </a>
                   </td>
                   <td className={tdClass}>
-                    <ApplicationStatusSelect id={r.id} value={r.status} />
+                    {canManage ? (
+                      <ApplicationStatusSelect id={r.id} value={r.status} />
+                    ) : (
+                      <span
+                        className={`whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_CHIP[r.status]}`}
+                      >
+                        {STATUS_LABELS[r.status]}
+                      </span>
+                    )}
                   </td>
                   <td className={`${tdClass} whitespace-nowrap text-neutral-500`}>
                     {formatDateTime(r.createdAt)}

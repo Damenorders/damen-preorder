@@ -42,6 +42,7 @@ export default async function BuyerDashboard() {
               { label: "All Submissions", href: "/buyer/submissions" },
               { label: "Grouped Buying Sheet", href: "/buyer/buying-sheet" },
               { label: "Order Errors", href: "/buyer/errors" },
+              { label: "Applications", href: "/admin/applications" },
               { label: "Exports", href: "/buyer/exports" },
             ]}
           />

@@ -15,6 +15,14 @@ export default function ApplicationForm() {
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
 
+  // Auto-format as 514-834-5843 while typing.
+  function formatPhone(value: string): string {
+    const d = value.replace(/\D/g, "").slice(0, 10);
+    if (d.length <= 3) return d;
+    if (d.length <= 6) return `${d.slice(0, 3)}-${d.slice(3)}`;
+    return `${d.slice(0, 3)}-${d.slice(3, 6)}-${d.slice(6)}`;
+  }
+
   const inputClass =
     "mt-1.5 block w-full rounded-xl border border-neutral-300 bg-white px-4 py-3 text-base outline-none focus:border-accent-600 focus:ring-2 focus:ring-accent-100";
 
@@ -95,10 +103,12 @@ export default function ApplicationForm() {
         Phone number
         <input
           type="tel"
+          inputMode="numeric"
           value={phone}
-          onChange={(e) => setPhone(e.target.value)}
+          onChange={(e) => setPhone(formatPhone(e.target.value))}
+          maxLength={12}
           className={inputClass}
-          placeholder="(514) 000-0000"
+          placeholder="514-834-5843"
         />
       </label>
       <label className="block text-sm font-medium text-neutral-700">
