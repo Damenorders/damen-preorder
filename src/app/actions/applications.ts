@@ -65,12 +65,12 @@ export async function createApplication(
   return { ok: true };
 }
 
-// Admin marks an application approved/rejected.
+// Buyer/admin marks an application approved/rejected.
 export async function setApplicationStatus(
   id: number,
   status: ApplicationStatus,
 ): Promise<Result> {
-  const user = await requireRole("admin");
+  const user = await requireRole("buyer");
   if (!["new", "approved", "rejected"].includes(status)) {
     return { ok: false, error: "Invalid status." };
   }
