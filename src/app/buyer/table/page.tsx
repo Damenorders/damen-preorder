@@ -10,13 +10,11 @@ import {
   buyerTableStatusLabels,
   DEPARTMENTS,
   departmentLabels,
-  weightUnit,
 } from "@/lib/labels";
-import { formatDate, formatDateTime } from "@/lib/dates";
 import type { BuyerTableStatus } from "@/db/schema";
 import PageShell from "@/components/PageShell";
 import FilterBar, { type FilterField } from "@/components/FilterBar";
-import StatusSelect from "@/components/StatusSelect";
+import BuyerTableRow from "@/components/BuyerTableRow";
 import LiveRefresh from "@/components/LiveRefresh";
 
 // Buyer Table — buyer/admin only. A real spreadsheet-style table, one row per
@@ -31,27 +29,6 @@ const STATUS_ORDER: BuyerTableStatus[] = [
   "pending_pickup",
   "received",
 ];
-
-// Spec chips in soft tints, Jotform-style. Colour is derived from the chip's
-// first word ("Skin", "Bone", "10/12"…), so the same attribute gets the same
-// colour on every row.
-const chipColors = [
-  "bg-pink-100 text-pink-900",
-  "bg-orange-100 text-orange-900",
-  "bg-amber-100 text-amber-900",
-  "bg-sky-100 text-sky-900",
-  "bg-violet-100 text-violet-900",
-  "bg-teal-100 text-teal-900",
-];
-
-function chipColorFor(part: string): string {
-  const word = part.split(" ")[0];
-  let hash = 0;
-  for (let i = 0; i < word.length; i++) {
-    hash = (hash * 31 + word.charCodeAt(i)) % 9973;
-  }
-  return chipColors[hash % chipColors.length];
-}
 
 export default async function BuyerTablePage({
   searchParams,
@@ -186,12 +163,9 @@ export default async function BuyerTablePage({
 
   const today = businessToday();
   const tomorrow = businessTomorrow();
-  const dateTag = (d: string) =>
-    d === today ? "today" : d === tomorrow ? "tomorrow" : null;
 
   const thClass =
     "sticky top-0 whitespace-nowrap border-b border-neutral-200 bg-neutral-50 px-2 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-neutral-500";
-  const tdClass = "border-b border-neutral-100 px-2 py-1 align-top text-[13px]";
 
   return (
     <PageShell
@@ -261,95 +235,15 @@ export default async function BuyerTablePage({
                 </tr>
               </thead>
               <tbody>
-                {rows.map((row, i) => {
-                  const tag = dateTag(row.deliveryDate);
-                  const notes = [row.lineNotes, row.orderNotes]
-                    .filter(Boolean)
-                    .join(" — ");
-                  return (
-                    <tr
-                      key={row.lineId}
-                      className={`transition-colors hover:bg-accent-50 ${
-                        i % 2 === 1 ? "bg-neutral-100" : "bg-white"
-                      }`}
-                    >
-                      <td className={`${tdClass} font-medium`}>
-                        {row.clientName}
-                      </td>
-                      <td className={tdClass}>
-                        <StatusSelect
-                          kind="buyer"
-                          orderId={row.orderId}
-                          value={row.status}
-                          compact
-                        />
-                      </td>
-                      <td className={`${tdClass} whitespace-nowrap`}>
-                        {formatDate(row.deliveryDate)}
-                        {tag && (
-                          <span
-                            className={`ml-1.5 rounded-full px-1.5 py-0.5 text-[11px] font-medium ${
-                              tag === "today"
-                                ? "bg-cyan-soft text-accent-800"
-                                : "bg-accent-50 text-accent-800"
-                            }`}
-                          >
-                            {tag}
-                          </span>
-                        )}
-                      </td>
-                      <td className={`${tdClass} whitespace-nowrap text-right tabular-nums`}>
-                        {row.weight ? `${row.weight} ${weightUnit(row.department)}` : "—"}
-                      </td>
-                      <td className={`${tdClass} whitespace-nowrap font-medium`}>
-                        {row.product}
-                      </td>
-                      <td className={tdClass}>
-                        <span className="flex flex-wrap gap-0.5">
-                          {row.specs
-                            ? row.specs.split(" · ").map((part, idx) => (
-                                <span
-                                  key={idx}
-                                  className={`whitespace-nowrap rounded px-1 py-0.5 text-[11px] font-medium ${chipColorFor(part)}`}
-                                >
-                                  {part}
-                                </span>
-                              ))
-                            : "—"}
-                        </span>
-                      </td>
-                      <td className={`${tdClass} text-right tabular-nums`}>
-                        {row.quantity ?? "—"}
-                      </td>
-                      <td className={`${tdClass} max-w-[180px]`}>
-                        {notes ? (
-                          <span className="line-clamp-1 text-neutral-600" title={notes}>
-                            {notes}
-                          </span>
-                        ) : (
-                          "—"
-                        )}
-                      </td>
-                      <td className={`${tdClass} whitespace-nowrap text-neutral-500`}>
-                        {formatDateTime(row.createdAt)}
-                      </td>
-                      <td className={`${tdClass} whitespace-nowrap text-neutral-500`}>
-                        {formatDateTime(row.updatedAt)}
-                      </td>
-                      <td className={`${tdClass} whitespace-nowrap text-neutral-500`}>
-                        {row.repName}
-                      </td>
-                      <td className={tdClass}>
-                        <Link
-                          href={`/orders/edit/${row.orderId}`}
-                          className="rounded-md bg-accent-50 px-2 py-1 text-xs font-medium text-accent-800 hover:bg-accent-100"
-                        >
-                          Edit
-                        </Link>
-                      </td>
-                    </tr>
-                  );
-                })}
+                {rows.map((row, i) => (
+                  <BuyerTableRow
+                    key={row.lineId}
+                    row={row}
+                    index={i}
+                    today={today}
+                    tomorrow={tomorrow}
+                  />
+                ))}
               </tbody>
             </table>
           </div>
