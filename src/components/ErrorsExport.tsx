@@ -2,10 +2,11 @@
 
 // Export button for the Order Errors table. Shows a preview of exactly the
 // rows currently shown (already filtered server-side); Confirm downloads them
-// as a CSV spreadsheet (opens in Excel).
+// as a PDF that mirrors the table.
 
 import { useState } from "react";
-import { toCsv } from "@/lib/csv";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 export interface ErrorExportRow {
   customer: string;
@@ -49,16 +50,26 @@ export default function ErrorsExport({
   }
 
   function download() {
-    const csv = toCsv([...COLUMNS], rows.map(cells));
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `damen-order-errors-${new Date().toISOString().slice(0, 10)}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
+    const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "letter" });
+    doc.setFontSize(16);
+    doc.text("Order Errors", 40, 40);
+    doc.setFontSize(10);
+    doc.setTextColor(110);
+    doc.text(
+      `${filterSummary} · ${rows.length} report${rows.length === 1 ? "" : "s"} · Generated ${new Date().toLocaleString("en-CA")}`,
+      40,
+      58,
+    );
+    autoTable(doc, {
+      startY: 72,
+      head: [[...COLUMNS]],
+      body: rows.map(cells),
+      styles: { fontSize: 9, cellPadding: 4, overflow: "linebreak", valign: "top" },
+      headStyles: { fillColor: [243, 244, 246], textColor: 30, fontStyle: "bold" },
+      alternateRowStyles: { fillColor: [250, 250, 250] },
+      margin: { left: 40, right: 40 },
+    });
+    doc.save(`damen-order-errors-${new Date().toISOString().slice(0, 10)}.pdf`);
     setOpen(false);
   }
 
