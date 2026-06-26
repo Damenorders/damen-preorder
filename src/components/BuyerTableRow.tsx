@@ -87,7 +87,12 @@ export default function BuyerTableRow({
               ? row.specs.split(" · ").map((part, idx) => (
                   <span
                     key={idx}
-                    className={`whitespace-nowrap rounded px-1 py-0.5 text-[11px] font-medium ${chipColorFor(part)}`}
+                    className={`whitespace-nowrap rounded px-1 py-0.5 text-[11px] font-medium ${
+                      // Other Preorders specs are always turquoise so they stand out.
+                      row.department === "other"
+                        ? "bg-teal-200 text-teal-900"
+                        : chipColorFor(part)
+                    }`}
                   >
                     {part}
                   </span>
