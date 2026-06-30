@@ -14,7 +14,7 @@ export default async function NewOrderPage({
   const { department } = await params;
   if (!isDepartment(department)) notFound();
 
-  const user = await requireRole("rep", "buyer");
+  const user = await requireRole("rep", "buyer", "butcher");
   const [clients, products] = await Promise.all([
     getActiveClients(),
     getProductsForDepartment(department),

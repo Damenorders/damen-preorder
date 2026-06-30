@@ -1,5 +1,5 @@
 import "server-only";
-import { and, eq, inArray, type SQL } from "drizzle-orm";
+import { and, eq, gte, inArray, lte, type SQL } from "drizzle-orm";
 import { db } from "@/db";
 import {
   orders,
@@ -17,6 +17,11 @@ export interface BuyingSheetFilters {
   delivery?: string; // "today_tomorrow" (default) | "today" | "tomorrow" | "all" | YYYY-MM-DD
   status?: string; // buyer table status | "all" (default "pending" = still to buy)
   department?: string;
+  // Combined view: merge the same product+specs across every delivery date into
+  // one total, optionally bounded by a delivery-date range (dateFrom..dateTo).
+  combine?: boolean;
+  dateFrom?: string; // YYYY-MM-DD, inclusive (combine mode only)
+  dateTo?: string; // YYYY-MM-DD, inclusive (combine mode only)
 }
 
 export interface BuyingSheetGroup {
@@ -42,18 +47,31 @@ export async function getBuyingSheet(
   filters: BuyingSheetFilters,
 ): Promise<BuyingSheetGroup[]> {
   const conditions: SQL[] = [];
+  const combine = filters.combine ?? false;
+  const isDate = (v?: string) => !!v && /^\d{4}-\d{2}-\d{2}$/.test(v);
 
-  const delivery = filters.delivery ?? "today_tomorrow";
-  if (delivery === "today_tomorrow") {
-    conditions.push(
-      inArray(orders.deliveryDate, [businessToday(), businessTomorrow()]),
-    );
-  } else if (delivery === "today") {
-    conditions.push(eq(orders.deliveryDate, businessToday()));
-  } else if (delivery === "tomorrow") {
-    conditions.push(eq(orders.deliveryDate, businessTomorrow()));
-  } else if (/^\d{4}-\d{2}-\d{2}$/.test(delivery)) {
-    conditions.push(eq(orders.deliveryDate, delivery));
+  if (combine) {
+    // Combined view ignores the today/tomorrow selector; an optional
+    // delivery-date range bounds which orders are totalled.
+    if (isDate(filters.dateFrom)) {
+      conditions.push(gte(orders.deliveryDate, filters.dateFrom!));
+    }
+    if (isDate(filters.dateTo)) {
+      conditions.push(lte(orders.deliveryDate, filters.dateTo!));
+    }
+  } else {
+    const delivery = filters.delivery ?? "today_tomorrow";
+    if (delivery === "today_tomorrow") {
+      conditions.push(
+        inArray(orders.deliveryDate, [businessToday(), businessTomorrow()]),
+      );
+    } else if (delivery === "today") {
+      conditions.push(eq(orders.deliveryDate, businessToday()));
+    } else if (delivery === "tomorrow") {
+      conditions.push(eq(orders.deliveryDate, businessTomorrow()));
+    } else if (isDate(delivery)) {
+      conditions.push(eq(orders.deliveryDate, delivery));
+    }
   }
 
   const status = filters.status ?? "pending";
@@ -80,11 +98,15 @@ export async function getBuyingSheet(
 
   const groups = new Map<string, BuyingSheetGroup & { clientSet: Set<string> }>();
   for (const row of rows) {
-    const key = `${row.deliveryDate}||${row.product}||${row.specs}`;
+    // Combined view merges across every delivery date, so the date is dropped
+    // from the grouping key (and reported as "" for the whole range).
+    const key = combine
+      ? `${row.product}||${row.specs}`
+      : `${row.deliveryDate}||${row.product}||${row.specs}`;
     let group = groups.get(key);
     if (!group) {
       group = {
-        deliveryDate: row.deliveryDate,
+        deliveryDate: combine ? "" : row.deliveryDate,
         department: row.department,
         product: row.product,
         specs: row.specs,

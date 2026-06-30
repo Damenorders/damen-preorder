@@ -28,7 +28,7 @@ export async function setSubmissionStatus(
   orderId: number,
   status: SubmissionStatus,
 ): Promise<{ ok: boolean; error?: string }> {
-  const user = await requireRole("buyer", "scheduling");
+  const user = await requireRole("buyer", "scheduling", "butcher");
   if (!SUBMISSION_STATUSES.includes(status)) {
     return { ok: false, error: "Invalid status." };
   }
@@ -69,7 +69,7 @@ export async function setBuyerTableStatus(
   orderId: number,
   status: BuyerTableStatus,
 ): Promise<{ ok: boolean; error?: string }> {
-  const user = await requireRole("buyer");
+  const user = await requireRole("buyer", "butcher");
   if (!BUYER_TABLE_STATUSES.includes(status)) {
     return { ok: false, error: "Invalid status." };
   }

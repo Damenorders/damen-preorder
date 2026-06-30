@@ -55,7 +55,7 @@ function StatusSelect({ defaultValue }: { defaultValue: string }) {
 }
 
 export default async function ExportsPage() {
-  const user = await requireRole("buyer");
+  const user = await requireRole("buyer", "butcher");
 
   return (
     <PageShell

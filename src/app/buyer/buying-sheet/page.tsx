@@ -20,20 +20,37 @@ export default async function BuyingSheetPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const user = await requireRole("buyer");
+  const user = await requireRole("buyer", "butcher");
   const params = await searchParams;
   const get = (key: string) => {
     const v = params[key];
     return typeof v === "string" && v !== "" ? v : undefined;
   };
 
+  const combine = get("combine") === "1";
   const delivery = get("delivery") ?? "today_tomorrow";
-  const status = get("status") ?? "pending";
+  // Combined view defaults to "all statuses" — it answers "how much of each
+  // product was ordered", not "what's left to buy".
+  const status = get("status") ?? (combine ? "all" : "pending");
   const department = get("module");
+  const dateFrom = get("from");
+  const dateTo = get("to");
 
-  const groups = await getBuyingSheet({ delivery, status, department });
+  const groups = await getBuyingSheet({
+    delivery,
+    status,
+    department,
+    combine,
+    dateFrom,
+    dateTo,
+  });
 
   const fields: FilterField[] = [
+    {
+      type: "checkbox",
+      param: "combine",
+      label: "Combine across dates (totals per product)",
+    },
     {
       type: "select",
       param: "status",
@@ -47,19 +64,28 @@ export default async function BuyingSheetPage({
         })),
       ],
     },
-    {
-      type: "select",
-      param: "delivery",
-      label: "Delivery",
-      defaultValue: delivery,
-      options: [
-        { value: "all", label: "All dates" },
-        { value: "today_tomorrow", label: "Today + Tomorrow" },
-        { value: "today", label: "Today" },
-        { value: "tomorrow", label: "Tomorrow" },
-      ],
-    },
-    { type: "date", param: "delivery", label: "Delivery date (pick)" },
+    // Combined mode uses a date range; the day-picker selector is for the
+    // normal per-date view.
+    ...(combine
+      ? ([
+          { type: "date", param: "from", label: "From delivery date" },
+          { type: "date", param: "to", label: "To delivery date" },
+        ] as FilterField[])
+      : ([
+          {
+            type: "select",
+            param: "delivery",
+            label: "Delivery",
+            defaultValue: delivery,
+            options: [
+              { value: "all", label: "All dates" },
+              { value: "today_tomorrow", label: "Today + Tomorrow" },
+              { value: "today", label: "Today" },
+              { value: "tomorrow", label: "Tomorrow" },
+            ],
+          },
+          { type: "date", param: "delivery", label: "Delivery date (pick)" },
+        ] as FilterField[])),
     {
       type: "select",
       param: "module",
@@ -69,7 +95,7 @@ export default async function BuyingSheetPage({
     },
   ];
 
-  // group by date for section headers
+  // group by date for section headers (normal, per-date view)
   const byDate = new Map<string, typeof groups>();
   for (const g of groups) {
     if (!byDate.has(g.deliveryDate)) byDate.set(g.deliveryDate, []);
@@ -78,6 +104,47 @@ export default async function BuyingSheetPage({
   const today = businessToday();
   const tomorrow = businessTomorrow();
 
+  const rangeLabel =
+    dateFrom && dateTo
+      ? `${formatDate(dateFrom)} – ${formatDate(dateTo)}`
+      : dateFrom
+        ? `From ${formatDate(dateFrom)}`
+        : dateTo
+          ? `Until ${formatDate(dateTo)}`
+          : "All time";
+
+  // One product+specs card — shared by both the per-date and combined views.
+  const card = (g: (typeof groups)[number]) => (
+    <li
+      key={`${g.product}-${g.specs}`}
+      className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm"
+    >
+      <p className="font-semibold uppercase tracking-wide text-accent-800">
+        {g.product}
+        {g.specs ? ` ${g.specs}` : ""}
+      </p>
+      <div className="mt-3 grid grid-cols-3 gap-3 text-center">
+        <div className="rounded-xl bg-neutral-50 px-2 py-3">
+          <p className="text-xl font-semibold">{g.totalQuantity}</p>
+          <p className="text-xs text-neutral-500">Total Quantity</p>
+        </div>
+        <div className="rounded-xl bg-neutral-50 px-2 py-3">
+          <p className="text-xl font-semibold">{g.totalWeight.toFixed(1)}</p>
+          <p className="text-xs text-neutral-500">
+            Total {weightUnit(g.department).toUpperCase()}
+          </p>
+        </div>
+        <div className="rounded-xl bg-neutral-50 px-2 py-3">
+          <p className="text-xl font-semibold">{g.clientCount}</p>
+          <p className="text-xs text-neutral-500">
+            Client{g.clientCount === 1 ? "" : "s"}
+          </p>
+        </div>
+      </div>
+      <p className="mt-3 text-sm text-neutral-500">{g.clients.join(" · ")}</p>
+    </li>
+  );
+
   return (
     <PageShell
       user={user}
@@ -85,9 +152,11 @@ export default async function BuyingSheetPage({
       backLabel="Dashboard"
       title="Grouped Buying Sheet"
       subtitle={
-        status === "pending"
-          ? "Totals per product + specs that still need to be bought."
-          : "Totals per product + specs."
+        combine
+          ? `Combined totals per product + specs · ${rangeLabel}`
+          : status === "pending"
+            ? "Totals per product + specs that still need to be bought."
+            : "Totals per product + specs."
       }
       wide
     >
@@ -96,16 +165,30 @@ export default async function BuyingSheetPage({
         <FilterBar
           fields={fields}
           activeCount={
+            (combine ? 1 : 0) +
             (status !== "all" ? 1 : 0) +
-            (delivery !== "all" ? 1 : 0) +
-            (department ? 1 : 0)
+            (department ? 1 : 0) +
+            (combine
+              ? (dateFrom ? 1 : 0) + (dateTo ? 1 : 0)
+              : delivery !== "all"
+                ? 1
+                : 0)
           }
         />
 
         {groups.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-neutral-300 px-4 py-10 text-center text-neutral-500">
-            Nothing to buy for this view. Adjust the filters to see more.
+            {combine
+              ? "No orders match this date range. Adjust the filters to see more."
+              : "Nothing to buy for this view. Adjust the filters to see more."}
           </div>
+        ) : combine ? (
+          <section>
+            <h2 className="px-1 text-sm font-semibold uppercase tracking-wide text-neutral-500">
+              Combined totals · {rangeLabel}
+            </h2>
+            <ul className="mt-2 flex flex-col gap-3">{groups.map(card)}</ul>
+          </section>
         ) : (
           [...byDate.entries()].map(([date, dateGroups]) => (
             <section key={date}>
@@ -113,42 +196,7 @@ export default async function BuyingSheetPage({
                 Delivery {formatDate(date)}
                 {date === today ? " (today)" : date === tomorrow ? " (tomorrow)" : ""}
               </h2>
-              <ul className="mt-2 flex flex-col gap-3">
-                {dateGroups.map((g) => (
-                  <li
-                    key={`${g.product}-${g.specs}`}
-                    className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm"
-                  >
-                    <p className="font-semibold uppercase tracking-wide text-accent-800">
-                      {g.product}
-                      {g.specs ? ` ${g.specs}` : ""}
-                    </p>
-                    <div className="mt-3 grid grid-cols-3 gap-3 text-center">
-                      <div className="rounded-xl bg-neutral-50 px-2 py-3">
-                        <p className="text-xl font-semibold">{g.totalQuantity}</p>
-                        <p className="text-xs text-neutral-500">Total Quantity</p>
-                      </div>
-                      <div className="rounded-xl bg-neutral-50 px-2 py-3">
-                        <p className="text-xl font-semibold">
-                          {g.totalWeight.toFixed(1)}
-                        </p>
-                        <p className="text-xs text-neutral-500">
-                          Total {weightUnit(g.department).toUpperCase()}
-                        </p>
-                      </div>
-                      <div className="rounded-xl bg-neutral-50 px-2 py-3">
-                        <p className="text-xl font-semibold">{g.clientCount}</p>
-                        <p className="text-xs text-neutral-500">
-                          Client{g.clientCount === 1 ? "" : "s"}
-                        </p>
-                      </div>
-                    </div>
-                    <p className="mt-3 text-sm text-neutral-500">
-                      {g.clients.join(" · ")}
-                    </p>
-                  </li>
-                ))}
-              </ul>
+              <ul className="mt-2 flex flex-col gap-3">{dateGroups.map(card)}</ul>
             </section>
           ))
         )}

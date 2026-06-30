@@ -17,7 +17,7 @@ export default async function AllSubmissionsPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const user = await requireRole("buyer");
+  const user = await requireRole("buyer", "butcher");
   const params = await searchParams;
   const get = (key: string) => {
     const v = params[key];

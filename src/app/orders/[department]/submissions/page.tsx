@@ -23,7 +23,7 @@ export default async function SubmissionsPage({
   const sp = await searchParams;
   const editMode = sp.mode === "edit";
   const sortBy = sp.sortBy === "submitted" ? ("submitted" as const) : ("delivery" as const);
-  const user = await requireRole("rep", "buyer", "scheduling");
+  const user = await requireRole("rep", "buyer", "scheduling", "butcher");
   const submissions = await getSubmissions(user, department, sortBy);
 
   const sortHref = (value: string) => {
@@ -72,7 +72,10 @@ export default async function SubmissionsPage({
         <ul className="flex flex-col gap-3">
           {submissions.map((s) => {
             const isRep = user.role === "rep";
-            const isManager = user.role === "buyer" || user.role === "admin";
+            const isManager =
+              user.role === "buyer" ||
+              user.role === "admin" ||
+              user.role === "butcher";
             // Scheduling: view all, edit weight + status only (no full edit/delete).
             return (
               <SubmissionCard

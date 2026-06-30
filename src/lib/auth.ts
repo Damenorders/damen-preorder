@@ -11,6 +11,9 @@ export function homePathFor(role: Role): string {
       return "/admin";
     case "buyer":
       return "/buyer";
+    case "butcher":
+      // Butcher uses the buyer dashboard (minus error/application tools).
+      return "/buyer";
     case "rep":
       return "/rep";
     case "picker":

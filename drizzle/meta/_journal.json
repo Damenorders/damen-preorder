@@ -85,6 +85,13 @@
       "when": 1782400000003,
       "tag": "0011_order_edited",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1782400000004,
+      "tag": "0012_butcher_role",
+      "breakpoints": true
     }
   ]
 }

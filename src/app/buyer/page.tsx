@@ -11,7 +11,8 @@ import { DashboardCard } from "@/components/DashboardCard";
 // SPEC.md §6 — buyer dashboard: everything the rep has, plus buyer tools.
 // Buyer tools activate in Phases 3–4.
 export default async function BuyerDashboard() {
-  const user = await requireRole("buyer");
+  const user = await requireRole("buyer", "butcher");
+  const isButcher = user.role === "butcher";
 
   return (
     <>
@@ -41,19 +42,27 @@ export default async function BuyerDashboard() {
               { label: "Buyer Table", href: "/buyer/table", primary: true, variant: "highlight" },
               { label: "All Submissions", href: "/buyer/submissions" },
               { label: "Grouped Buying Sheet", href: "/buyer/buying-sheet" },
-              { label: "Order Errors", href: "/buyer/errors" },
-              { label: "Applications", href: "/admin/applications" },
+              // Order Errors and Applications are hidden from the Butcher role.
+              ...(isButcher
+                ? []
+                : [
+                    { label: "Order Errors", href: "/buyer/errors" },
+                    { label: "Applications", href: "/admin/applications" },
+                  ]),
               { label: "Exports", href: "/buyer/exports" },
             ]}
           />
-          <DashboardCard
-            title="Order Errors"
-            subtitle="Report or review order errors"
-            links={[
-              { label: "Report an Error", href: "/errors/new", primary: true },
-              { label: "Error Reports Table", href: "/buyer/errors" },
-            ]}
-          />
+          {/* The whole Order Errors card is hidden from the Butcher role. */}
+          {!isButcher && (
+            <DashboardCard
+              title="Order Errors"
+              subtitle="Report or review order errors"
+              links={[
+                { label: "Report an Error", href: "/errors/new", primary: true },
+                { label: "Error Reports Table", href: "/buyer/errors" },
+              ]}
+            />
+          )}
         </div>
       </main>
     </>

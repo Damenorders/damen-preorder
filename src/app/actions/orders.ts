@@ -169,7 +169,7 @@ async function validateOrderInput(input: OrderInput): Promise<OrderValidation> {
 // ---------------------------------------------------------------------------
 
 export async function createOrder(input: OrderInput): Promise<ActionResult> {
-  const user = await requireRole("rep", "buyer");
+  const user = await requireRole("rep", "buyer", "butcher");
 
   const validated = await validateOrderInput(input);
   if (!validated.valid) return { ok: false, error: validated.error };
@@ -254,7 +254,7 @@ export async function updateLineWeight(
   lineId: number,
   weight: number,
 ): Promise<ActionResult> {
-  const user = await requireRole("rep", "buyer", "scheduling", "picker");
+  const user = await requireRole("rep", "buyer", "scheduling", "picker", "butcher");
 
   if (!Number.isFinite(weight) || weight <= 0) {
     return { ok: false, error: "Weight must be a positive number." };
@@ -316,7 +316,7 @@ export async function updateOrder(
   orderId: number,
   input: OrderInput,
 ): Promise<ActionResult> {
-  const user = await requireRole("rep", "buyer");
+  const user = await requireRole("rep", "buyer", "butcher");
 
   const existing = await db.query.orders.findFirst({
     where: eq(orders.id, orderId),
@@ -534,7 +534,7 @@ export async function updateOrder(
 // ---------------------------------------------------------------------------
 
 export async function deleteOrder(orderId: number): Promise<ActionResult> {
-  const user = await requireRole("buyer"); // admins pass
+  const user = await requireRole("buyer", "butcher"); // admins pass
 
   const existing = await db.query.orders.findFirst({
     where: eq(orders.id, orderId),
