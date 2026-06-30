@@ -117,6 +117,8 @@ export async function getAllSubmissions(
     notes: o.notes,
     createdAt: o.createdAt,
     updatedAt: o.updatedAt,
+    editedAt: o.editedAt,
+    editSummary: o.editSummary,
     lines: lineRows
       .filter((l) => l.orderId === o.id)
       .map((l) => ({

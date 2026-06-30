@@ -151,6 +151,10 @@ export const orders = pgTable("orders", {
     .notNull()
     .default("pending"),
   notes: text("notes"),
+  // Set when a submission is changed through the Edit form (not status/weight
+  // tweaks). Drives the "Edited" pill; editSummary lists what changed.
+  editedAt: timestamp("edited_at", { withTimezone: true }),
+  editSummary: text("edit_summary"),
   odooSyncStatus: odooSyncStatusEnum("odoo_sync_status")
     .notNull()
     .default("not_synced"),

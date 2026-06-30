@@ -75,6 +75,15 @@ export default function SubmissionCard({
       ? submission.lines[0].product
       : `${submission.lines[0]?.product ?? "—"} +${submission.lines.length - 1} more`;
 
+  // "Edited" pill: only for Meat and Pre-Order (Other) submissions, and only
+  // once the order has actually been changed through the Edit form.
+  const showEdited =
+    (submission.department === "meat" || submission.department === "other") &&
+    submission.editedAt != null;
+  const editedTitle = submission.editSummary
+    ? `Changed: ${submission.editSummary} · ${formatDateTime(submission.editedAt!)}`
+    : `Edited ${formatDateTime(submission.editedAt!)}`;
+
   return (
     <li className="rounded-2xl border border-neutral-200 bg-white shadow-sm">
       {/* Compact row: Client | Delivery | Product | Qty | Weight | Status.
@@ -86,7 +95,17 @@ export default function SubmissionCard({
           onClick={() => setOpen((o) => !o)}
           className="min-w-0 flex-1 text-left"
         >
-          <p className="truncate font-medium">{submission.clientName}</p>
+          <p className="flex items-center gap-2 font-medium">
+            <span className="truncate">{submission.clientName}</span>
+            {showEdited && (
+              <span
+                title={editedTitle}
+                className="shrink-0 rounded-full bg-yellow-300 px-2 py-0.5 text-[11px] font-semibold text-yellow-900"
+              >
+                Edited
+              </span>
+            )}
+          </p>
           <p className="mt-0.5 truncate text-sm text-neutral-500">
             {formatDate(submission.deliveryDate)} · {productSummary}
             {totalWeight > 0 ? (
@@ -131,6 +150,14 @@ export default function SubmissionCard({
       {/* Expanded detail: specs, notes, times */}
       {open && (
         <div className="border-t border-neutral-100 px-4 py-3">
+          {showEdited && (
+            <p className="mb-3 rounded-lg bg-yellow-100 px-3 py-2 text-sm text-yellow-900">
+              <span className="font-semibold">Edited</span>
+              {submission.editSummary ? ` — changed ${submission.editSummary}` : ""}
+              {" · "}
+              {formatDateTime(submission.editedAt!)}
+            </p>
+          )}
           <ul className="flex flex-col gap-2">
             {submission.lines.map((line) => (
               <li

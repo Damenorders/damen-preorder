@@ -42,7 +42,12 @@ export async function setSubmissionStatus(
   await db.transaction(async (tx) => {
     await tx
       .update(orders)
-      .set({ submissionStatus: status, updatedAt: new Date() })
+      .set({
+        submissionStatus: status,
+        updatedAt: new Date(),
+        // Moving to Ready clears the "Edited" flag — the edit has been actioned.
+        ...(status === "ready" ? { editedAt: null, editSummary: null } : {}),
+      })
       .where(eq(orders.id, orderId));
     await logAudit(tx, user, [
       {

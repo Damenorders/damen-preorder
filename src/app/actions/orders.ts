@@ -289,7 +289,7 @@ export async function updateLineWeight(
       .where(eq(orderLines.id, lineId));
     await tx
       .update(orders)
-      .set({ updatedAt: now })
+      .set({ updatedAt: now, editedAt: now, editSummary: "weight" })
       .where(eq(orders.id, order.id));
     await logAudit(tx, user, [
       {
@@ -491,6 +491,34 @@ export async function updateOrder(
           },
         });
       }
+    }
+
+    // Flag the order as edited (Edit form only) and record a short summary of
+    // what changed, for the "Edited" pill on the submission card.
+    if (audit.length > 0) {
+      const labels: string[] = [];
+      const add = (l: string) => {
+        if (!labels.includes(l)) labels.push(l);
+      };
+      for (const e of audit) {
+        if (e.recordType === "order") {
+          if (e.action === "update:client") add("client");
+          else if (e.action === "update:delivery_date") add("delivery date");
+          else if (e.action === "update:notes") add("order notes");
+        } else {
+          if (e.action === "create") add("added item");
+          else if (e.action === "delete") add("removed item");
+          else if (e.action === "update:product") add("product");
+          else if (e.action === "update:specs") add("specs");
+          else if (e.action === "update:quantity") add("quantity");
+          else if (e.action === "update:weight") add("weight");
+          else if (e.action === "update:notes") add("item notes");
+        }
+      }
+      await tx
+        .update(orders)
+        .set({ editedAt: now, editSummary: labels.join(", ") })
+        .where(eq(orders.id, orderId));
     }
 
     await logAudit(tx, user, audit);

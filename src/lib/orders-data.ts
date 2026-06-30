@@ -66,6 +66,10 @@ export interface SubmissionView {
   notes: string | null;
   createdAt: Date;
   updatedAt: Date;
+  /** Set when changed via the Edit form; null if never edited */
+  editedAt: Date | null;
+  /** Short list of what was changed in the last edit (e.g. "weight, specs") */
+  editSummary: string | null;
   lines: SubmissionLineView[];
 }
 
@@ -86,6 +90,8 @@ function toSubmissionView(
     notes: order.notes,
     createdAt: order.createdAt,
     updatedAt: order.updatedAt,
+    editedAt: order.editedAt,
+    editSummary: order.editSummary,
     lines: lines
       .filter((l) => l.orderId === order.id)
       .map((l) => ({
