@@ -1,15 +1,14 @@
 import { requireRole, homePathFor } from "@/lib/auth";
 import { getBuyingSheet } from "@/lib/buying-sheet";
 import { businessToday, businessTomorrow } from "@/lib/buyer-data";
-import {
-  DEPARTMENTS,
-  departmentLabels,
-  buyerTableStatusLabels,
-  weightUnit,
-} from "@/lib/labels";
+import { DEPARTMENTS, departmentLabels, buyerTableStatusLabels } from "@/lib/labels";
 import PageShell from "@/components/PageShell";
 import FilterBar, { type FilterField } from "@/components/FilterBar";
 import LiveRefresh from "@/components/LiveRefresh";
+import BuyingSheetGroups, {
+  type BuyingRow,
+  type BuyingSection,
+} from "@/components/BuyingSheetGroups";
 import { formatDate } from "@/lib/dates";
 
 // Grouped Buying Sheet — buyer/admin only (SPEC.md §20).
@@ -28,6 +27,7 @@ export default async function BuyingSheetPage({
   };
 
   const combine = get("combine") === "1";
+  const byProduct = get("byproduct") === "1";
   const delivery = get("delivery") ?? "today_tomorrow";
   // Combined view defaults to "all statuses" — it answers "how much of each
   // product was ordered", not "what's left to buy".
@@ -46,6 +46,11 @@ export default async function BuyingSheetPage({
   });
 
   const fields: FilterField[] = [
+    {
+      type: "checkbox",
+      param: "byproduct",
+      label: "Group by product (specs on click)",
+    },
     {
       type: "checkbox",
       param: "combine",
@@ -95,12 +100,6 @@ export default async function BuyingSheetPage({
     },
   ];
 
-  // group by date for section headers (normal, per-date view)
-  const byDate = new Map<string, typeof groups>();
-  for (const g of groups) {
-    if (!byDate.has(g.deliveryDate)) byDate.set(g.deliveryDate, []);
-    byDate.get(g.deliveryDate)!.push(g);
-  }
   const today = businessToday();
   const tomorrow = businessTomorrow();
 
@@ -113,37 +112,73 @@ export default async function BuyingSheetPage({
           ? `Until ${formatDate(dateTo)}`
           : "All time";
 
-  // One product+specs card — shared by both the per-date and combined views.
-  const card = (g: (typeof groups)[number]) => (
-    <li
-      key={`${g.product}-${g.specs}`}
-      className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm"
-    >
-      <p className="font-semibold uppercase tracking-wide text-accent-800">
-        {g.product}
-        {g.specs ? ` ${g.specs}` : ""}
-      </p>
-      <div className="mt-3 grid grid-cols-3 gap-3 text-center">
-        <div className="rounded-xl bg-neutral-50 px-2 py-3">
-          <p className="text-xl font-semibold">{g.totalQuantity}</p>
-          <p className="text-xs text-neutral-500">Total Quantity</p>
-        </div>
-        <div className="rounded-xl bg-neutral-50 px-2 py-3">
-          <p className="text-xl font-semibold">{g.totalWeight.toFixed(1)}</p>
-          <p className="text-xs text-neutral-500">
-            Total {weightUnit(g.department).toUpperCase()}
-          </p>
-        </div>
-        <div className="rounded-xl bg-neutral-50 px-2 py-3">
-          <p className="text-xl font-semibold">{g.clientCount}</p>
-          <p className="text-xs text-neutral-500">
-            Client{g.clientCount === 1 ? "" : "s"}
-          </p>
-        </div>
-      </div>
-      <p className="mt-3 text-sm text-neutral-500">{g.clients.join(" · ")}</p>
-    </li>
-  );
+  // Turn the spec-level groups into display rows. Group-by-product merges every
+  // spec of a product into one row, keeping the per-spec breakdown as children.
+  function toRows(list: typeof groups): BuyingRow[] {
+    if (!byProduct) {
+      return list.map((g) => ({
+        key: `${g.product}||${g.specs}`,
+        label: g.specs ? `${g.product} ${g.specs}` : g.product,
+        department: g.department,
+        totalQuantity: g.totalQuantity,
+        totalWeight: g.totalWeight,
+        clientCount: g.clientCount,
+        clients: g.clients,
+      }));
+    }
+    const map = new Map<string, BuyingRow & { clientSet: Set<string> }>();
+    for (const g of list) {
+      let r = map.get(g.product);
+      if (!r) {
+        r = {
+          key: g.product,
+          label: g.product,
+          department: g.department,
+          totalQuantity: 0,
+          totalWeight: 0,
+          clientCount: 0,
+          clients: [],
+          children: [],
+          clientSet: new Set<string>(),
+        };
+        map.set(g.product, r);
+      }
+      r.totalQuantity += g.totalQuantity;
+      r.totalWeight += g.totalWeight;
+      r.children!.push({
+        specs: g.specs,
+        totalQuantity: g.totalQuantity,
+        totalWeight: g.totalWeight,
+        clientCount: g.clientCount,
+        clients: g.clients,
+      });
+      for (const c of g.clients) r.clientSet.add(c);
+    }
+    return [...map.values()].map(({ clientSet, ...r }) => ({
+      ...r,
+      clientCount: clientSet.size,
+      clients: [...clientSet].sort(),
+      children: r.children!.sort((a, b) => a.specs.localeCompare(b.specs)),
+    }));
+  }
+
+  let sections: BuyingSection[];
+  if (combine) {
+    sections = [
+      { key: "combined", label: `Combined totals · ${rangeLabel}`, rows: toRows(groups) },
+    ];
+  } else {
+    const byDate = new Map<string, typeof groups>();
+    for (const g of groups) {
+      if (!byDate.has(g.deliveryDate)) byDate.set(g.deliveryDate, []);
+      byDate.get(g.deliveryDate)!.push(g);
+    }
+    sections = [...byDate.entries()].map(([date, dateGroups]) => ({
+      key: date,
+      label: `Delivery ${formatDate(date)}${date === today ? " (today)" : date === tomorrow ? " (tomorrow)" : ""}`,
+      rows: toRows(dateGroups),
+    }));
+  }
 
   return (
     <PageShell
@@ -152,11 +187,15 @@ export default async function BuyingSheetPage({
       backLabel="Dashboard"
       title="Grouped Buying Sheet"
       subtitle={
-        combine
-          ? `Combined totals per product + specs · ${rangeLabel}`
-          : status === "pending"
-            ? "Totals per product + specs that still need to be bought."
-            : "Totals per product + specs."
+        byProduct
+          ? combine
+            ? `Totals per product · ${rangeLabel} · tap a row for specs`
+            : "Totals per product — tap a row for specs."
+          : combine
+            ? `Combined totals per product + specs · ${rangeLabel}`
+            : status === "pending"
+              ? "Totals per product + specs that still need to be bought."
+              : "Totals per product + specs."
       }
       wide
     >
@@ -165,6 +204,7 @@ export default async function BuyingSheetPage({
         <FilterBar
           fields={fields}
           activeCount={
+            (byProduct ? 1 : 0) +
             (combine ? 1 : 0) +
             (status !== "all" ? 1 : 0) +
             (department ? 1 : 0) +
@@ -182,23 +222,8 @@ export default async function BuyingSheetPage({
               ? "No orders match this date range. Adjust the filters to see more."
               : "Nothing to buy for this view. Adjust the filters to see more."}
           </div>
-        ) : combine ? (
-          <section>
-            <h2 className="px-1 text-sm font-semibold uppercase tracking-wide text-neutral-500">
-              Combined totals · {rangeLabel}
-            </h2>
-            <ul className="mt-2 flex flex-col gap-3">{groups.map(card)}</ul>
-          </section>
         ) : (
-          [...byDate.entries()].map(([date, dateGroups]) => (
-            <section key={date}>
-              <h2 className="px-1 text-sm font-semibold uppercase tracking-wide text-neutral-500">
-                Delivery {formatDate(date)}
-                {date === today ? " (today)" : date === tomorrow ? " (tomorrow)" : ""}
-              </h2>
-              <ul className="mt-2 flex flex-col gap-3">{dateGroups.map(card)}</ul>
-            </section>
-          ))
+          <BuyingSheetGroups sections={sections} />
         )}
       </div>
     </PageShell>

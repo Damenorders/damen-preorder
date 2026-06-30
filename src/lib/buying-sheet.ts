@@ -98,18 +98,21 @@ export async function getBuyingSheet(
 
   const groups = new Map<string, BuyingSheetGroup & { clientSet: Set<string> }>();
   for (const row of rows) {
+    // Fish is bought by product regardless of spec — e.g. every Salmon line
+    // totals together — so specs are dropped from the grouping for Fish.
+    const groupSpecs = row.department === "fish" ? "" : row.specs;
     // Combined view merges across every delivery date, so the date is dropped
     // from the grouping key (and reported as "" for the whole range).
     const key = combine
-      ? `${row.product}||${row.specs}`
-      : `${row.deliveryDate}||${row.product}||${row.specs}`;
+      ? `${row.product}||${groupSpecs}`
+      : `${row.deliveryDate}||${row.product}||${groupSpecs}`;
     let group = groups.get(key);
     if (!group) {
       group = {
         deliveryDate: combine ? "" : row.deliveryDate,
         department: row.department,
         product: row.product,
-        specs: row.specs,
+        specs: groupSpecs,
         totalQuantity: 0,
         totalWeight: 0,
         clientCount: 0,
