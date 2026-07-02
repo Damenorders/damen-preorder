@@ -242,6 +242,30 @@ export const applications = pgTable("applications", {
     .defaultNow(),
 });
 
+// Web Push subscriptions — one row per device/browser that opted in to order
+// alerts (buyer/butcher only, enforced in the server actions). departments
+// holds which order sections that device wants to be pinged for.
+export const pushSubscriptions = pgTable("push_subscriptions", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  endpoint: text("endpoint").notNull().unique(),
+  p256dh: text("p256dh").notNull(),
+  auth: text("auth").notNull(),
+  // Which departments this device wants alerts for. Default: all three.
+  departments: jsonb("departments")
+    .notNull()
+    .$type<Department[]>()
+    .default(["meat", "fish", "other"]),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
 export const auditLogs = pgTable("audit_logs", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
   userId: uuid("user_id"),
@@ -268,6 +292,7 @@ export type OrderLine = typeof orderLines.$inferSelect;
 export type OrderError = typeof orderErrors.$inferSelect;
 export type Application = typeof applications.$inferSelect;
 export type ApplicationStatus = Application["status"];
+export type PushSubscription = typeof pushSubscriptions.$inferSelect;
 export type AuditLog = typeof auditLogs.$inferSelect;
 
 export type ErrorType = OrderError["errorType"];

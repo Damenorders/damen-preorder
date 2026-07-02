@@ -7,6 +7,7 @@ import {
 } from "@/lib/labels";
 import AppHeader from "@/components/AppHeader";
 import { DashboardCard } from "@/components/DashboardCard";
+import PushNotificationsSettings from "@/components/PushNotificationsSettings";
 
 // SPEC.md §6 — buyer dashboard: everything the rep has, plus buyer tools.
 // Buyer tools activate in Phases 3–4.
@@ -63,6 +64,7 @@ export default async function BuyerDashboard() {
               ]}
             />
           )}
+          <PushNotificationsSettings />
         </div>
       </main>
     </>

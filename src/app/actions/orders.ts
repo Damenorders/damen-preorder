@@ -8,11 +8,13 @@ import {
   orderLines,
   products,
   type Product,
+  type Department,
 } from "@/db/schema";
 import { requireRole } from "@/lib/auth";
 import { logAudit, type AuditEntry } from "@/lib/audit";
 import { resolveClient } from "@/lib/clients";
 import { notifyOrdersChanged } from "@/lib/realtime-server";
+import { notifyNewOrder } from "@/lib/push-server";
 import { formatExternalId } from "@/db/external-id";
 import { isDepartment } from "@/lib/labels";
 import {
@@ -242,6 +244,13 @@ export async function createOrder(input: OrderInput): Promise<ActionResult> {
 
   revalidatePath(`/orders/${input.department}/submissions`);
   await notifyOrdersChanged();
+  // One push banner per new order to subscribed buyer/butcher devices.
+  await notifyNewOrder({
+    orderId,
+    department: input.department as Department,
+    clientName: client.clientName,
+    deliveryDate: input.deliveryDate,
+  });
   return { ok: true, orderId };
 }
 
