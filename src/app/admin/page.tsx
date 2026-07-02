@@ -7,6 +7,7 @@ import {
 } from "@/lib/labels";
 import AppHeader from "@/components/AppHeader";
 import { DashboardCard } from "@/components/DashboardCard";
+import PushNotificationsSettings from "@/components/PushNotificationsSettings";
 
 // SPEC.md §3.1 — admin has full access: everything the buyer has,
 // plus management and audit history (activates in Phase 4).
@@ -64,6 +65,7 @@ export default async function AdminDashboard() {
               { label: "Audit History", href: "/admin/audit" },
             ]}
           />
+          <PushNotificationsSettings />
         </div>
       </main>
     </>
