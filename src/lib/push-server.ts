@@ -2,7 +2,7 @@ import "server-only";
 import webpush from "web-push";
 import { eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
-import { pushSubscriptions, users, type Department } from "@/db/schema";
+import { pushSubscriptions, users, type Department, type Role } from "@/db/schema";
 import { formatDate } from "@/lib/dates";
 
 // Web Push sender. Configured lazily so `next build` (and any environment
@@ -120,6 +120,62 @@ export async function notifyNewOrder(order: NewOrderInfo): Promise<void> {
   } catch {
     // Notifications are best-effort; the order itself is already saved.
   }
+}
+
+/**
+ * Send a banner to every subscribed device held by users in the given roles.
+ * Unlike order alerts, this ignores the per-device department picks — pickups
+ * and deliveries aren't tied to a department. Best-effort: never throws.
+ */
+async function notifyRoles(roles: Role[], payload: PushPayload): Promise<void> {
+  try {
+    if (!configure()) return;
+    const rows = await db
+      .select({
+        id: pushSubscriptions.id,
+        endpoint: pushSubscriptions.endpoint,
+        p256dh: pushSubscriptions.p256dh,
+        auth: pushSubscriptions.auth,
+      })
+      .from(pushSubscriptions)
+      .innerJoin(users, eq(pushSubscriptions.userId, users.id))
+      .where(inArray(users.role, roles));
+    if (rows.length === 0) return;
+    await Promise.allSettled(rows.map((r) => sendTo(r, payload)));
+  } catch {
+    // Notifications are best-effort; the record itself is already saved.
+  }
+}
+
+// Who gets pickup/delivery banners: the dispatch team, plus admins.
+const LOGISTICS_ROLES: Role[] = ["dispatch", "admin"];
+
+/** Fire a "New Pickup" banner to dispatch + admin devices. */
+export async function notifyNewPickup(pickup: {
+  pickupId: number;
+  supplierName: string;
+  pickupDate: string;
+}): Promise<void> {
+  await notifyRoles(LOGISTICS_ROLES, {
+    title: "🚚 New Pickup",
+    body: `${pickup.supplierName} · ${formatDate(pickup.pickupDate)}`,
+    url: "/buyer/pickups",
+    tag: `pickup-${pickup.pickupId}`,
+  });
+}
+
+/** Fire a "New Delivery" banner to dispatch + admin devices. */
+export async function notifyNewDelivery(delivery: {
+  deliveryId: number;
+  supplierName: string;
+  deliveryDate: string;
+}): Promise<void> {
+  await notifyRoles(LOGISTICS_ROLES, {
+    title: "📦 New Delivery",
+    body: `${delivery.supplierName} · ${formatDate(delivery.deliveryDate)}`,
+    url: "/buyer/pickups",
+    tag: `delivery-${delivery.deliveryId}`,
+  });
 }
 
 /** Send a test banner to every device the given user has registered. */

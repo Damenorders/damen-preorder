@@ -10,6 +10,7 @@ import { deliveries, type DeliveryStatus } from "@/db/schema";
 import { requireRole } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { resolveSupplier } from "@/lib/suppliers";
+import { notifyNewDelivery } from "@/lib/push-server";
 import { formatExternalId } from "@/db/external-id";
 
 export interface DeliveryInput {
@@ -65,6 +66,11 @@ export async function createDelivery(
   });
 
   revalidatePath("/buyer/pickups");
+  await notifyNewDelivery({
+    deliveryId: id,
+    supplierName: supplier.name,
+    deliveryDate: input.deliveryDate,
+  });
   return { ok: true, id };
 }
 

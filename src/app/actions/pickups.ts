@@ -10,6 +10,7 @@ import { pickups, type PickupStatus } from "@/db/schema";
 import { requireRole } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { resolveSupplier } from "@/lib/suppliers";
+import { notifyNewPickup } from "@/lib/push-server";
 import { formatExternalId } from "@/db/external-id";
 
 export interface PickupInput {
@@ -84,6 +85,11 @@ export async function createPickup(
   });
 
   revalidatePath("/buyer/pickups");
+  await notifyNewPickup({
+    pickupId: id,
+    supplierName: supplier.name,
+    pickupDate: input.pickupDate,
+  });
   return { ok: true, id };
 }
 
