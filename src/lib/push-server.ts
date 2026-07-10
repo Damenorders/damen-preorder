@@ -101,7 +101,7 @@ export async function notifyNewOrder(order: NewOrderInfo): Promise<void> {
       .from(pushSubscriptions)
       .innerJoin(users, eq(pushSubscriptions.userId, users.id))
       // Only alert accounts that still hold an alerting role.
-      .where(inArray(users.role, ["buyer", "butcher", "admin"]));
+      .where(inArray(users.role, ["buyer", "butcher", "admin", "dispatch"]));
 
     const recipients = rows.filter((r) =>
       (r.departments as Department[]).includes(order.department),

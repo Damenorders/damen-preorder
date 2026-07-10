@@ -16,7 +16,7 @@ import {
 // ---------------------------------------------------------------------------
 
 // picker: warehouse role — sees all submissions (read-only), nothing else
-export const roleEnum = pgEnum("user_role", ["admin", "buyer", "rep", "picker", "scheduling", "clients", "butcher"]);
+export const roleEnum = pgEnum("user_role", ["admin", "buyer", "rep", "picker", "scheduling", "clients", "butcher", "dispatch"]);
 
 export const applicationStatusEnum = pgEnum("application_status", [
   "new",
@@ -48,6 +48,18 @@ export const buyerTableStatusEnum = pgEnum("buyer_table_status", [
   "received",
   "pending_delivery",
   "pending_pickup",
+]);
+
+// Pickup lifecycle — picked-up sheets sink to the bottom of the list.
+export const pickupStatusEnum = pgEnum("pickup_status", [
+  "pending",
+  "picked_up",
+]);
+
+// Delivery lifecycle — delivered rows sink to the bottom of the list.
+export const deliveryStatusEnum = pgEnum("delivery_status", [
+  "pending",
+  "delivered",
 ]);
 
 export const odooSyncStatusEnum = pgEnum("odoo_sync_status", [
@@ -266,6 +278,72 @@ export const pushSubscriptions = pgTable("push_subscriptions", {
     .defaultNow(),
 });
 
+// Suppliers (pickup locations) — self-learning like clients: the buyer types a
+// pickup location once with its address, and it's remembered so the address
+// auto-fills next time. Shared by the pickup form.
+export const suppliers = pgTable("suppliers", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  externalId: text("external_id").unique(),
+  odooId: integer("odoo_id"),
+  name: text("name").notNull(),
+  address: text("address").notNull().default(""),
+  active: boolean("active").notNull().default(true),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+// Pickups — buyer-entered pickup sheets, printed one landscape page each.
+export const pickups = pgTable("pickups", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  externalId: text("external_id").unique(),
+  odooId: integer("odoo_id"),
+  supplierId: integer("supplier_id").references(() => suppliers.id),
+  supplierName: text("supplier_name").notNull(),
+  address: text("address").notNull().default(""),
+  poNumber: text("po_number").notNull(),
+  pickupDate: date("pickup_date").notNull(),
+  amountOfStock: text("amount_of_stock").notNull(),
+  note: text("note"),
+  driver: text("driver"),
+  status: pickupStatusEnum("status").notNull().default("pending"),
+  createdByUserId: uuid("created_by_user_id")
+    .notNull()
+    .references(() => users.id),
+  createdByName: text("created_by_name").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+// Deliveries — a lighter companion to pickups: just supplier + date, to keep
+// track of what's coming in. Shares the self-learning suppliers list.
+export const deliveries = pgTable("deliveries", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  externalId: text("external_id").unique(),
+  odooId: integer("odoo_id"),
+  supplierId: integer("supplier_id").references(() => suppliers.id),
+  supplierName: text("supplier_name").notNull(),
+  deliveryDate: date("delivery_date").notNull(),
+  status: deliveryStatusEnum("status").notNull().default("pending"),
+  createdByUserId: uuid("created_by_user_id")
+    .notNull()
+    .references(() => users.id),
+  createdByName: text("created_by_name").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
 export const auditLogs = pgTable("audit_logs", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
   userId: uuid("user_id"),
@@ -293,6 +371,11 @@ export type OrderError = typeof orderErrors.$inferSelect;
 export type Application = typeof applications.$inferSelect;
 export type ApplicationStatus = Application["status"];
 export type PushSubscription = typeof pushSubscriptions.$inferSelect;
+export type Supplier = typeof suppliers.$inferSelect;
+export type Pickup = typeof pickups.$inferSelect;
+export type PickupStatus = Pickup["status"];
+export type Delivery = typeof deliveries.$inferSelect;
+export type DeliveryStatus = Delivery["status"];
 export type AuditLog = typeof auditLogs.$inferSelect;
 
 export type ErrorType = OrderError["errorType"];

@@ -16,7 +16,10 @@ export interface AuditEntry {
     | "client"
     | "product"
     | "user"
-    | "application";
+    | "application"
+    | "supplier"
+    | "pickup"
+    | "delivery";
   recordId: string | number;
   oldValue?: unknown;
   newValue?: unknown;

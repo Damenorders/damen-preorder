@@ -99,6 +99,34 @@
       "when": 1782400000005,
       "tag": "0013_push_subscriptions",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1782400000006,
+      "tag": "0014_pickups",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1782400000007,
+      "tag": "0015_pickup_status",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1782400000008,
+      "tag": "0016_deliveries",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1782400000009,
+      "tag": "0017_dispatch_role",
+      "breakpoints": true
     }
   ]
 }

@@ -31,7 +31,7 @@ function cleanDepartments(input: unknown): Department[] {
 export async function subscribeUser(
   sub: SerializedSubscription,
 ): Promise<{ ok: boolean; error?: string; departments?: Department[] }> {
-  const user = await requireRole("buyer", "butcher");
+  const user = await requireRole("buyer", "butcher", "dispatch");
   if (!sub?.endpoint || !sub.keys?.p256dh || !sub.keys?.auth) {
     return { ok: false, error: "Invalid subscription." };
   }
@@ -69,7 +69,7 @@ export async function subscribeUser(
 export async function unsubscribeUser(
   endpoint: string,
 ): Promise<{ ok: boolean }> {
-  const user = await requireRole("buyer", "butcher");
+  const user = await requireRole("buyer", "butcher", "dispatch");
   await db
     .delete(pushSubscriptions)
     .where(
@@ -86,7 +86,7 @@ export async function updatePushDepartments(
   endpoint: string,
   departments: Department[],
 ): Promise<{ ok: boolean; departments: Department[] }> {
-  const user = await requireRole("buyer", "butcher");
+  const user = await requireRole("buyer", "butcher", "dispatch");
   const clean = cleanDepartments(departments);
   await db
     .update(pushSubscriptions)
@@ -102,7 +102,7 @@ export async function updatePushDepartments(
 
 /** Read this device's current subscription state (for hydrating the UI). */
 export async function getPushState(endpoint: string): Promise<PushState> {
-  const user = await requireRole("buyer", "butcher");
+  const user = await requireRole("buyer", "butcher", "dispatch");
   const row = await db.query.pushSubscriptions.findFirst({
     where: and(
       eq(pushSubscriptions.endpoint, endpoint),
@@ -117,7 +117,7 @@ export async function getPushState(endpoint: string): Promise<PushState> {
 
 /** Send a test banner to every device this user has registered. */
 export async function sendTestNotification(): Promise<{ ok: boolean }> {
-  const user = await requireRole("buyer", "butcher");
+  const user = await requireRole("buyer", "butcher", "dispatch");
   await sendTestPush(user.id);
   return { ok: true };
 }

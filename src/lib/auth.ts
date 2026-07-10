@@ -22,6 +22,8 @@ export function homePathFor(role: Role): string {
       return "/scheduling";
     case "clients":
       return "/apply";
+    case "dispatch":
+      return "/dispatch";
   }
 }
 

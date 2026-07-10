@@ -64,6 +64,18 @@ export default async function BuyerDashboard() {
               ]}
             />
           )}
+          {/* Pickups are buyer/admin only — hidden from the Butcher role. */}
+          {!isButcher && (
+            <DashboardCard
+              title="Pickups & Deliveries"
+              subtitle="Pickup sheets and delivery tracking"
+              links={[
+                { label: "New Pickup", href: "/buyer/pickups/new", primary: true, variant: "highlight" },
+                { label: "New Delivery", href: "/buyer/deliveries/new" },
+                { label: "All Pickups & Deliveries", href: "/buyer/pickups" },
+              ]}
+            />
+          )}
           <PushNotificationsSettings />
         </div>
       </main>

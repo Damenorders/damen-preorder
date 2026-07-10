@@ -8,7 +8,10 @@ export function formatExternalId(
     | "order_error"
     | "client"
     | "user"
-    | "application",
+    | "application"
+    | "supplier"
+    | "pickup"
+    | "delivery",
   id: number,
 ): string {
   return `damen_${prefix}_${String(id).padStart(6, "0")}`;
