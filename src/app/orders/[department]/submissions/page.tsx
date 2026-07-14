@@ -7,6 +7,8 @@ import PageShell from "@/components/PageShell";
 import SubmissionCard from "@/components/SubmissionCard";
 import LiveRefresh from "@/components/LiveRefresh";
 import SortPills from "@/components/SortPills";
+import CopyReadyOrdersButton from "@/components/CopyReadyOrdersButton";
+import { buildReadyOrdersText } from "@/lib/ready-orders-text";
 
 // Submissions, one module at a time, sorted by submission date — SPEC.md §13.
 // Reps see only their own orders (enforced in getSubmissions).
@@ -25,6 +27,26 @@ export default async function SubmissionsPage({
   const sortBy = sp.sortBy === "submitted" ? ("submitted" as const) : ("delivery" as const);
   const user = await requireRole("rep", "buyer", "scheduling", "butcher", "owner");
   const submissions = await getSubmissions(user, department, sortBy);
+
+  // Meat only: let the butcher (and managers) copy all Ready orders as one
+  // WhatsApp-ready message for the dispatch group.
+  const readyOrders = submissions.filter((s) => s.submissionStatus === "ready");
+  const showCopyReady =
+    department === "meat" && user.role !== "rep" && readyOrders.length > 0;
+  const readyOrdersText = showCopyReady
+    ? buildReadyOrdersText(
+        readyOrders.map((s) => ({
+          clientName: s.clientName,
+          lines: s.lines.map((l) => ({
+            product: l.product,
+            specs: l.specs,
+            specsJson: l.specsJson,
+            weight: l.weight,
+            quantity: l.quantity,
+          })),
+        })),
+      )
+    : "";
 
   const sortHref = (value: string) => {
     const p = new URLSearchParams();
@@ -49,6 +71,14 @@ export default async function SubmissionsPage({
       }
     >
       <LiveRefresh />
+      {showCopyReady && (
+        <div className="mb-4 flex justify-end">
+          <CopyReadyOrdersButton
+            text={readyOrdersText}
+            count={readyOrders.length}
+          />
+        </div>
+      )}
       <div className="mb-4">
         <SortPills
           value={sortBy}
