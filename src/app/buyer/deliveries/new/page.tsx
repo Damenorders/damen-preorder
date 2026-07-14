@@ -5,7 +5,7 @@ import DeliveryForm from "@/components/DeliveryForm";
 
 // New Delivery — buyer/admin only. Supplier + date.
 export default async function NewDeliveryPage() {
-  const user = await requireRole("buyer", "dispatch");
+  const user = await requireRole("buyer", "dispatch", "owner");
   const suppliers = await listSuppliers();
 
   return (

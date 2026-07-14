@@ -8,7 +8,7 @@ import PickupDeliveryBoard from "@/components/PickupDeliveryBoard";
 // delivery tracking below; each grouped by date (closest first) with completed
 // rows sinking to the bottom.
 export default async function PickupsPage() {
-  const user = await requireRole("buyer", "dispatch");
+  const user = await requireRole("buyer", "dispatch", "owner");
   const [pickupRows, deliveryRows] = await Promise.all([
     listPickups(),
     listDeliveries(),

@@ -23,7 +23,7 @@ export default async function SubmissionsPage({
   const sp = await searchParams;
   const editMode = sp.mode === "edit";
   const sortBy = sp.sortBy === "submitted" ? ("submitted" as const) : ("delivery" as const);
-  const user = await requireRole("rep", "buyer", "scheduling", "butcher");
+  const user = await requireRole("rep", "buyer", "scheduling", "butcher", "owner");
   const submissions = await getSubmissions(user, department, sortBy);
 
   const sortHref = (value: string) => {

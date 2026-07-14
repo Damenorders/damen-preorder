@@ -6,7 +6,7 @@ import PickupForm from "@/components/PickupForm";
 // New Pickup — buyer/admin only. Enter a pickup sheet; the supplier's address
 // is remembered so it auto-fills next time.
 export default async function NewPickupPage() {
-  const user = await requireRole("buyer", "dispatch");
+  const user = await requireRole("buyer", "dispatch", "owner");
   const suppliers = await listSuppliers();
 
   return (

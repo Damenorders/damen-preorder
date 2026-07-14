@@ -22,6 +22,7 @@ const roleLabels: Record<Role, string> = {
   clients: "Clients",
   butcher: "Butcher",
   dispatch: "Dispatch",
+  owner: "Owner",
 };
 
 const inputClass =

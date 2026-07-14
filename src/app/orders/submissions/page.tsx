@@ -19,7 +19,7 @@ export default async function RepAllSubmissionsPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const user = await requireRole("rep", "buyer", "scheduling", "butcher");
+  const user = await requireRole("rep", "buyer", "scheduling", "butcher", "owner");
   const isRep = user.role === "rep";
   const isManager =
     user.role === "buyer" || user.role === "admin" || user.role === "butcher";

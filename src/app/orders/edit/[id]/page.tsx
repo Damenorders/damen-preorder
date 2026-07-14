@@ -22,7 +22,7 @@ export default async function EditOrderPage({
   const orderId = Number(id);
   if (!Number.isInteger(orderId)) notFound();
 
-  const user = await requireRole("rep", "buyer", "butcher");
+  const user = await requireRole("rep", "buyer", "butcher", "owner");
   const result = await getOrderForEdit(user, orderId);
 
   if (!result.allowed) {

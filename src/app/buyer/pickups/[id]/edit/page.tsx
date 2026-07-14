@@ -11,7 +11,7 @@ export default async function EditPickupPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const user = await requireRole("buyer", "dispatch");
+  const user = await requireRole("buyer", "dispatch", "owner");
   const { id } = await params;
   const pickupId = Number(id);
   if (!Number.isInteger(pickupId)) notFound();

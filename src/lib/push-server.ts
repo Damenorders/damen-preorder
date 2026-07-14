@@ -101,7 +101,7 @@ export async function notifyNewOrder(order: NewOrderInfo): Promise<void> {
       .from(pushSubscriptions)
       .innerJoin(users, eq(pushSubscriptions.userId, users.id))
       // Only alert accounts that still hold an alerting role.
-      .where(inArray(users.role, ["buyer", "butcher", "admin", "dispatch"]));
+      .where(inArray(users.role, ["buyer", "butcher", "admin", "dispatch", "owner"]));
 
     const recipients = rows.filter((r) =>
       (r.departments as Department[]).includes(order.department),
@@ -147,8 +147,8 @@ async function notifyRoles(roles: Role[], payload: PushPayload): Promise<void> {
   }
 }
 
-// Who gets pickup/delivery banners: the dispatch team, plus admins.
-const LOGISTICS_ROLES: Role[] = ["dispatch", "admin"];
+// Who gets pickup/delivery banners: the dispatch team, plus admins and owners.
+const LOGISTICS_ROLES: Role[] = ["dispatch", "admin", "owner"];
 
 /** Fire a "New Pickup" banner to dispatch + admin devices. */
 export async function notifyNewPickup(pickup: {

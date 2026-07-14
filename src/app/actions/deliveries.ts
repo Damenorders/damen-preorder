@@ -25,7 +25,7 @@ export type DeliveryActionResult =
 export async function createDelivery(
   input: DeliveryInput,
 ): Promise<DeliveryActionResult> {
-  const user = await requireRole("buyer", "dispatch");
+  const user = await requireRole("buyer", "dispatch", "owner");
 
   const supplierName = input.supplierName?.trim();
   if (!supplierName) return { ok: false, error: "Enter a supplier name." };
@@ -78,7 +78,7 @@ export async function updateDelivery(
   id: number,
   input: DeliveryInput,
 ): Promise<DeliveryActionResult> {
-  const user = await requireRole("buyer", "dispatch");
+  const user = await requireRole("buyer", "dispatch", "owner");
 
   const supplierName = input.supplierName?.trim();
   if (!supplierName) return { ok: false, error: "Enter a supplier name." };
@@ -128,7 +128,7 @@ export async function setDeliveryStatus(
   id: number,
   status: DeliveryStatus,
 ): Promise<DeliveryActionResult> {
-  const user = await requireRole("buyer", "dispatch");
+  const user = await requireRole("buyer", "dispatch", "owner");
   if (status !== "pending" && status !== "delivered") {
     return { ok: false, error: "Invalid status." };
   }
@@ -154,7 +154,7 @@ export async function setDeliveryStatus(
 export async function markDayDeliveriesDelivered(
   date: string,
 ): Promise<DeliveryActionResult> {
-  const user = await requireRole("buyer", "dispatch");
+  const user = await requireRole("buyer", "dispatch", "owner");
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
     return { ok: false, error: "Invalid date." };
   }
@@ -187,7 +187,7 @@ export async function markDayDeliveriesDelivered(
 export async function deleteDelivery(
   id: number,
 ): Promise<DeliveryActionResult> {
-  const user = await requireRole("buyer", "dispatch");
+  const user = await requireRole("buyer", "dispatch", "owner");
   await db.transaction(async (tx) => {
     await tx.delete(deliveries).where(eq(deliveries.id, id));
     await logAudit(tx, user, [
@@ -200,7 +200,7 @@ export async function deleteDelivery(
 
 /** A single delivery by id, or null (the edit page reads this). */
 export async function getDelivery(id: number) {
-  await requireRole("buyer", "dispatch");
+  await requireRole("buyer", "dispatch", "owner");
   const [row] = await db
     .select()
     .from(deliveries)
@@ -214,7 +214,7 @@ export async function getDelivery(id: number) {
  * rows at the bottom — completed deliveries drop out of the way automatically.
  */
 export async function listDeliveries() {
-  await requireRole("buyer", "dispatch");
+  await requireRole("buyer", "dispatch", "owner");
   return db
     .select()
     .from(deliveries)

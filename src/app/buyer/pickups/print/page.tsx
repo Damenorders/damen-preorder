@@ -34,7 +34,7 @@ export default async function PickupPrintPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  await requireRole("buyer", "dispatch");
+  await requireRole("buyer", "dispatch", "owner");
   const params = await searchParams;
   const dateParam = typeof params.date === "string" ? params.date : undefined;
   const idParam = typeof params.id === "string" ? Number(params.id) : undefined;

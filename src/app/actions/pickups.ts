@@ -31,7 +31,7 @@ export async function createPickup(
   input: PickupInput,
 ): Promise<PickupActionResult> {
   // Buyer + admin only (admin passes requireRole automatically).
-  const user = await requireRole("buyer", "dispatch");
+  const user = await requireRole("buyer", "dispatch", "owner");
 
   const supplierName = input.supplierName?.trim();
   if (!supplierName) return { ok: false, error: "Enter a pickup location." };
@@ -97,7 +97,7 @@ export async function updatePickup(
   id: number,
   input: PickupInput,
 ): Promise<PickupActionResult> {
-  const user = await requireRole("buyer", "dispatch");
+  const user = await requireRole("buyer", "dispatch", "owner");
 
   const supplierName = input.supplierName?.trim();
   if (!supplierName) return { ok: false, error: "Enter a pickup location." };
@@ -158,7 +158,7 @@ export async function setPickupStatus(
   id: number,
   status: PickupStatus,
 ): Promise<PickupActionResult> {
-  const user = await requireRole("buyer", "dispatch");
+  const user = await requireRole("buyer", "dispatch", "owner");
   if (status !== "pending" && status !== "picked_up") {
     return { ok: false, error: "Invalid status." };
   }
@@ -184,7 +184,7 @@ export async function setPickupStatus(
 export async function markDayPickupsPickedUp(
   date: string,
 ): Promise<PickupActionResult> {
-  const user = await requireRole("buyer", "dispatch");
+  const user = await requireRole("buyer", "dispatch", "owner");
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
     return { ok: false, error: "Invalid date." };
   }
@@ -215,7 +215,7 @@ export async function markDayPickupsPickedUp(
 }
 
 export async function deletePickup(id: number): Promise<PickupActionResult> {
-  const user = await requireRole("buyer", "dispatch");
+  const user = await requireRole("buyer", "dispatch", "owner");
   await db.transaction(async (tx) => {
     await tx.delete(pickups).where(eq(pickups.id, id));
     await logAudit(tx, user, [
@@ -228,7 +228,7 @@ export async function deletePickup(id: number): Promise<PickupActionResult> {
 
 /** A single pickup by id, or null (the edit page reads this). */
 export async function getPickup(id: number) {
-  await requireRole("buyer", "dispatch");
+  await requireRole("buyer", "dispatch", "owner");
   const [row] = await db
     .select()
     .from(pickups)
@@ -243,7 +243,7 @@ export async function getPickup(id: number) {
  * pickups drop out of the way automatically.
  */
 export async function listPickups() {
-  await requireRole("buyer", "dispatch");
+  await requireRole("buyer", "dispatch", "owner");
   return db
     .select()
     .from(pickups)

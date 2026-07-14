@@ -16,7 +16,7 @@ import {
 // ---------------------------------------------------------------------------
 
 // picker: warehouse role — sees all submissions (read-only), nothing else
-export const roleEnum = pgEnum("user_role", ["admin", "buyer", "rep", "picker", "scheduling", "clients", "butcher", "dispatch"]);
+export const roleEnum = pgEnum("user_role", ["admin", "buyer", "rep", "picker", "scheduling", "clients", "butcher", "dispatch", "owner"]);
 
 export const applicationStatusEnum = pgEnum("application_status", [
   "new",
