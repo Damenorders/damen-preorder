@@ -22,7 +22,7 @@ function Field({
   return (
     <div className="field">
       <div className="field-label">{label}</div>
-      <div className="field-value" style={{ minHeight: `${lines * 28}px` }}>
+      <div className="field-value" style={{ minHeight: `${lines * 34}px` }}>
         {value || " "}
       </div>
     </div>
@@ -54,12 +54,9 @@ export default async function PickupPrintPage({
         @media print {
           .no-print { display: none !important; }
           .print-root { background: #fff; }
-          /* One sheet == one landscape page; never spill onto a second page. */
           .sheet {
             box-shadow: none !important;
             margin: 0 !important;
-            height: 190mm;
-            overflow: hidden;
           }
         }
         .sheet {
@@ -85,18 +82,18 @@ export default async function PickupPrintPage({
         .sheet-title { flex: 1; text-align: center; padding-top: 4px; }
         .sheet-title h1 {
           margin: 0;
-          font-size: 24px;
+          font-size: 34px;
           font-weight: 800;
           letter-spacing: 0.02em;
           color: #2b3a8c;
         }
-        .sheet-title p { margin: 2px 0 0; font-size: 12px; color: #6b7280; }
+        .sheet-title p { margin: 3px 0 0; font-size: 16px; color: #6b7280; }
         .contact {
           border: 1px solid #d1d5db;
           border-radius: 12px;
-          padding: 8px 12px;
-          font-size: 11px;
-          min-width: 240px;
+          padding: 10px 14px;
+          font-size: 15px;
+          min-width: 280px;
           background: #f9fafb;
         }
         .contact b { color: #2b3a8c; }
@@ -104,18 +101,24 @@ export default async function PickupPrintPage({
         .field {
           border: 1px solid #c7cfe2;
           border-radius: 12px;
-          padding: 7px 14px;
-          margin-bottom: 8px;
+          padding: 8px 16px;
+          margin-bottom: 0;
         }
-        .field-label { font-size: 11px; font-weight: 700; color: #2b3a8c; }
+        .field-label { font-size: 18px; font-weight: 700; color: #2b3a8c; }
         .field-value {
-          margin-top: 5px;
-          font-size: 18px;
+          margin-top: 6px;
+          font-size: 26px;
           white-space: pre-wrap;
           border-bottom: 1px solid #e5e7eb;
         }
-        .field-row { display: flex; gap: 12px; }
-        .field-row > .field { flex: 1; margin-bottom: 8px; }
+        /* Two-column body so the data spreads across the landscape page
+           instead of stacking into a tall column that overflows. */
+        .body-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 12px 20px;
+        }
+        .body-grid .span2 { grid-column: 1 / -1; }
       `}</style>
 
       <PrintButton auto={rows.length > 0} />
@@ -150,15 +153,21 @@ export default async function PickupPrintPage({
 
             <hr className="rule" />
 
-            <Field label="Pickup Location:" value={p.supplierName} lines={1} />
-            <div className="field-row">
+            <div className="body-grid">
+              <div className="span2">
+                <Field label="Pickup Location:" value={p.supplierName} lines={1} />
+              </div>
               <Field label="PO #:" value={p.poNumber} lines={1} />
               <Field label="Date:" value={formatDate(p.pickupDate)} lines={1} />
+              <div className="span2">
+                <Field label="Address:" value={p.address} lines={2} />
+              </div>
+              <Field label="Amount of stock:" value={p.amountOfStock} lines={1} />
+              <Field label="Note:" value={p.note ?? ""} lines={1} />
+              <div className="span2">
+                <Field label="Driver:" value={p.driver ?? ""} lines={2} />
+              </div>
             </div>
-            <Field label="Address:" value={p.address} lines={2} />
-            <Field label="Amount of stock:" value={p.amountOfStock} lines={1} />
-            <Field label="Note:" value={p.note ?? ""} lines={2} />
-            <Field label="Driver:" value={p.driver ?? ""} lines={3} />
           </article>
         ))
       )}
