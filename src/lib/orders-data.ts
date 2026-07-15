@@ -134,12 +134,20 @@ export async function getSubmissions(
 
   // Shipped orders always sink to the bottom, regardless of the chosen sort.
   const shippedLast = sql`case when ${orders.submissionStatus} = 'shipped' then 1 else 0 end`;
+  // Within a delivery day, Ready orders sink below Pending ones (but the day
+  // grouping itself is preserved — days are never split apart).
+  const readyAfterPending = sql`case when ${orders.submissionStatus} = 'ready' then 1 else 0 end`;
   const orderRows = await db.query.orders.findMany({
     where,
     orderBy:
       sortBy === "submitted"
         ? [shippedLast, desc(orders.createdAt)]
-        : [shippedLast, orders.deliveryDate, desc(orders.createdAt)],
+        : [
+            shippedLast,
+            orders.deliveryDate,
+            readyAfterPending,
+            desc(orders.createdAt),
+          ],
   });
   if (orderRows.length === 0) return [];
 
