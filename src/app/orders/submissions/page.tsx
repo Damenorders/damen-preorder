@@ -162,7 +162,9 @@ export default async function RepAllSubmissionsPage({
                   canEditWeight={
                     isRep ? own && s.submissionStatus === "pending" : true
                   }
-                  canDelete={isManager}
+                  canDelete={
+                    isRep ? own && s.submissionStatus === "pending" : isManager
+                  }
                 />
               );
             })}

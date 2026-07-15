@@ -543,12 +543,27 @@ export async function updateOrder(
 // ---------------------------------------------------------------------------
 
 export async function deleteOrder(orderId: number): Promise<ActionResult> {
-  const user = await requireRole("buyer", "butcher"); // admins pass
+  const user = await requireRole("rep", "buyer", "butcher"); // admins pass
 
   const existing = await db.query.orders.findFirst({
     where: eq(orders.id, orderId),
   });
   if (!existing) return { ok: false, error: "Order not found." };
+
+  // Reps may delete only their own, still-Pending submissions (mirrors the
+  // Edit rule). Buyer/admin/butcher may delete any.
+  if (user.role === "rep") {
+    if (existing.repUserId !== user.id) {
+      return { ok: false, error: "You can only delete your own submissions." };
+    }
+    if (existing.submissionStatus !== "pending") {
+      return {
+        ok: false,
+        error:
+          "This order is no longer Pending, so it can't be deleted. Contact the buyer if something must change.",
+      };
+    }
+  }
 
   await db.transaction(async (tx) => {
     const lines = await tx.query.orderLines.findMany({

@@ -116,7 +116,7 @@ export default async function SubmissionsPage({
                 editButton={editMode}
                 canEdit={isRep ? s.submissionStatus === "pending" : isManager}
                 canEditWeight={isRep ? s.submissionStatus === "pending" : true}
-                canDelete={isManager}
+                canDelete={isRep ? s.submissionStatus === "pending" : isManager}
               />
             );
           })}
