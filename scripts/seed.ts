@@ -208,6 +208,24 @@ const otherPreorderConfig: ProductFormConfig = {
   hideNotes: true,
 };
 
+// Named Other-Preorder items ordered by the box (fixed pack size in the name):
+// a "Number of boxes" count, no weight/kg input.
+const otherBoxPreorderConfig: ProductFormConfig = {
+  fields: [],
+  quantity: { min: 1, max: 999 },
+  quantityLabel: "Number of boxes",
+  hideWeight: true,
+};
+
+// Fresh cut produce sold by the box for the Other Preorders section.
+const OTHER_BOX_PRODUCTS = [
+  "2.27kg Fresh Shredded Carrot",
+  "5kg Fresh Sliced Red Onion",
+  "2.27kg Fresh Shredded Green Cabbage",
+  "5kg Fresh Sliced Leek",
+  "5kg Fresh Sliced Green Jalapeño",
+];
+
 const SEED_PRODUCTS: Array<{
   name: string;
   department: schema.Department;
@@ -231,6 +249,13 @@ const SEED_PRODUCTS: Array<{
   { name: "Other", department: "fish", productType: "Fish", formConfig: otherConfig },
   { name: "Other", department: "meat", productType: "Meat", formConfig: otherConfig },
   { name: "Other", department: "other", productType: "Other", formConfig: otherPreorderConfig },
+  // Fresh-cut produce, ordered by the box, in the Other Preorders section
+  ...OTHER_BOX_PRODUCTS.map((name) => ({
+    name,
+    department: "other" as schema.Department,
+    productType: "Other",
+    formConfig: otherBoxPreorderConfig,
+  })),
 ];
 
 async function main() {
