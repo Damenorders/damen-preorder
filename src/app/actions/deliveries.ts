@@ -6,7 +6,7 @@
 import { revalidatePath } from "next/cache";
 import { and, asc, desc, eq, ne, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { deliveries, type DeliveryStatus } from "@/db/schema";
+import { deliveries, users, type DeliveryStatus } from "@/db/schema";
 import { requireRole } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { resolveSupplier } from "@/lib/suppliers";
@@ -212,16 +212,27 @@ export async function getDelivery(id: number) {
 /**
  * All deliveries. Pending first (closest date at the top), then delivered
  * rows at the bottom — completed deliveries drop out of the way automatically.
+ *
+ * Visibility mirrors pickups: buyers don't see dispatch/owner-entered rows;
+ * dispatch and owner see every delivery.
  */
 export async function listDeliveries() {
-  await requireRole("buyer", "dispatch", "owner");
-  return db
-    .select()
+  const user = await requireRole("buyer", "dispatch", "owner");
+  const rows = await db
+    .select({ delivery: deliveries, creatorRole: users.role })
     .from(deliveries)
+    .leftJoin(users, eq(deliveries.createdByUserId, users.id))
     .orderBy(
       // false (pending) sorts before true (delivered)
       sql`${deliveries.status} = 'delivered'`,
       asc(deliveries.deliveryDate),
       desc(deliveries.id),
     );
+  const visible =
+    user.role === "buyer"
+      ? rows.filter(
+          (r) => r.creatorRole !== "dispatch" && r.creatorRole !== "owner",
+        )
+      : rows;
+  return visible.map((r) => r.delivery);
 }

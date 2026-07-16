@@ -6,7 +6,7 @@
 import { revalidatePath } from "next/cache";
 import { and, asc, desc, eq, ne, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { pickups, type PickupStatus } from "@/db/schema";
+import { pickups, users, type PickupStatus } from "@/db/schema";
 import { requireRole } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { resolveSupplier } from "@/lib/suppliers";
@@ -241,16 +241,28 @@ export async function getPickup(id: number) {
  * All pickups. Pending first, with the closest pickup date at the top running
  * down to the furthest, then picked-up sheets at the bottom — so completed
  * pickups drop out of the way automatically.
+ *
+ * Visibility: buyers only see pickups entered by buyers (or admins). Pickups
+ * created by dispatch/owner are hidden from buyers — dispatch and owner are the
+ * ones who see every pickup.
  */
 export async function listPickups() {
-  await requireRole("buyer", "dispatch", "owner");
-  return db
-    .select()
+  const user = await requireRole("buyer", "dispatch", "owner");
+  const rows = await db
+    .select({ pickup: pickups, creatorRole: users.role })
     .from(pickups)
+    .leftJoin(users, eq(pickups.createdByUserId, users.id))
     .orderBy(
       // false (pending) sorts before true (picked_up)
       sql`${pickups.status} = 'picked_up'`,
       asc(pickups.pickupDate),
       desc(pickups.id),
     );
+  const visible =
+    user.role === "buyer"
+      ? rows.filter(
+          (r) => r.creatorRole !== "dispatch" && r.creatorRole !== "owner",
+        )
+      : rows;
+  return visible.map((r) => r.pickup);
 }
