@@ -83,7 +83,7 @@ function DriverQuickEdit({
   }
 
   return (
-    <div className="mt-1 flex items-center gap-2">
+    <span className="flex items-center gap-2">
       <input
         type="text"
         value={value}
@@ -102,7 +102,7 @@ function DriverQuickEdit({
       {saved && !saving && (
         <span className="text-[11px] text-green-600">Saved</span>
       )}
-    </div>
+    </span>
   );
 }
 
@@ -226,12 +226,12 @@ export default function PickupDeliveryBoard({
                 <dt className="text-xs font-semibold uppercase tracking-wide text-neutral-400">
                   Driver
                 </dt>
-                <dd className="mt-0.5 whitespace-pre-wrap text-sm text-neutral-800">
-                  {p.driver || "—"}
+                <dd className="mt-0.5 flex items-center gap-2 text-sm text-neutral-800">
+                  <span className="whitespace-pre-wrap">{p.driver || "—"}</span>
+                  {canEditDriver && (
+                    <DriverQuickEdit pickupId={p.id} initial={p.driver ?? ""} />
+                  )}
                 </dd>
-                {canEditDriver && (
-                  <DriverQuickEdit pickupId={p.id} initial={p.driver ?? ""} />
-                )}
               </div>
             </dl>
             <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
