@@ -14,15 +14,23 @@ function Field({
   label,
   value,
   lines = 2,
+  red = false,
 }: {
   label: string;
   value: string;
   lines?: number;
+  red?: boolean;
 }) {
   return (
     <div className="field">
       <div className="field-label">{label}</div>
-      <div className="field-value" style={{ minHeight: `${lines * 34}px` }}>
+      <div
+        className="field-value"
+        style={{
+          minHeight: `${lines * 34}px`,
+          ...(red ? { color: "#dc2626", fontWeight: 700 } : {}),
+        }}
+      >
         {value || " "}
       </div>
     </div>
@@ -157,7 +165,7 @@ export default async function PickupPrintPage({
               <div className="span2">
                 <Field label="Pickup Location:" value={p.supplierName} lines={1} />
               </div>
-              <Field label="PO #:" value={p.poNumber} lines={1} />
+              <Field label="PO #:" value={p.poNumber} lines={1} red />
               <Field label="Date:" value={formatDate(p.pickupDate)} lines={1} />
               <div className="span2">
                 <Field label="Address:" value={p.address} lines={2} />
@@ -165,7 +173,7 @@ export default async function PickupPrintPage({
               <Field label="Amount of stock:" value={p.amountOfStock} lines={1} />
               <Field label="Note:" value={p.note ?? ""} lines={1} />
               <div className="span2">
-                <Field label="Driver:" value={p.driver ?? ""} lines={2} />
+                <Field label="Driver:" value={p.driver ?? ""} lines={2} red />
               </div>
             </div>
           </article>
