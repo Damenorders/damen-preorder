@@ -12,6 +12,7 @@ import { formatDate } from "@/lib/dates";
 import {
   deletePickup,
   setPickupStatus,
+  setPickupDriver,
   markDayPickupsPickedUp,
 } from "@/app/actions/pickups";
 import {
@@ -55,6 +56,56 @@ function Detail({ label, value }: { label: string; value: string }) {
   );
 }
 
+// Inline driver edit for the expanded pickup card — saves on blur/Enter so a
+// dispatcher can update the driver across many pickups without opening each one.
+function DriverQuickEdit({
+  pickupId,
+  initial,
+}: {
+  pickupId: number;
+  initial: string;
+}) {
+  const router = useRouter();
+  const [value, setValue] = useState(initial);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  async function save() {
+    if (saving || value.trim() === initial.trim()) return;
+    setSaving(true);
+    const res = await setPickupDriver(pickupId, value);
+    setSaving(false);
+    if (res.ok) {
+      setSaved(true);
+      router.refresh();
+      window.setTimeout(() => setSaved(false), 1500);
+    }
+  }
+
+  return (
+    <div className="mt-1 flex items-center gap-2">
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onBlur={save}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            e.currentTarget.blur();
+          }
+        }}
+        placeholder="Edit driver"
+        className="w-full max-w-xs rounded-md border border-neutral-200 bg-white px-2 py-1 text-sm text-neutral-700 outline-none focus:border-accent-500"
+      />
+      {saving && <span className="text-[11px] text-neutral-400">Saving…</span>}
+      {saved && !saving && (
+        <span className="text-[11px] text-green-600">Saved</span>
+      )}
+    </div>
+  );
+}
+
 function Badge({ tone, label }: { tone: "amber" | "sky" | "green"; label: string }) {
   const cls = {
     amber: "bg-amber-100 text-amber-700",
@@ -80,9 +131,12 @@ function uniqueSortedDates(...lists: string[][]): string[] {
 export default function PickupDeliveryBoard({
   pickups,
   deliveries,
+  canEditDriver = false,
 }: {
   pickups: PickupRow[];
   deliveries: DeliveryRow[];
+  /** Show the inline driver quick-edit in expanded pickup cards (dispatch). */
+  canEditDriver?: boolean;
 }) {
   const router = useRouter();
   const [openKey, setOpenKey] = useState<string | null>(null);
@@ -168,7 +222,17 @@ export default function PickupDeliveryBoard({
               <Detail label="Address" value={p.address} />
               <Detail label="Amount of stock" value={p.amountOfStock} />
               <Detail label="Note" value={p.note ?? ""} />
-              <Detail label="Driver" value={p.driver ?? ""} />
+              <div>
+                <dt className="text-xs font-semibold uppercase tracking-wide text-neutral-400">
+                  Driver
+                </dt>
+                <dd className="mt-0.5 whitespace-pre-wrap text-sm text-neutral-800">
+                  {p.driver || "—"}
+                </dd>
+                {canEditDriver && (
+                  <DriverQuickEdit pickupId={p.id} initial={p.driver ?? ""} />
+                )}
+              </div>
             </dl>
             <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
               <span className="text-xs text-neutral-400">

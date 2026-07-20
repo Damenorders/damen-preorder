@@ -44,7 +44,11 @@ export default async function PickupsPage() {
       subtitle="Pickup sheets and delivery tracking, grouped by date."
       wide
     >
-      <PickupDeliveryBoard pickups={pickups} deliveries={deliveries} />
+      <PickupDeliveryBoard
+        pickups={pickups}
+        deliveries={deliveries}
+        canEditDriver={user.role !== "buyer"}
+      />
     </PageShell>
   );
 }

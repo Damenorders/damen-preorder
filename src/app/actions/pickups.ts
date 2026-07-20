@@ -154,6 +154,43 @@ export async function updatePickup(
   return { ok: true, id };
 }
 
+/**
+ * Quick-edit just the driver from the Pickups board (dispatch workflow) — no
+ * need to open the full edit form. Buyer/dispatch/owner/admin only.
+ */
+export async function setPickupDriver(
+  id: number,
+  driver: string,
+): Promise<PickupActionResult> {
+  const user = await requireRole("buyer", "dispatch", "owner");
+  const value = driver.trim();
+  const [existing] = await db
+    .select()
+    .from(pickups)
+    .where(eq(pickups.id, id))
+    .limit(1);
+  if (!existing) return { ok: false, error: "Pickup not found." };
+
+  await db.transaction(async (tx) => {
+    await tx
+      .update(pickups)
+      .set({ driver: value || null, updatedAt: new Date() })
+      .where(eq(pickups.id, id));
+    await logAudit(tx, user, [
+      {
+        action: "update:driver",
+        recordType: "pickup",
+        recordId: id,
+        oldValue: { driver: existing.driver },
+        newValue: { driver: value || null },
+      },
+    ]);
+  });
+
+  revalidatePath("/buyer/pickups");
+  return { ok: true, id };
+}
+
 export async function setPickupStatus(
   id: number,
   status: PickupStatus,
