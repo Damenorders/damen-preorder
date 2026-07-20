@@ -270,6 +270,8 @@ export const pushSubscriptions = pgTable("push_subscriptions", {
     .notNull()
     .$type<Department[]>()
     .default(["meat", "fish", "other"]),
+  // Whether this device wants a banner when a new pickup is entered.
+  pickupAlerts: boolean("pickup_alerts").notNull().default(true),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

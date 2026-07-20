@@ -1,6 +1,6 @@
 import "server-only";
 import webpush from "web-push";
-import { eq, inArray } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import { pushSubscriptions, users, type Department, type Role } from "@/db/schema";
 import { formatDate } from "@/lib/dates";
@@ -149,19 +149,47 @@ async function notifyRoles(roles: Role[], payload: PushPayload): Promise<void> {
 
 // Who gets pickup/delivery banners: the dispatch team, plus admins and owners.
 const LOGISTICS_ROLES: Role[] = ["dispatch", "admin", "owner"];
+// Pickup banners also reach buyers, but only devices that opted in via the
+// per-device "Pickup Alerts" toggle.
+const PICKUP_ALERT_ROLES: Role[] = ["buyer", "dispatch", "admin", "owner"];
 
-/** Fire a "New Pickup" banner to dispatch + admin devices. */
+/**
+ * Fire a "New Pickup" banner to every opted-in device (buyer/dispatch/admin/
+ * owner). Honors the per-device Pickup Alerts toggle. Best-effort: never throws.
+ */
 export async function notifyNewPickup(pickup: {
   pickupId: number;
   supplierName: string;
   pickupDate: string;
 }): Promise<void> {
-  await notifyRoles(LOGISTICS_ROLES, {
-    title: "🚚 New Pickup",
-    body: `${pickup.supplierName} · ${formatDate(pickup.pickupDate)}`,
-    url: "/buyer/pickups",
-    tag: `pickup-${pickup.pickupId}`,
-  });
+  try {
+    if (!configure()) return;
+    const rows = await db
+      .select({
+        id: pushSubscriptions.id,
+        endpoint: pushSubscriptions.endpoint,
+        p256dh: pushSubscriptions.p256dh,
+        auth: pushSubscriptions.auth,
+      })
+      .from(pushSubscriptions)
+      .innerJoin(users, eq(pushSubscriptions.userId, users.id))
+      .where(
+        and(
+          inArray(users.role, PICKUP_ALERT_ROLES),
+          eq(pushSubscriptions.pickupAlerts, true),
+        ),
+      );
+    if (rows.length === 0) return;
+    const payload: PushPayload = {
+      title: "🚚 New Pickup",
+      body: `${pickup.supplierName} · ${formatDate(pickup.pickupDate)}`,
+      url: "/buyer/pickups",
+      tag: `pickup-${pickup.pickupId}`,
+    };
+    await Promise.allSettled(rows.map((r) => sendTo(r, payload)));
+  } catch {
+    // Notifications are best-effort; the pickup itself is already saved.
+  }
 }
 
 /** Fire a "New Delivery" banner to dispatch + admin devices. */

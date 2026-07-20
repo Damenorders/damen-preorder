@@ -134,6 +134,13 @@
       "when": 1782400000010,
       "tag": "0018_owner_role",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1782400000011,
+      "tag": "0019_pickup_alerts",
+      "breakpoints": true
     }
   ]
 }

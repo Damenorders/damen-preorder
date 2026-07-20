@@ -11,6 +11,7 @@ import {
   subscribeUser,
   unsubscribeUser,
   updatePushDepartments,
+  updatePickupAlerts,
   getPushState,
   sendTestNotification,
   type SerializedSubscription,
@@ -39,6 +40,7 @@ export default function PushNotificationsSettings() {
   const [departments, setDepartments] = useState<Department[]>([
     ...DEPARTMENTS,
   ]);
+  const [pickupAlerts, setPickupAlerts] = useState(true);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [isIOS, setIsIOS] = useState(false);
@@ -72,7 +74,10 @@ export default function PushNotificationsSettings() {
         if (sub) {
           const state = await getPushState(sub.endpoint);
           setSubscribed(state.subscribed);
-          if (state.subscribed) setDepartments(state.departments);
+          if (state.subscribed) {
+            setDepartments(state.departments);
+            setPickupAlerts(state.pickupAlerts);
+          }
         }
       } catch {
         // Registration can fail on unsupported/insecure contexts; leave as-is.
@@ -110,6 +115,7 @@ export default function PushNotificationsSettings() {
       }
       setSubscribed(true);
       if (res.departments) setDepartments(res.departments);
+      if (res.pickupAlerts !== undefined) setPickupAlerts(res.pickupAlerts);
       setMessage("Alerts enabled on this device.");
     } catch {
       setMessage("Could not enable alerts on this device.");
@@ -153,6 +159,18 @@ export default function PushNotificationsSettings() {
     },
     [departments],
   );
+
+  const togglePickupAlerts = useCallback(async () => {
+    const next = !pickupAlerts;
+    setPickupAlerts(next); // optimistic
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.getSubscription();
+      if (sub) await updatePickupAlerts(sub.endpoint, next);
+    } catch {
+      setMessage("Could not save your pickup-alert choice.");
+    }
+  }, [pickupAlerts]);
 
   const test = useCallback(async () => {
     setBusy(true);
@@ -228,6 +246,17 @@ export default function PushNotificationsSettings() {
                       No departments selected — you won’t receive any alerts.
                     </p>
                   )}
+                  <div className="mt-3 border-t border-accent-100 pt-3">
+                    <label className="flex cursor-pointer items-center gap-3 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={pickupAlerts}
+                        onChange={togglePickupAlerts}
+                        className="h-4 w-4 rounded border-neutral-300 accent-accent-600"
+                      />
+                      <span>Pickup Alerts — a new pickup is entered</span>
+                    </label>
+                  </div>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <button
