@@ -6,7 +6,7 @@
 // Delivered" box at the very bottom, so new days always stay at the top.
 // Printing is pickups-only.
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { formatDate } from "@/lib/dates";
 import {
@@ -142,6 +142,21 @@ export default function PickupDeliveryBoard({
   const [openKey, setOpenKey] = useState<string | null>(null);
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [menuDate, setMenuDate] = useState<string | null>(null);
+
+  // Live sync: the pickup/delivery status is a single shared value, so any
+  // buyer's change should surface on every open session. Poll the server every
+  // 15s (router.refresh re-runs the page query without a full reload and keeps
+  // client state like the expanded card). Skip while the tab is hidden or an
+  // action is mid-save so we never clobber an in-flight change.
+  const busyRef = useRef(busyKey);
+  busyRef.current = busyKey;
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      if (document.visibilityState !== "visible" || busyRef.current) return;
+      router.refresh();
+    }, 15000);
+    return () => window.clearInterval(interval);
+  }, [router]);
 
   const activePickups = useMemo(
     () => pickups.filter((p) => p.status === "pending"),

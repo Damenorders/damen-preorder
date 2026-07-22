@@ -30,6 +30,14 @@ export function businessTomorrow(): string {
   const d = new Date(Date.now() + 24 * 60 * 60 * 1000);
   return d.toLocaleDateString("en-CA", { timeZone: "America/Montreal" });
 }
+/** Today plus the next six days (a rolling week), in business-time. */
+export function businessWeek(): string[] {
+  return Array.from({ length: 7 }, (_, i) =>
+    new Date(Date.now() + i * 24 * 60 * 60 * 1000).toLocaleDateString("en-CA", {
+      timeZone: "America/Montreal",
+    }),
+  );
+}
 
 function onBusinessDate(column: AnyColumn, date: string): SQL {
   return sql`(${column} at time zone 'America/Montreal')::date = ${date}`;
@@ -283,6 +291,74 @@ export async function getBuyerTable(
     );
 
   return rows;
+}
+
+// ---------------------------------------------------------------------------
+// Buyer Command Center dashboard — one order summary per submission for a set
+// of delivery dates (today/tomorrow), grouped by department in the UI. Kept
+// light: a line count + notes flag, not the full lines.
+// ---------------------------------------------------------------------------
+
+export interface DashboardOrderLine {
+  product: string;
+  specs: string;
+  quantity: number | null;
+  weight: string | null;
+}
+
+export interface DashboardOrder {
+  id: number;
+  externalId: string | null;
+  department: Department;
+  clientName: string;
+  repName: string;
+  deliveryDate: string;
+  submissionStatus: SubmissionStatus;
+  lineCount: number;
+  hasNotes: boolean;
+  // Just enough to show "what's the order" at a glance (product + qty/weight).
+  lines: DashboardOrderLine[];
+}
+
+export async function getDashboardOrders(
+  dates: string[],
+): Promise<DashboardOrder[]> {
+  if (dates.length === 0) return [];
+
+  const orderRows = await db.query.orders.findMany({
+    where: inArray(orders.deliveryDate, dates),
+    orderBy: orders.clientName,
+  });
+  if (orderRows.length === 0) return [];
+
+  const lineRows = await db.query.orderLines.findMany({
+    where: inArray(
+      orderLines.orderId,
+      orderRows.map((o) => o.id),
+    ),
+    orderBy: orderLines.id,
+  });
+
+  return orderRows.map((o) => {
+    const lines = lineRows.filter((l) => l.orderId === o.id);
+    return {
+      id: o.id,
+      externalId: o.externalId,
+      department: o.department,
+      clientName: o.clientName,
+      repName: o.repName,
+      deliveryDate: o.deliveryDate,
+      submissionStatus: o.submissionStatus,
+      lineCount: lines.length,
+      hasNotes: Boolean(o.notes) || lines.some((l) => l.notes),
+      lines: lines.map((l) => ({
+        product: l.product,
+        specs: l.specs,
+        quantity: l.quantity,
+        weight: l.weight,
+      })),
+    };
+  });
 }
 
 // ---------------------------------------------------------------------------
