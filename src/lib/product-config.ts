@@ -90,7 +90,9 @@ export function isWeightVisible(
 ): boolean {
   if (config.hideWeight) return false;
   if (!config.weightShowWhen) return true;
-  return specsJson[config.weightShowWhen.field] === config.weightShowWhen.equals;
+  const value = specsJson[config.weightShowWhen.field];
+  const { equals } = config.weightShowWhen;
+  return Array.isArray(equals) ? equals.includes(value) : value === equals;
 }
 
 export interface ProductFormConfig {
@@ -124,11 +126,11 @@ export interface ProductFormConfig {
   /** Hide the weight input entirely (free-text Other orders) */
   hideWeight?: boolean;
   /**
-   * Show the weight input only when another field equals a value, e.g. Cod
-   * weight (lbs) appears only when Type = "USA". Without this, weight follows
-   * hideWeight alone.
+   * Show the weight input only when another field equals a value (or one of
+   * several values), e.g. Cod weight (lbs) appears only when Cut is Whole or
+   * Fillet. Without this, weight follows hideWeight alone.
    */
-  weightShowWhen?: { field: string; equals: string };
+  weightShowWhen?: { field: string; equals: string | string[] };
   /** Hide the line-notes input */
   hideNotes?: boolean;
 }

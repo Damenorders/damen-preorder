@@ -260,17 +260,29 @@ export default function BuyerCommandCenter({
               const open = openId === o.id;
               return (
                 <li key={o.id}>
-                  <div className="flex items-center justify-between gap-3 px-4 py-3">
-                    <button
-                      type="button"
-                      onClick={() => setOpenId(open ? null : o.id)}
-                      aria-expanded={open}
-                      className="min-w-0 flex-1 text-left"
-                    >
-                      <span className="block truncate text-sm font-medium text-neutral-900">
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    aria-expanded={open}
+                    onClick={() => setOpenId(open ? null : o.id)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        setOpenId(open ? null : o.id);
+                      }
+                    }}
+                    className="flex cursor-pointer items-center justify-between gap-3 px-4 py-3 transition hover:bg-neutral-50"
+                  >
+                    <div className="min-w-0 flex-1">
+                      {/* Only the name navigates — clicking the box expands. */}
+                      <a
+                        href={`/orders/${o.department}/submissions#submission-${o.id}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="inline-block max-w-full truncate align-bottom text-sm font-medium text-neutral-900 hover:text-accent-700 hover:underline"
+                      >
                         {o.clientName}
-                      </span>
-                      <span className="mt-0.5 block truncate text-xs text-neutral-400">
+                      </a>
+                      <p className="mt-0.5 truncate text-xs text-neutral-400">
                         {o.lineCount} line{o.lineCount === 1 ? "" : "s"}
                         {o.hasNotes && " · 📝 notes"}
                         {dep === "other"
@@ -278,14 +290,16 @@ export default function BuyerCommandCenter({
                           : day === "both"
                             ? ` · ${o.deliveryDate === today ? "Today" : "Tomorrow"}`
                             : ""}
-                      </span>
-                    </button>
-                    <StatusSelect
-                      kind="submission"
-                      orderId={o.id}
-                      value={o.submissionStatus}
-                      compact
-                    />
+                      </p>
+                    </div>
+                    <span onClick={(e) => e.stopPropagation()}>
+                      <StatusSelect
+                        kind="submission"
+                        orderId={o.id}
+                        value={o.submissionStatus}
+                        compact
+                      />
+                    </span>
                   </div>
                   {open && (
                     <div className="relative border-t border-neutral-100 bg-neutral-50/60 px-4 py-3">

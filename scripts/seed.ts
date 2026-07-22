@@ -75,21 +75,22 @@ function seaBassBreamConfig(): ProductFormConfig {
 }
 
 const codConfig: ProductFormConfig = {
-  // Count shown once a Type is picked: "Number of boxes" for USA (fixed fillets
-  // 10 lb box), "Quantity of Fish" for Icelandic (which also asks Weight (lbs)).
+  // Count label follows the cut: "Quantity of Fish" for Whole/Fillet (which also
+  // ask Weight (lbs)); everything else (USA fixed box, Loin) is "Number of boxes"
+  // with no weight.
   quantity: { min: 1, max: 999 },
-  quantityLabel: "Quantity of Fish",
+  quantityLabel: "Number of boxes",
   quantityShowWhen: { field: "type", equals: ["USA", "Icelandic"] },
   quantityLabelWhen: {
-    field: "type",
-    map: { USA: "Number of boxes", Icelandic: "Quantity of Fish" },
+    field: "cut",
+    map: { Whole: "Quantity of Fish", Fillet: "Quantity of Fish" },
   },
   weightLabel: "Weight (lbs)",
-  weightShowWhen: { field: "type", equals: "Icelandic" },
+  weightShowWhen: { field: "cut", equals: ["Whole", "Fillet"] },
   fields: [
     { key: "type", label: "Type", type: "select", options: ["USA", "Icelandic"], required: true, display: "{value}" },
     { key: "usaFormat", label: "Format", type: "info", text: "Fillets · 10 lb box", display: "{value}", showWhen: { field: "type", equals: "USA" } },
-    { key: "cut", label: "Cut", type: "select", options: ["Whole", "Fillet"], required: true, display: "{value}", showWhen: { field: "type", equals: "Icelandic" } },
+    { key: "cut", label: "Cut", type: "select", options: ["Whole", "Fillet", "Loin"], required: true, display: "{value}", showWhen: { field: "type", equals: "Icelandic" } },
     { key: "skin", label: "Skin", type: "select", options: ["On", "Off"], required: true, display: "Skin {value}", showWhen: { field: "cut", equals: "Fillet" } },
     { key: "bone", label: "Bone", type: "select", options: ["On", "Off"], required: true, display: "Bone {value}", showWhen: { field: "cut", equals: "Fillet" } },
   ],
@@ -118,6 +119,17 @@ const liveLobsterConfig: ProductFormConfig = {
   hideWeight: true,
   fields: [
     { key: "size", label: "Size", type: "select", options: ["1-1.5lbs", "1.5-2lbs"], required: true, display: "{value}" },
+  ],
+};
+
+// RockFish: sold by the fixed 10lb box — a read-only "10lbs Box" fact, a
+// "Number of boxes" count, and the note line (on by default).
+const rockfishConfig: ProductFormConfig = {
+  quantity: { min: 1, max: 999 },
+  quantityLabel: "Number of boxes",
+  hideWeight: true,
+  fields: [
+    { key: "format", label: "Box", type: "info", text: "10lbs Box", display: "{value}" },
   ],
 };
 
@@ -239,6 +251,7 @@ const SEED_PRODUCTS: Array<{
   { name: "Mussels", department: "fish", productType: "Fish", formConfig: musselsConfig },
   { name: "Pasta Clams 10lbs", department: "fish", productType: "Fish", formConfig: pastaClamsConfig },
   { name: "Live Lobster", department: "fish", productType: "Fish", formConfig: liveLobsterConfig },
+  { name: "RockFish 10lbs", department: "fish", productType: "Fish", formConfig: rockfishConfig },
   ...MEAT_PRODUCTS.map((m) => ({
     name: m.name,
     department: "meat" as schema.Department,

@@ -85,7 +85,10 @@ export default function SubmissionCard({
     : `Edited ${formatDateTime(submission.editedAt!)}`;
 
   return (
-    <li className="rounded-2xl border border-neutral-200 bg-white shadow-sm">
+    <li
+      id={`submission-${submission.id}`}
+      className="scroll-mt-24 rounded-2xl border border-neutral-200 bg-white shadow-sm"
+    >
       {/* Compact row: Client | Delivery | Product | Qty | Weight | Status.
           With manageStatus, the status is an inline dropdown — no need to
           open the order to change it. */}
