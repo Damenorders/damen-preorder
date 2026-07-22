@@ -22,6 +22,20 @@ export interface DashboardOrderLine {
   weight: string | null;
 }
 
+// Submissions-style order within a card: by day, then Pending → Ready →
+// Shipped, then client name.
+const STATUS_RANK: Record<SubmissionStatus, number> = {
+  pending: 0,
+  ready: 1,
+  shipped: 2,
+};
+function compareOrders(a: DashboardOrderRow, b: DashboardOrderRow): number {
+  if (a.deliveryDate !== b.deliveryDate)
+    return a.deliveryDate.localeCompare(b.deliveryDate);
+  const rank = STATUS_RANK[a.submissionStatus] - STATUS_RANK[b.submissionStatus];
+  return rank !== 0 ? rank : a.clientName.localeCompare(b.clientName);
+}
+
 // Compact date for whole-week rows, e.g. "Wed, Jul 23".
 function shortDate(value: string): string {
   return new Date(`${value}T12:00:00`).toLocaleDateString("en-US", {
@@ -204,14 +218,9 @@ export default function BuyerCommandCenter({
         map.get(o.department)?.push(o);
       }
     });
-    // Other spans the week — order soonest-first, then by client.
-    map
-      .get("other")
-      ?.sort((a, b) =>
-        a.deliveryDate === b.deliveryDate
-          ? a.clientName.localeCompare(b.clientName)
-          : a.deliveryDate.localeCompare(b.deliveryDate),
-      );
+    // Every section reads like the Submissions view: by day, then Pending on
+    // top, Ready under, Shipped at the bottom of that day.
+    DEPARTMENTS.forEach((d) => map.get(d)?.sort(compareOrders));
     return map;
   }, [orders, dates]);
 
