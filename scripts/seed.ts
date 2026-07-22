@@ -109,7 +109,9 @@ const pastaClamsConfig: ProductFormConfig = {
   quantity: { min: 1, max: 999 },
   quantityLabel: "Number of boxes",
   hideWeight: true,
-  fields: [],
+  fields: [
+    { key: "format", label: "Box", type: "info", text: "10lbs Box", display: "{value}" },
+  ],
 };
 
 const liveLobsterConfig: ProductFormConfig = {
@@ -122,7 +124,7 @@ const liveLobsterConfig: ProductFormConfig = {
   ],
 };
 
-// RockFish: sold by the fixed 10lb box — a read-only "10lbs Box" fact, a
+// RockFish: sold by the fixed 10lb box — a read-only "10lbs Box" spec, a
 // "Number of boxes" count, and the note line (on by default).
 const rockfishConfig: ProductFormConfig = {
   quantity: { min: 1, max: 999 },
@@ -249,9 +251,9 @@ const SEED_PRODUCTS: Array<{
   { name: "Sea Bream", department: "fish", productType: "Fish", formConfig: seaBassBreamConfig() },
   { name: "Cod", department: "fish", productType: "Fish", formConfig: codConfig },
   { name: "Mussels", department: "fish", productType: "Fish", formConfig: musselsConfig },
-  { name: "Pasta Clams 10lbs", department: "fish", productType: "Fish", formConfig: pastaClamsConfig },
+  { name: "Pasta Clams", department: "fish", productType: "Fish", formConfig: pastaClamsConfig },
   { name: "Live Lobster", department: "fish", productType: "Fish", formConfig: liveLobsterConfig },
-  { name: "RockFish 10lbs", department: "fish", productType: "Fish", formConfig: rockfishConfig },
+  { name: "RockFish", department: "fish", productType: "Fish", formConfig: rockfishConfig },
   ...MEAT_PRODUCTS.map((m) => ({
     name: m.name,
     department: "meat" as schema.Department,
