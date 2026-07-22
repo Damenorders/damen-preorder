@@ -50,12 +50,15 @@ function formatWeight(weight: string | null): string | null {
   return String(n);
 }
 
-/** Specs string ("Skin Off · Bone Off") → " (Skin Off, Bone Off)". */
+/** Specs string ("Skin Off · Bone Off") → " (Skin Off, Bone Off)". The
+ *  Box/Pieces Format value is dropped — the butcher's dispatch message doesn't
+ *  carry the packaging format. */
 function specsSuffix(specs: string): string {
   const parts = (specs || "")
     .split(" · ")
     .map((s) => s.trim())
-    .filter(Boolean);
+    .filter(Boolean)
+    .filter((s) => s !== "Box" && s !== "Pieces");
   return parts.length ? ` (${parts.join(", ")})` : "";
 }
 
