@@ -140,11 +140,31 @@ const rockfishConfig: ProductFormConfig = {
 const KG = {
   quantity: null,
   weightLabel: "Quantity (KG)",
-  weightRequired: true,
 } as const;
 
 function meatConfig(fields: ProductFormConfig["fields"] = []): ProductFormConfig {
   return { fields, ...KG };
+}
+
+// Some meats are also counted by Box or Pieces: a "Format" select sits on top of
+// Quantity (KG), then a count appears — "Number of Boxes" or "Number of Pieces".
+function boxOrPiecesMeat(
+  extraFields: ProductFormConfig["fields"] = [],
+): ProductFormConfig {
+  return {
+    quantity: { min: 1, max: 999 },
+    quantityShowWhen: { field: "format", equals: ["Box", "Pieces"] },
+    quantityLabel: "Quantity",
+    quantityLabelWhen: {
+      field: "format",
+      map: { Box: "Number of Boxes", Pieces: "Number of Pieces" },
+    },
+    weightLabel: "Quantity (KG)",
+    fields: [
+      { key: "format", label: "Format", type: "select", options: ["Box", "Pieces"], required: true, display: "{value}" },
+      ...extraFields,
+    ],
+  };
 }
 
 const MEAT_PRODUCTS: Array<{ name: string; formConfig: ProductFormConfig }> = [
@@ -165,25 +185,25 @@ const MEAT_PRODUCTS: Array<{ name: string; formConfig: ProductFormConfig }> = [
   },
   { name: "Ground Beef", formConfig: meatConfig() },
   { name: "Boneless Chicken Legs", formConfig: meatConfig() },
-  { name: "Beef Shoulder", formConfig: meatConfig() },
-  { name: "Pork Shoulder", formConfig: meatConfig() },
+  { name: "Beef Shoulder", formConfig: boxOrPiecesMeat() },
+  { name: "Pork Shoulder", formConfig: boxOrPiecesMeat() },
   {
     name: "Bavette",
-    formConfig: meatConfig([
+    formConfig: boxOrPiecesMeat([
       { key: "trim", label: "Trim", type: "select", options: ["Standard", "Trimmed"], required: true, display: "{value}" },
     ]),
   },
-  { name: "Filet Mignon", formConfig: meatConfig() },
-  { name: "Denuded Inside Round", formConfig: meatConfig() },
+  { name: "Filet Mignon", formConfig: boxOrPiecesMeat() },
+  { name: "Denuded Inside Round", formConfig: boxOrPiecesMeat() },
   {
     name: "Striploin",
-    formConfig: meatConfig([
+    formConfig: boxOrPiecesMeat([
       { key: "cut", label: "Cut", type: "select", options: ["Whole", "Portioned"], required: true, display: "{value}" },
       { key: "size", label: "Size", type: "select", options: ["8oz", "10oz", "12oz", "14oz", "16oz"], required: true, display: "{value}", showWhen: { field: "cut", equals: "Portioned" } },
     ]),
   },
-  { name: "Flank Steak", formConfig: meatConfig() },
-  { name: "Frozen Lamb Shoulder", formConfig: meatConfig() },
+  { name: "Flank Steak", formConfig: boxOrPiecesMeat() },
+  { name: "Frozen Lamb Shoulder", formConfig: boxOrPiecesMeat() },
   { name: "Ground Chicken", formConfig: meatConfig() },
   {
     name: "Ribeye Steak",
