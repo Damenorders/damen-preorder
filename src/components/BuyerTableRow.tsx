@@ -80,6 +80,7 @@ export default function BuyerTableRow({
         <td className={`${tdClass} whitespace-nowrap text-right tabular-nums`}>
           {row.weight ? `${row.weight} ${weightUnit(row.department)}` : "—"}
         </td>
+        <td className={`${tdClass} text-right tabular-nums`}>{row.quantity ?? "—"}</td>
         <td className={`${tdClass} whitespace-nowrap font-medium`}>{row.product}</td>
         <td className={tdClass}>
           <span className="flex flex-wrap gap-0.5">
@@ -100,7 +101,6 @@ export default function BuyerTableRow({
               : "—"}
           </span>
         </td>
-        <td className={`${tdClass} text-right tabular-nums`}>{row.quantity ?? "—"}</td>
         <td className={`${tdClass} max-w-[180px]`}>
           {notes ? (
             <span className="flex items-center gap-1 text-neutral-600">

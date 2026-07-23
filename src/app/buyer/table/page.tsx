@@ -224,9 +224,9 @@ export default async function BuyerTablePage({
                   <th className={thClass}>Status</th>
                   <th className={thClass}>Delivery Date</th>
                   <th className={`${thClass} text-right`}>Weight</th>
+                  <th className={`${thClass} text-right`}>Qty</th>
                   <th className={thClass}>Product</th>
                   <th className={thClass}>Specs</th>
-                  <th className={`${thClass} text-right`}>Qty</th>
                   <th className={thClass}>Notes</th>
                   <th className={thClass}>Created</th>
                   <th className={thClass}>Updated</th>
