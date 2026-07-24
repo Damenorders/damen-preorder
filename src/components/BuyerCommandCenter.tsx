@@ -49,6 +49,16 @@ function compareOrdersByStatus(
   return a.clientName.localeCompare(b.clientName);
 }
 
+// Compact date for whole-week rows, e.g. "Wed, Jul 23".
+function shortDate(value: string): string {
+  return new Date(`${value}T12:00:00`).toLocaleDateString("en-US", {
+    timeZone: "America/Montreal",
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  });
+}
+
 // "10KG THIGH" / "25KG BREAST" — qty-or-weight + product, nothing else, so the
 // buyer sees the whole order in one glance. For free-text "Other" lines (the
 // whole Other section, or an "Other" product inside Meat/Fish) the typed
@@ -212,13 +222,18 @@ export default function BuyerCommandCenter({
   const ordersByDept = useMemo(() => {
     const map = new Map<Department, DashboardOrderRow[]>();
     DEPARTMENTS.forEach((d) => map.set(d, []));
-    // Every section (Other included) only shows the selected day(s).
     orders.forEach((o) => {
-      if (dates.includes(o.deliveryDate)) map.get(o.department)?.push(o);
+      if (o.department === "other") {
+        // Other Preorders: always show every date, independent of the toggle.
+        map.get("other")?.push(o);
+      } else if (dates.includes(o.deliveryDate)) {
+        // Meat/Fish: only the selected day(s).
+        map.get(o.department)?.push(o);
+      }
     });
     // Meat/Fish read like the Submissions view — by day, then Pending → Ready →
     // Shipped. Other Preorders sorts by status first, so Pending is always on
-    // top regardless of day.
+    // top regardless of date.
     DEPARTMENTS.forEach((d) =>
       map.get(d)?.sort(d === "other" ? compareOrdersByStatus : compareOrders),
     );
@@ -286,9 +301,11 @@ export default function BuyerCommandCenter({
                       <p className="mt-0.5 truncate text-xs text-neutral-400">
                         {o.lineCount} line{o.lineCount === 1 ? "" : "s"}
                         {o.hasNotes && " · 📝 notes"}
-                        {day === "both"
-                          ? ` · ${o.deliveryDate === today ? "Today" : "Tomorrow"}`
-                          : ""}
+                        {dep === "other"
+                          ? ` · ${shortDate(o.deliveryDate)}`
+                          : day === "both"
+                            ? ` · ${o.deliveryDate === today ? "Today" : "Tomorrow"}`
+                            : ""}
                       </p>
                     </div>
                     <span onClick={(e) => e.stopPropagation()}>
