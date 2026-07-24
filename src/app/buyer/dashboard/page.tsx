@@ -1,4 +1,4 @@
-import { requireRole } from "@/lib/auth";
+import { requireRole, homePathFor } from "@/lib/auth";
 import {
   businessToday,
   businessTomorrow,
@@ -43,7 +43,7 @@ export default async function BuyerDashboardPage() {
   return (
     <PageShell
       user={user}
-      backHref="/buyer"
+      backHref={homePathFor(user.role)}
       backLabel="Dashboard"
       title="Command Center"
       wide

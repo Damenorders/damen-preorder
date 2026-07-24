@@ -17,7 +17,7 @@ const roleLabels: Record<User["role"], string> = {
 
 export default function AppHeader({ user }: { user: User }) {
   return (
-    <header className="sticky top-0 z-10 bg-accent-700 shadow-sm">
+    <header className="sticky top-0 z-40 bg-accent-700 shadow-sm">
       <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-3">
         <div className="flex min-w-0 items-center gap-3">
           {/* brightness-0 invert renders the blue wordmark in white */}

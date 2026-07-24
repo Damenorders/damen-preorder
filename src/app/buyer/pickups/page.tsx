@@ -1,4 +1,4 @@
-import { requireRole } from "@/lib/auth";
+import { requireRole, homePathFor } from "@/lib/auth";
 import { listPickups } from "@/app/actions/pickups";
 import { listDeliveries } from "@/app/actions/deliveries";
 import PageShell from "@/components/PageShell";
@@ -38,7 +38,7 @@ export default async function PickupsPage() {
   return (
     <PageShell
       user={user}
-      backHref="/buyer"
+      backHref={homePathFor(user.role)}
       backLabel="Dashboard"
       title="Pickups & Deliveries"
       subtitle="Pickup sheets and delivery tracking, grouped by date."
