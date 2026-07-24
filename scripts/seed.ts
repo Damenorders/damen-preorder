@@ -58,18 +58,46 @@ const salmonConfig: ProductFormConfig = {
   ],
 };
 
-// Sea Bass and Sea Bream share the exact same options.
-function seaBassBreamConfig(): ProductFormConfig {
+// The shared Size/Cut option chain used by both Sea Bass and Sea Bream.
+function seaBassBreamFields(): ProductFormConfig["fields"] {
+  return [
+    { key: "size", label: "Size", type: "select", options: ["400-600", "600-800", "800-1000"], required: true, display: "{value}" },
+    { key: "cut", label: "Cut", type: "select", options: ["Whole", "Cut"], required: true, display: "{value}" },
+    { key: "style", label: "Style", type: "select", options: ["Fillet", "Butterfly"], required: true, display: "{value}", showWhen: { field: "cut", equals: "Cut" } },
+    { key: "skin", label: "Skin", type: "select", options: ["On", "Off"], required: true, display: "Skin {value}", showWhen: { field: "style", equals: "Fillet" } },
+    { key: "withHead", label: "With Head", type: "select", options: ["Yes", "No"], required: true, display: "With Head {value}", showWhen: { field: "style", equals: "Butterfly" } },
+  ];
+}
+
+// Sea Bream: ordered by the fish — Size + Cut, a "Quantity of Fish" count, and
+// an optional weight.
+function seaBreamConfig(): ProductFormConfig {
   return {
     quantity: { min: 1, max: 999 },
     quantityLabel: "Quantity of Fish",
     weightLabel: "Weight (lbs)",
+    fields: seaBassBreamFields(),
+  };
+}
+
+// Sea Bass: a Format select on top — "Box" or "Fish". Either way the buyer
+// still picks Size + Cut. Box = a fixed 10kg box with a "Number of Boxes" count
+// and no weight; Fish = a "Quantity of Fish" count with an optional weight.
+function seaBassConfig(): ProductFormConfig {
+  return {
+    quantity: { min: 1, max: 999 },
+    quantityLabel: "Quantity of Fish",
+    quantityShowWhen: { field: "format", equals: ["Box", "Fish"] },
+    quantityLabelWhen: {
+      field: "format",
+      map: { Box: "Number of Boxes", Fish: "Quantity of Fish" },
+    },
+    weightLabel: "Weight (lbs)",
+    weightShowWhen: { field: "format", equals: "Fish" },
     fields: [
-      { key: "size", label: "Size", type: "select", options: ["400-600", "600-800", "800-1000"], required: true, display: "{value}" },
-      { key: "cut", label: "Cut", type: "select", options: ["Whole", "Cut"], required: true, display: "{value}" },
-      { key: "style", label: "Style", type: "select", options: ["Fillet", "Butterfly"], required: true, display: "{value}", showWhen: { field: "cut", equals: "Cut" } },
-      { key: "skin", label: "Skin", type: "select", options: ["On", "Off"], required: true, display: "Skin {value}", showWhen: { field: "style", equals: "Fillet" } },
-      { key: "withHead", label: "With Head", type: "select", options: ["Yes", "No"], required: true, display: "With Head {value}", showWhen: { field: "style", equals: "Butterfly" } },
+      { key: "format", label: "Format", type: "select", options: ["Box", "Fish"], required: true, display: "{value}" },
+      { key: "boxSpec", label: "Box", type: "info", text: "10kg Box", display: "{value}", showWhen: { field: "format", equals: "Box" } },
+      ...seaBassBreamFields(),
     ],
   };
 }
@@ -267,8 +295,8 @@ const SEED_PRODUCTS: Array<{
   formConfig: ProductFormConfig;
 }> = [
   { name: "Salmon", department: "fish", productType: "Fish", formConfig: salmonConfig },
-  { name: "Sea Bass", department: "fish", productType: "Fish", formConfig: seaBassBreamConfig() },
-  { name: "Sea Bream", department: "fish", productType: "Fish", formConfig: seaBassBreamConfig() },
+  { name: "Sea Bass", department: "fish", productType: "Fish", formConfig: seaBassConfig() },
+  { name: "Sea Bream", department: "fish", productType: "Fish", formConfig: seaBreamConfig() },
   { name: "Cod", department: "fish", productType: "Fish", formConfig: codConfig },
   { name: "Mussels", department: "fish", productType: "Fish", formConfig: musselsConfig },
   { name: "Pasta Clams", department: "fish", productType: "Fish", formConfig: pastaClamsConfig },
