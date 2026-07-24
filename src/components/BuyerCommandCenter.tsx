@@ -36,14 +36,17 @@ function compareOrders(a: DashboardOrderRow, b: DashboardOrderRow): number {
   return rank !== 0 ? rank : a.clientName.localeCompare(b.clientName);
 }
 
-// Compact date for whole-week rows, e.g. "Wed, Jul 23".
-function shortDate(value: string): string {
-  return new Date(`${value}T12:00:00`).toLocaleDateString("en-US", {
-    timeZone: "America/Montreal",
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-  });
+// Other Preorders: status always drives the order — Pending on top, then Ready,
+// then Shipped — with day and client name as tie-breakers.
+function compareOrdersByStatus(
+  a: DashboardOrderRow,
+  b: DashboardOrderRow,
+): number {
+  const rank = STATUS_RANK[a.submissionStatus] - STATUS_RANK[b.submissionStatus];
+  if (rank !== 0) return rank;
+  if (a.deliveryDate !== b.deliveryDate)
+    return a.deliveryDate.localeCompare(b.deliveryDate);
+  return a.clientName.localeCompare(b.clientName);
 }
 
 // "10KG THIGH" / "25KG BREAST" — qty-or-weight + product, nothing else, so the
@@ -209,18 +212,16 @@ export default function BuyerCommandCenter({
   const ordersByDept = useMemo(() => {
     const map = new Map<Department, DashboardOrderRow[]>();
     DEPARTMENTS.forEach((d) => map.set(d, []));
+    // Every section (Other included) only shows the selected day(s).
     orders.forEach((o) => {
-      if (o.department === "other") {
-        // Other Preorders: show the whole week, independent of the day toggle.
-        map.get("other")?.push(o);
-      } else if (dates.includes(o.deliveryDate)) {
-        // Meat/Fish: only the selected day(s).
-        map.get(o.department)?.push(o);
-      }
+      if (dates.includes(o.deliveryDate)) map.get(o.department)?.push(o);
     });
-    // Every section reads like the Submissions view: by day, then Pending on
-    // top, Ready under, Shipped at the bottom of that day.
-    DEPARTMENTS.forEach((d) => map.get(d)?.sort(compareOrders));
+    // Meat/Fish read like the Submissions view — by day, then Pending → Ready →
+    // Shipped. Other Preorders sorts by status first, so Pending is always on
+    // top regardless of day.
+    DEPARTMENTS.forEach((d) =>
+      map.get(d)?.sort(d === "other" ? compareOrdersByStatus : compareOrders),
+    );
     return map;
   }, [orders, dates]);
 
@@ -285,11 +286,9 @@ export default function BuyerCommandCenter({
                       <p className="mt-0.5 truncate text-xs text-neutral-400">
                         {o.lineCount} line{o.lineCount === 1 ? "" : "s"}
                         {o.hasNotes && " · 📝 notes"}
-                        {dep === "other"
-                          ? ` · ${shortDate(o.deliveryDate)}`
-                          : day === "both"
-                            ? ` · ${o.deliveryDate === today ? "Today" : "Tomorrow"}`
-                            : ""}
+                        {day === "both"
+                          ? ` · ${o.deliveryDate === today ? "Today" : "Tomorrow"}`
+                          : ""}
                       </p>
                     </div>
                     <span onClick={(e) => e.stopPropagation()}>
