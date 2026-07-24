@@ -163,6 +163,24 @@ const rockfishConfig: ProductFormConfig = {
   ],
 };
 
+// Oysters: pick a Type, which fixes the size (Malpec = Large; the rest are
+// 3.5inch Cocktail). Sold by the box of 100 units — a "Number of boxes" count,
+// no weight. Size is a read-only fact per type (one info field each, since a
+// field can only key off a single type value).
+const oystersConfig: ProductFormConfig = {
+  quantity: { min: 1, max: 999 },
+  quantityLabel: "Number of boxes",
+  hideWeight: true,
+  fields: [
+    { key: "type", label: "Type", type: "select", options: ["Shiney Sea", "Malpec", "Irish Point", "Conway Pearl"], required: true, display: "{value}" },
+    { key: "sizeShineySea", label: "Size", type: "info", text: "3.5inch Cocktail", display: "{value}", showWhen: { field: "type", equals: "Shiney Sea" } },
+    { key: "sizeIrishPoint", label: "Size", type: "info", text: "3.5inch Cocktail", display: "{value}", showWhen: { field: "type", equals: "Irish Point" } },
+    { key: "sizeConwayPearl", label: "Size", type: "info", text: "3.5inch Cocktail", display: "{value}", showWhen: { field: "type", equals: "Conway Pearl" } },
+    { key: "sizeMalpec", label: "Size", type: "info", text: "Large", display: "{value}", showWhen: { field: "type", equals: "Malpec" } },
+    { key: "pack", label: "Box", type: "info", text: "Box of 100 units", display: "{value}" },
+  ],
+};
+
 // Meats are ordered by KG: no piece-count input, one required "Quantity (KG)"
 // field (stored in the weight column), plus any cut options.
 const KG = {
@@ -302,6 +320,7 @@ const SEED_PRODUCTS: Array<{
   { name: "Pasta Clams", department: "fish", productType: "Fish", formConfig: pastaClamsConfig },
   { name: "Live Lobster", department: "fish", productType: "Fish", formConfig: liveLobsterConfig },
   { name: "RockFish", department: "fish", productType: "Fish", formConfig: rockfishConfig },
+  { name: "Oysters", department: "fish", productType: "Fish", formConfig: oystersConfig },
   ...MEAT_PRODUCTS.map((m) => ({
     name: m.name,
     department: "meat" as schema.Department,
