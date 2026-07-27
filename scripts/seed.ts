@@ -50,11 +50,12 @@ const salmonConfig: ProductFormConfig = {
   weightLabel: "Weight (lbs)",
   fields: [
     { key: "size", label: "Size", type: "select", options: ["10/12", "12/14", "14/16"], required: true, display: "{value}" },
-    { key: "portioned", label: "Portioned 7oz", type: "select", options: ["Yes", "No"], required: true, display: "Portioned 7oz {value}" },
-    { key: "skin", label: "Skin", type: "select", options: ["On", "Off"], required: true, display: "Skin {value}", showWhen: { field: "portioned", equals: "No" } },
-    { key: "bone", label: "Bone", type: "select", options: ["On", "Off"], required: true, display: "Bone {value}", showWhen: { field: "portioned", equals: "No" } },
-    { key: "clean", label: "Clean", type: "select", options: ["Simple Clean", "Deep Clean"], required: true, display: "{value}", showWhen: { field: "portioned", equals: "No" } },
-    { key: "headAndSkin", label: "Head & Skin in Box", type: "select", options: ["Yes", "No"], required: true, display: "Head & Skin {value}" },
+    { key: "cut", label: "Cut", type: "select", options: ["Whole", "Fillet", "Portioned"], required: true, display: "{value}" },
+    // Whole: no further options. Fillet: skin/bone/clean/head&skin. Portioned: head&skin only.
+    { key: "skin", label: "Skin", type: "select", options: ["On", "Off"], required: true, display: "Skin {value}", showWhen: { field: "cut", equals: "Fillet" } },
+    { key: "bone", label: "Bone", type: "select", options: ["On", "Off"], required: true, display: "Bone {value}", showWhen: { field: "cut", equals: "Fillet" } },
+    { key: "clean", label: "Clean", type: "select", options: ["Simple Clean", "Deep Clean"], required: true, display: "{value}", showWhen: { field: "cut", equals: "Fillet" } },
+    { key: "headAndSkin", label: "Head & Skin in Box", type: "select", options: ["Yes", "No"], required: true, display: "Head & Skin {value}", showWhen: { field: "cut", equals: ["Fillet", "Portioned"] } },
   ],
 };
 
