@@ -30,6 +30,18 @@ export function businessTomorrow(): string {
   const d = new Date(Date.now() + 24 * 60 * 60 * 1000);
   return d.toLocaleDateString("en-CA", { timeZone: "America/Montreal" });
 }
+export function businessYesterday(): string {
+  let ms = Date.now() - 24 * 60 * 60 * 1000;
+  // Company is closed Sundays — skip it so Monday's "yesterday" is Saturday.
+  const weekday = new Date(ms).toLocaleDateString("en-US", {
+    timeZone: "America/Montreal",
+    weekday: "short",
+  });
+  if (weekday === "Sun") ms -= 24 * 60 * 60 * 1000;
+  return new Date(ms).toLocaleDateString("en-CA", {
+    timeZone: "America/Montreal",
+  });
+}
 /** Today plus the next six days (a rolling week), in business-time. */
 export function businessWeek(): string[] {
   return Array.from({ length: 7 }, (_, i) =>

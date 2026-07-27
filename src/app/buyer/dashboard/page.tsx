@@ -2,6 +2,7 @@ import { requireRole, homePathFor } from "@/lib/auth";
 import {
   businessToday,
   businessTomorrow,
+  businessYesterday,
   businessWeek,
   getDashboardOrders,
 } from "@/lib/buyer-data";
@@ -19,17 +20,23 @@ export default async function BuyerDashboardPage() {
   const user = await requireRole("buyer");
   const today = businessToday();
   const tomorrow = businessTomorrow();
+  const yesterday = businessYesterday();
 
-  // Fetch the whole week: Meat/Fish only use today/tomorrow (filtered client-
-  // side by the toggle), but Other Preorders shows the full week.
+  // Fetch yesterday plus the whole week: Meat/Fish use yesterday/today/tomorrow
+  // (filtered client-side by the toggle), Other Preorders shows every date.
   const [orders, allPickups, trends] = await Promise.all([
-    getDashboardOrders(businessWeek()),
+    getDashboardOrders([yesterday, ...businessWeek()]),
     listPickups(),
     getProductTrends(),
   ]);
 
   const pickups = allPickups
-    .filter((p) => p.pickupDate === today || p.pickupDate === tomorrow)
+    .filter(
+      (p) =>
+        p.pickupDate === yesterday ||
+        p.pickupDate === today ||
+        p.pickupDate === tomorrow,
+    )
     .map((p) => ({
       id: p.id,
       supplierName: p.supplierName,
@@ -50,6 +57,7 @@ export default async function BuyerDashboardPage() {
     >
       <div className="flex flex-col gap-8">
         <BuyerCommandCenter
+          yesterday={yesterday}
           today={today}
           tomorrow={tomorrow}
           orders={orders}

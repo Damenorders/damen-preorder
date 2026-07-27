@@ -98,7 +98,7 @@ export interface DashboardPickupRow {
   status: PickupStatus;
 }
 
-type DayChoice = "today" | "tomorrow" | "both";
+type DayChoice = "yesterday" | "today" | "tomorrow" | "both";
 
 // Coloured top accent per department, matching the dashboard card corners.
 const deptAccent: Record<Department, string> = {
@@ -180,11 +180,13 @@ function ToggleButton({
 }
 
 export default function BuyerCommandCenter({
+  yesterday,
   today,
   tomorrow,
   orders,
   pickups,
 }: {
+  yesterday: string;
   today: string;
   tomorrow: string;
   orders: DashboardOrderRow[];
@@ -205,10 +207,11 @@ export default function BuyerCommandCenter({
   }, [router]);
 
   const dates = useMemo(() => {
+    if (day === "yesterday") return [yesterday];
     if (day === "today") return [today];
     if (day === "tomorrow") return [tomorrow];
     return [today, tomorrow];
-  }, [day, today, tomorrow]);
+  }, [day, yesterday, today, tomorrow]);
 
   const shownOrders = useMemo(
     () => orders.filter((o) => dates.includes(o.deliveryDate)),
@@ -243,7 +246,9 @@ export default function BuyerCommandCenter({
   const dateLabel =
     day === "both"
       ? `${formatDate(today)} + ${formatDate(tomorrow)}`
-      : formatDate(day === "today" ? today : tomorrow);
+      : formatDate(
+          day === "yesterday" ? yesterday : day === "today" ? today : tomorrow,
+        );
 
   const totalOrders = shownOrders.length;
 
@@ -420,6 +425,11 @@ export default function BuyerCommandCenter({
       {/* Day toggle + the date(s) in view */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="inline-flex items-center gap-1 rounded-xl bg-neutral-100 p-1">
+          <ToggleButton
+            active={day === "yesterday"}
+            label="Yesterday"
+            onClick={() => setDay("yesterday")}
+          />
           <ToggleButton
             active={day === "today"}
             label="Today"

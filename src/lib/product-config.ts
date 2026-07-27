@@ -34,10 +34,11 @@ export interface ProductField {
   display: string;
   /**
    * Conditional visibility: only show (and require/record) this field when
-   * another field equals a given value. e.g. Ribeye "Size" only appears when
-   * "Cut" equals "Portioned".
+   * another field equals a given value (or one of several). e.g. Ribeye "Size"
+   * only appears when "Cut" equals "Portioned"; Salmon "Head & Skin" appears for
+   * "Cut" of "Fillet" or "Portioned".
    */
-  showWhen?: { field: string; equals: string };
+  showWhen?: { field: string; equals: string | string[] };
 }
 
 /**
@@ -49,7 +50,9 @@ export function isFieldVisible(
   specsJson: SpecsJson,
 ): boolean {
   if (!field.showWhen) return true;
-  return specsJson[field.showWhen.field] === field.showWhen.equals;
+  const { equals } = field.showWhen;
+  const value = specsJson[field.showWhen.field];
+  return Array.isArray(equals) ? equals.includes(value) : value === equals;
 }
 
 /**
@@ -197,16 +200,21 @@ export function parseFormConfig(
     }
     if (field.showWhen !== undefined) {
       const sw = field.showWhen as Record<string, unknown>;
+      const equalsOk =
+        typeof sw.equals === "string" ||
+        (Array.isArray(sw.equals) &&
+          sw.equals.length > 0 &&
+          sw.equals.every((e) => typeof e === "string"));
       if (
         typeof sw !== "object" ||
         sw === null ||
         typeof sw.field !== "string" ||
         !sw.field.trim() ||
-        typeof sw.equals !== "string"
+        !equalsOk
       ) {
         return {
           ok: false,
-          error: `${where}: "showWhen" must be {"field": "<key>", "equals": "<value>"}.`,
+          error: `${where}: "showWhen" must be {"field": "<key>", "equals": "<value>" | ["<value>"...]}.`,
         };
       }
     }
