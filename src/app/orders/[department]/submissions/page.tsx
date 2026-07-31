@@ -11,7 +11,8 @@ import CopyReadyOrdersButton from "@/components/CopyReadyOrdersButton";
 import { buildReadyOrdersText } from "@/lib/ready-orders-text";
 
 // Submissions, one module at a time, sorted by submission date — SPEC.md §13.
-// Reps see only their own orders (enforced in getSubmissions).
+// Everyone (reps included) sees all orders in the module; reps can only
+// edit/delete their own, still-Pending ones.
 export default async function SubmissionsPage({
   params,
   searchParams,
@@ -66,7 +67,7 @@ export default async function SubmissionsPage({
         editMode
           ? "Choose an order to edit."
           : user.role === "rep"
-            ? "Your submissions. Tap a row for details."
+            ? "All submissions — you can edit your own. Tap a row for details."
             : "All submissions. Tap a row for details."
       }
     >
@@ -106,17 +107,26 @@ export default async function SubmissionsPage({
               user.role === "buyer" ||
               user.role === "admin" ||
               user.role === "butcher";
-            // Scheduling: view all, edit weight + status only (no full edit/delete).
+            // Reps see everyone's orders here, but can only edit/delete their
+            // own, still-Pending ones. Scheduling: view all, edit weight +
+            // status only (no full edit/delete).
+            const own = s.repUserId === user.id;
             return (
               <SubmissionCard
                 key={s.id}
                 submission={s}
-                showRep={!isRep}
+                showRep
                 manageStatus={!isRep}
                 editButton={editMode}
-                canEdit={isRep ? s.submissionStatus === "pending" : isManager}
-                canEditWeight={isRep ? s.submissionStatus === "pending" : true}
-                canDelete={isRep ? s.submissionStatus === "pending" : isManager}
+                canEdit={
+                  isRep ? own && s.submissionStatus === "pending" : isManager
+                }
+                canEditWeight={
+                  isRep ? own && s.submissionStatus === "pending" : true
+                }
+                canDelete={
+                  isRep ? own && s.submissionStatus === "pending" : isManager
+                }
               />
             );
           })}

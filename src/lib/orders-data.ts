@@ -120,17 +120,15 @@ export type SubmissionSort = "delivery" | "submitted";
 /**
  * Submissions for one module (SPEC.md §13). Default order: earliest delivery
  * date first, newest submission within the same day; "submitted" orders by
- * order date, newest first. Reps get only their own orders.
+ * order date, newest first. Everyone (reps included) sees all orders in the
+ * module; reps can only edit/delete their own (enforced in the page + actions).
  */
 export async function getSubmissions(
   user: User,
   department: Department,
   sortBy: SubmissionSort = "delivery",
 ): Promise<SubmissionView[]> {
-  const where =
-    user.role === "rep"
-      ? and(eq(orders.department, department), eq(orders.repUserId, user.id))
-      : eq(orders.department, department);
+  const where = eq(orders.department, department);
 
   // Shipped orders always sink to the bottom, regardless of the chosen sort.
   const shippedLast = sql`case when ${orders.submissionStatus} = 'shipped' then 1 else 0 end`;

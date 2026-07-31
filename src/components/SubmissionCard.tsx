@@ -75,11 +75,16 @@ export default function SubmissionCard({
       ? submission.lines[0].product
       : `${submission.lines[0]?.product ?? "—"} +${submission.lines.length - 1} more`;
 
-  // "Edited" pill: only for Meat and Pre-Order (Other) submissions, and only
-  // once the order has actually been changed through the Edit form.
+  // "Edited" pill: for Meat and Pre-Order (Other) on any change, and for Fish
+  // on any change EXCEPT a weight-only one (fish weights get filled in later,
+  // so a weight change alone shouldn't flag the order). Only shows once the
+  // order has actually been changed. A weight-only edit is summarised as
+  // exactly "weight".
   const showEdited =
-    (submission.department === "meat" || submission.department === "other") &&
-    submission.editedAt != null;
+    submission.editedAt != null &&
+    (submission.department === "meat" ||
+      submission.department === "other" ||
+      (submission.department === "fish" && submission.editSummary !== "weight"));
   const editedTitle = submission.editSummary
     ? `Changed: ${submission.editSummary} · ${formatDateTime(submission.editedAt!)}`
     : `Edited ${formatDateTime(submission.editedAt!)}`;
