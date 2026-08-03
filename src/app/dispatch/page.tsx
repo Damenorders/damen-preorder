@@ -3,8 +3,8 @@ import AppHeader from "@/components/AppHeader";
 import { DashboardCard } from "@/components/DashboardCard";
 import PushNotificationsSettings from "@/components/PushNotificationsSettings";
 
-// Dispatch dashboard — restricted role. Sees only the Pickups & Deliveries
-// tools and Order Alerts; every other area is gated off server-side.
+// Dispatch dashboard — restricted role. Sees the Pickups & Deliveries tools,
+// Warehouse Inventory, and Order Alerts; every other area is gated off server-side.
 export default async function DispatchDashboard() {
   const user = await requireRole("dispatch");
 
@@ -24,6 +24,17 @@ export default async function DispatchDashboard() {
               { label: "New Pickup", href: "/buyer/pickups/new", primary: true, variant: "highlight" },
               { label: "New Delivery", href: "/buyer/deliveries/new" },
               { label: "All Pickups & Deliveries", href: "/buyer/pickups" },
+            ]}
+          />
+          <DashboardCard
+            title="Warehouse Inventory"
+            subtitle="Find items, save pallet locations"
+            corner={{ color: "orange", position: "tl" }}
+            links={[
+              { label: "Find an Item", href: "/warehouse?screen=find", primary: true, variant: "highlight" },
+              { label: "Item Catalog", href: "/warehouse?screen=catalog" },
+              { label: "Rack Maps", href: "/warehouse?screen=map" },
+              { label: "Activity Log", href: "/warehouse?screen=activity" },
             ]}
           />
           <PushNotificationsSettings />

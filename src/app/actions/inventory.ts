@@ -289,7 +289,7 @@ async function syncPlacements(
 export async function readWarehouseKey(
   key: string,
 ): Promise<{ value: string } | null> {
-  await requireRole("buyer");
+  await requireRole("buyer", "dispatch");
 
   if (key === "wh-audit-log") {
     const log = await getInventoryAudit(200);
@@ -317,7 +317,7 @@ export async function writeWarehouseKey(
   key: string,
   value: string,
 ): Promise<{ ok: boolean; error?: string }> {
-  const user = await requireRole("buyer");
+  const user = await requireRole("buyer", "dispatch");
 
   // The audit trail is derived server-side — the client's copy is read-only.
   if (key === "wh-audit-log") return { ok: true };
@@ -348,7 +348,7 @@ export async function writeWarehouseKey(
 
 /** Clears one unit — used by the locator's "reset" button. */
 export async function clearWarehouseUnit(unit: WarehouseUnit) {
-  const user = await requireRole("buyer");
+  const user = await requireRole("buyer", "dispatch");
   await db.transaction(async (tx) => {
     await tx
       .delete(inventoryPlacements)
@@ -367,7 +367,7 @@ export async function clearWarehouseUnit(unit: WarehouseUnit) {
 
 /** Where is this item? Used by the dashboard/search entry points. */
 export async function findItemLocations(code: string) {
-  await requireRole("buyer");
+  await requireRole("buyer", "dispatch");
   const rows = await db
     .select()
     .from(inventoryPlacements)
