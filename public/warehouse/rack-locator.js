@@ -323,6 +323,7 @@
      floating suggestion list. Typing a code OR description filters the catalog and
      tapping a match fills in both fields on the matching item. */
   let acEl = null, acInput = null, acMatches = [], acActive = -1;
+  let acDownOpt = null, acDownX = 0, acDownY = 0, acDragged = false;
 
   function catalogMatches(q, limit) {
     q = String(q || '').trim().toLowerCase();
@@ -343,11 +344,19 @@
     acInput = null; acMatches = []; acActive = -1;
   }
   function acPosition() {
-    if (!acEl || !acInput) return;
+    if (!acEl || !acInput || !acInput.isConnected) return;
     const r = acInput.getBoundingClientRect();
-    acEl.style.left = r.left + 'px';
+    const vw = window.innerWidth, vh = window.innerHeight;
+    const width = Math.min(Math.max(r.width, 260), vw - 16);
+    let left = r.left;
+    if (left + width > vw - 8) left = vw - width - 8;
+    if (left < 8) left = 8;
+    acEl.style.left = left + 'px';
     acEl.style.top = (r.bottom + 2) + 'px';
-    acEl.style.width = Math.max(r.width, 200) + 'px';
+    acEl.style.width = width + 'px';
+    // Fit the list into the space below the field; it scrolls if longer.
+    const below = vh - r.bottom - 12;
+    acEl.style.maxHeight = Math.max(below, 200) + 'px';
   }
   function acShow() {
     if (!acEl) return;
@@ -386,15 +395,22 @@
       const st = document.createElement('style');
       st.id = 'rl-ac-styles';
       st.textContent =
-        ".rl-ac { position: fixed; z-index: 9999; max-height: 46vh; overflow-y: auto;" +
-        " background: #FFF; border: 1px solid #DAD6C9; border-radius: 8px;" +
-        " box-shadow: 0 14px 34px rgba(0,0,0,0.22); -webkit-overflow-scrolling: touch; padding: 4px; }" +
-        ".rl-ac-opt { display: flex; flex-direction: column; gap: 1px; padding: 10px 12px;" +
-        " border-radius: 6px; cursor: pointer; }" +
+        ".rl-ac { position: fixed; z-index: 9999; max-height: 50vh; overflow-y: auto;" +
+        " background: #FFF; border: 1px solid #C7C2B2; border-radius: 10px;" +
+        " box-shadow: 0 18px 44px rgba(0,0,0,0.28); -webkit-overflow-scrolling: touch;" +
+        " overscroll-behavior: contain; touch-action: pan-y; padding: 4px; }" +
+        ".rl-ac-opt { display: flex; flex-direction: column; gap: 2px; padding: 11px 13px;" +
+        " border-radius: 7px; cursor: pointer; border-bottom: 1px solid #F0EDE4; }" +
+        ".rl-ac-opt:last-child { border-bottom: none; }" +
         ".rl-ac-opt:hover, .rl-ac-opt.active { background: #FBEAE7; }" +
-        ".rl-ac-desc { font-family: 'Inter', sans-serif; font-size: 14px; color: #1E1E1C; line-height: 1.2; }" +
-        ".rl-ac-code { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #8E2A20; font-weight: 600; }" +
-        "@media (max-width: 640px) { .rl-ac-opt { padding: 12px 12px; } .rl-ac-desc { font-size: 15px; } }";
+        ".rl-ac-opt:active { background: #F6D9D3; }" +
+        ".rl-ac-desc { font-family: 'Inter', sans-serif; font-size: 14px; color: #1E1E1C; line-height: 1.25; }" +
+        ".rl-ac-code { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #8E2A20; font-weight: 700; }" +
+        "@media (max-width: 760px) {" +
+        " .rl-ac { max-height: 56vh; border-radius: 12px; border-width: 2px; box-shadow: 0 22px 54px rgba(0,0,0,0.34); }" +
+        " .rl-ac-opt { padding: 15px 15px; min-height: 52px; justify-content: center; }" +
+        " .rl-ac-desc { font-size: 16px; font-weight: 500; }" +
+        " .rl-ac-code { font-size: 12.5px; } }";
       document.head.appendChild(st);
     }
 
@@ -408,13 +424,27 @@
     document.addEventListener('input', (e) => { if (isCatInput(e.target)) refresh(e.target); });
     document.addEventListener('focusin', (e) => { if (isCatInput(e.target)) refresh(e.target); });
 
-    // pointerdown (not click) so the tap registers before the input blurs.
+    // Distinguish a tap (select) from a drag (scroll the list): remember the
+    // option the touch started on, watch for movement, and only select on lift
+    // if the finger stayed put. This lets the list scroll on phones.
     acEl.addEventListener('pointerdown', (e) => {
-      const opt = e.target.closest && e.target.closest('.rl-ac-opt');
-      if (!opt) return;
-      e.preventDefault();
-      acChoose(parseInt(opt.getAttribute('data-i'), 10));
+      acDownOpt = e.target.closest ? e.target.closest('.rl-ac-opt') : null;
+      acDownX = e.clientX; acDownY = e.clientY; acDragged = false;
     });
+    acEl.addEventListener('pointermove', (e) => {
+      if (!acDownOpt) return;
+      if (Math.abs(e.clientX - acDownX) > 8 || Math.abs(e.clientY - acDownY) > 8) acDragged = true;
+    });
+    acEl.addEventListener('pointerup', (e) => {
+      const opt = acDownOpt;
+      acDownOpt = null;
+      if (opt && !acDragged) {
+        e.preventDefault();
+        acChoose(parseInt(opt.getAttribute('data-i'), 10));
+      }
+      acDragged = false;
+    });
+    acEl.addEventListener('pointercancel', () => { acDownOpt = null; acDragged = false; });
 
     document.addEventListener('keydown', (e) => {
       if (!acInput || !acEl || acEl.style.display === 'none' || !acMatches.length) return;
@@ -431,7 +461,9 @@
       acHide();
     }, true);
     document.addEventListener('scroll', () => { if (acInput) acPosition(); }, true);
-    window.addEventListener('resize', acHide);
+    // Keyboards toggling fire resize on phones — reposition, don't hide.
+    window.addEventListener('resize', () => { if (acInput && acInput.isConnected) acPosition(); });
+    if (window.visualViewport) window.visualViewport.addEventListener('resize', () => { if (acInput && acInput.isConnected) acPosition(); });
   }
 
   /* ---------------- AUDIT TRAIL ---------------- */
