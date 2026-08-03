@@ -620,6 +620,44 @@
     await persist(storageKey('floor-data'), JSON.stringify(state.floorData), 'Floor update');
   }
 
+  // Before saving an edit, pull the freshest shared copy of this unit so we only
+  // change the one slot the user touched and never clobber items other people
+  // added while this editor was open (the whole warehouse is one shared list).
+  // A failed/empty read is ignored so we never wipe on a hiccup.
+  async function mergeRackDataFromServer() {
+    const prefix = CURRENT_WH.storagePrefix || '';
+    let res = null;
+    try { res = await STORE.get(prefix + 'rack-data'); } catch (e) { res = null; }
+    if (!res || res.value == null) return false;
+    let data;
+    try { data = JSON.parse(res.value); } catch (e) { return false; }
+    if (!data || typeof data !== 'object') return false;
+    Object.keys(data).forEach(rowId => {
+      Object.keys(data[rowId] || {}).forEach(code => {
+        const [level, pos] = code.split('-');
+        const l = CURRENT_WH.layout[rowId];
+        if (!l || !l.exists.has(level + '-' + pos)) { delete data[rowId][code]; return; }
+        const v = data[rowId][code];
+        if (v && !Array.isArray(v)) data[rowId][code] = [v];
+      });
+    });
+    state.data = data;
+    if (whCache[state.warehouseId]) whCache[state.warehouseId].data = data;
+    return true;
+  }
+  async function mergeFloorDataFromServer() {
+    const prefix = CURRENT_WH.storagePrefix || '';
+    let res = null;
+    try { res = await STORE.get(prefix + 'floor-data'); } catch (e) { res = null; }
+    if (!res || res.value == null) return false;
+    let data;
+    try { data = JSON.parse(res.value); } catch (e) { return false; }
+    if (!data || typeof data !== 'object') return false;
+    state.floorData = data;
+    if (whCache[state.warehouseId]) whCache[state.warehouseId].floorData = data;
+    return true;
+  }
+
   async function switchWarehouse(whId) {
     const wh = WAREHOUSES[whId];
     if (!wh) return;
@@ -2063,13 +2101,15 @@
     updateFloorItemField(i, field, value) {
       state.floorEditing.items[i][field] = value;
     },
-    submitFloorEditor() {
+    async submitFloorEditor() {
       const e = state.floorEditing;
       const cleaned = e.items.filter(it => it.sku.trim() || it.description.trim())
         .map(it => ({ sku: it.sku.trim(), description: it.description.trim(), quantity: it.quantity || 1 }));
+      // Refresh everyone else's items first, then change only this floor area.
+      await mergeFloorDataFromServer();
       logItemDiff(CURRENT_WH.floorLabel(e.floorId), CURRENT_WH.name, floorItems(e.floorId), cleaned);
       setFloorItems(e.floorId, cleaned);
-      saveFloorData();
+      await saveFloorData();
       state.floorEditing = null;
       state.placing = null;
       render();
@@ -2087,14 +2127,16 @@
     updateItemField(i, field, value) {
       state.editing.items[i][field] = value;
     },
-    submitEditor() {
+    async submitEditor() {
       const e = state.editing;
       const cleaned = e.items.filter(it => it.sku.trim() || it.description.trim())
         .map(it => ({ sku: it.sku.trim(), description: it.description.trim(), quantity: it.quantity || 1 }));
+      // Refresh everyone else's items first, then change only this slot.
+      await mergeRackDataFromServer();
       const before = cellItems(e.rowId, e.level + '-' + e.pos);
       logItemDiff(fullLoc(e.rowId, e.level, e.pos), CURRENT_WH.name, before, cleaned);
       setCellItems(e.rowId, e.level + '-' + e.pos, cleaned);
-      saveData();
+      await saveData();
       state.editing = null;
       state.placing = null;
       render();
@@ -2103,6 +2145,8 @@
       const it = state.editing.items[i];
       if (!it) return;
       it[field] = value;
+      // Clearing the item code clears its description too.
+      if (field === 'sku' && !String(value).trim()) it.description = '';
       let cat = field === 'sku' ? catalogByCode(value) : (catalogByDesc(value) || catalogByCode(value));
       if (cat) { it.sku = cat.c; it.description = cat.d; }
       render();
@@ -2111,6 +2155,8 @@
       const it = state.floorEditing.items[i];
       if (!it) return;
       it[field] = value;
+      // Clearing the item code clears its description too.
+      if (field === 'sku' && !String(value).trim()) it.description = '';
       let cat = field === 'sku' ? catalogByCode(value) : (catalogByDesc(value) || catalogByCode(value));
       if (cat) { it.sku = cat.c; it.description = cat.d; }
       render();
