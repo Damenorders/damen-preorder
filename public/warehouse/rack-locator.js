@@ -1747,9 +1747,12 @@
       <tbody>${tableRows}</tbody></table></div>`;
 
     const isTable = state.findView === 'table';
-    const toggle = `<div class="rl-viewtoggle" style="margin-bottom:14px; width:max-content;">
-      <button class="${isTable ? '' : 'active'}" onclick="RL.setFindView('list')">List</button>
-      <button class="${isTable ? 'active' : ''}" onclick="RL.setFindView('table')">Spreadsheet</button>
+    const toggle = `<div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:14px;">
+      <div class="rl-viewtoggle" style="width:max-content;">
+        <button class="${isTable ? '' : 'active'}" onclick="RL.setFindView('list')">List</button>
+        <button class="${isTable ? 'active' : ''}" onclick="RL.setFindView('table')">Spreadsheet</button>
+      </div>
+      ${isTable ? `<button class="rl-btn" onclick="RL.exportFindCsv()">Export CSV</button>` : ''}
     </div>`;
 
     return `
@@ -2523,6 +2526,36 @@
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url; a.download = CURRENT_WH.id + '-rack-locations.csv';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    },
+    // Export the Find spreadsheet — every placed item and its location across all
+    // warehouses, matching the current search filter and the on-screen columns.
+    exportFindCsv() {
+      const q = state.findQuery.trim().toLowerCase();
+      let rows = allItemRowsGlobal().map(p => {
+        const cat = catalogByCode(p.sku) || catalogByDesc(p.description);
+        return {
+          code: cat ? cat.c : p.sku,
+          desc: cat ? cat.d : p.description,
+          full: p.full,
+          wh: p.whName + (p.isFloor ? '' : ' · ' + p.rowName),
+          whName: p.whName,
+          rowName: p.rowName || '',
+          qty: p.quantity,
+        };
+      });
+      if (q) rows = rows.filter(p =>
+        (p.code + ' ' + p.desc + ' ' + p.full + ' ' + p.whName + ' ' + p.rowName).toLowerCase().includes(q));
+      rows.sort((a, b) =>
+        (a.desc || '').localeCompare(b.desc || '') || a.full.localeCompare(b.full, undefined, { numeric: true }));
+      const esc2 = s => '"' + String(s == null ? '' : s).replace(/"/g, '""') + '"';
+      let csv = 'Item code,Description,Location,Warehouse,Qty\n';
+      rows.forEach(p => { csv += [esc2(p.code), esc2(p.desc), esc2(p.full), esc2(p.wh), esc2(p.qty)].join(',') + '\n'; });
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'warehouse-inventory.csv';
       document.body.appendChild(a); a.click(); document.body.removeChild(a);
       URL.revokeObjectURL(url);
     },
