@@ -288,7 +288,7 @@
     floorEditing: null, // {floorId, items}
     flash: null, // transient message shown after an invalid drag-drop
     findQuery: '',
-    findView: 'list', // 'list' (cards) | 'table' (spreadsheet of all items + locations)
+    findView: 'table', // 'table' (spreadsheet of all items + locations) | 'list' (cards)
     placing: null, // {sku, description} picked from the catalog, waiting to be dropped on a slot
     catalogQuery: '',
     catalogFilter: 'all', // all | located | unlocated
