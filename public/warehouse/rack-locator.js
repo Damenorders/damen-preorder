@@ -354,9 +354,11 @@
     acEl.style.left = left + 'px';
     acEl.style.top = (r.bottom + 2) + 'px';
     acEl.style.width = width + 'px';
-    // Fit the list into the space below the field; it scrolls if longer.
-    const below = vh - r.bottom - 12;
-    acEl.style.maxHeight = Math.max(below, 200) + 'px';
+    // A compact list that sits right under the field (a few rows tall, scrolls
+    // if there are more) — never a panel that swallows the whole screen.
+    const below = vh - r.bottom - 10;
+    const cap = Math.min(Math.round(vh * 0.4), 300);
+    acEl.style.maxHeight = Math.max(Math.min(below, cap), 132) + 'px';
   }
   function acShow() {
     if (!acEl) return;
@@ -407,8 +409,8 @@
         ".rl-ac-desc { font-family: 'Inter', sans-serif; font-size: 14px; color: #1E1E1C; line-height: 1.25; }" +
         ".rl-ac-code { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #8E2A20; font-weight: 700; }" +
         "@media (max-width: 760px) {" +
-        " .rl-ac { max-height: 56vh; border-radius: 12px; border-width: 2px; box-shadow: 0 22px 54px rgba(0,0,0,0.34); }" +
-        " .rl-ac-opt { padding: 15px 15px; min-height: 52px; justify-content: center; }" +
+        " .rl-ac { max-height: 40vh; border-radius: 12px; border-width: 2px; box-shadow: 0 16px 40px rgba(0,0,0,0.3); }" +
+        " .rl-ac-opt { padding: 13px 14px; min-height: 48px; justify-content: center; }" +
         " .rl-ac-desc { font-size: 16px; font-weight: 500; }" +
         " .rl-ac-code { font-size: 12.5px; } }";
       document.head.appendChild(st);
@@ -1613,52 +1615,55 @@
     const q = state.findQuery.trim().toLowerCase();
     const groups = itemIndexGlobal();
     const located = Object.values(groups);
-    let body = '';
+    // Default view lists every located item so the whole shared inventory —
+    // everything any user has placed — is visible to everyone at a glance;
+    // typing filters that same list (and surfaces catalog items not yet placed).
+    const totalPlaced = located.reduce((n, g) => n + g.places.length, 0);
 
-    if (!q) {
-      const totalPlaced = located.reduce((n, g) => n + g.places.length, 0);
-      body = `<div style="text-align:center; padding:34px 16px; color:#8A877C;">
-        <div style="font-family:'Barlow Condensed',sans-serif; font-size:22px; font-weight:700; text-transform:uppercase; color:#55534C;">Search the inventory</div>
-        <div style="font-size:13.5px; margin-top:6px; line-height:1.5;">Type an item code or part of a description.<br>
-        ${CATALOG.length} items in the catalog · ${located.length} with a saved location · ${totalPlaced} pallet placements.</div>
-      </div>`;
-    } else {
-      const matches = located.filter(g => (g.sku + ' ' + g.description).toLowerCase().includes(q));
-      matches.sort((a, b) => a.description.localeCompare(b.description));
-      const locatedKeys = {};
-      matches.forEach(g => locatedKeys[g.key] = 1);
-      const unlocated = CATALOG.filter(it => !locatedKeys[it.c.toUpperCase()] &&
-        (it.c + ' ' + it.d).toLowerCase().includes(q)).slice(0, 40);
-
-      const cards = matches.map(g => {
-        const places = g.places.slice().sort((a, b) => a.full.localeCompare(b.full, undefined, { numeric: true }));
-        const rows = places.map(p => {
-          const go = p.isFloor
-            ? `RL.goToFloor('${p.whId}', '${p.floorId}')`
-            : `RL.goToLocation('${p.whId}', ${p.rowId}, '${p.level}', '${p.pos}')`;
-          return `<button onclick="${go}" style="display:flex; align-items:center; gap:10px; width:100%; min-height:52px; text-align:left;
-                    background:#FBFAF7; border:1px solid #E4E1D8; border-radius:8px; padding:8px 10px; cursor:pointer;">
-            <span style="flex:1 1 auto; min-width:0;">
-              <span style="display:block; font-family:'JetBrains Mono',monospace; font-size:15px; font-weight:800; color:#0D0D0C;">${esc(p.full)}</span>
-              <span style="display:block; font-size:11.5px; color:#8A877C; margin-top:1px;">${esc(p.whName)}${p.isFloor ? '' : ' · ' + esc(p.rowName)}${p.depthTag && p.depthTag !== 'Front' ? ' · ' + esc(p.depthTag) : ''}</span>
-            </span>
-            <span style="flex:0 0 auto; font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:700; color:#3F7D4E; background:#EDF5EE; border-radius:6px; padding:4px 8px;">×${p.quantity}</span>
-            <span style="flex:0 0 auto; color:#B7B3A5; font-size:16px;">›</span>
-          </button>`;
-        }).join('');
-        return `<div class="rl-warehouse" style="padding:16px; margin-bottom:12px;">
-          <div style="font-family:'Inter',sans-serif; font-size:14.5px; font-weight:600; color:#1E1E1C; line-height:1.35;">${esc(g.description)}</div>
-          <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:5px;">
-            <span class="rl-code">${esc(g.sku)}</span>
-            ${g.section ? `<span style="font-family:'JetBrains Mono',monospace; font-size:10px; font-weight:700; color:#8A877C; background:#F3F1EC; border-radius:5px; padding:2px 6px;">${esc(g.section)}</span>` : ''}
-            <span style="font-size:11.5px; color:#8A877C;">${g.places.length} location${g.places.length === 1 ? '' : 's'} · ${g.totalQty} total</span>
-          </div>
-          <div style="display:flex; flex-direction:column; gap:6px; margin-top:12px;">${rows}</div>
-          <button class="rl-btn" style="width:100%; min-height:44px; margin-top:8px;" onclick="RL.startPlacing('${esc(g.sku)}', '${esc(g.description).replace(/'/g, '&#39;')}')">+ Place another pallet</button>
-        </div>`;
+    const cardFor = (g) => {
+      const places = g.places.slice().sort((a, b) => a.full.localeCompare(b.full, undefined, { numeric: true }));
+      const rows = places.map(p => {
+        const go = p.isFloor
+          ? `RL.goToFloor('${p.whId}', '${p.floorId}')`
+          : `RL.goToLocation('${p.whId}', ${p.rowId}, '${p.level}', '${p.pos}')`;
+        return `<button onclick="${go}" style="display:flex; align-items:center; gap:10px; width:100%; min-height:52px; text-align:left;
+                  background:#FBFAF7; border:1px solid #E4E1D8; border-radius:8px; padding:8px 10px; cursor:pointer;">
+          <span style="flex:1 1 auto; min-width:0;">
+            <span style="display:block; font-family:'JetBrains Mono',monospace; font-size:15px; font-weight:800; color:#0D0D0C;">${esc(p.full)}</span>
+            <span style="display:block; font-size:11.5px; color:#8A877C; margin-top:1px;">${esc(p.whName)}${p.isFloor ? '' : ' · ' + esc(p.rowName)}${p.depthTag && p.depthTag !== 'Front' ? ' · ' + esc(p.depthTag) : ''}</span>
+          </span>
+          <span style="flex:0 0 auto; font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:700; color:#3F7D4E; background:#EDF5EE; border-radius:6px; padding:4px 8px;">×${p.quantity}</span>
+          <span style="flex:0 0 auto; color:#B7B3A5; font-size:16px;">›</span>
+        </button>`;
       }).join('');
+      return `<div class="rl-warehouse" style="padding:16px; margin-bottom:12px;">
+        <div style="font-family:'Inter',sans-serif; font-size:14.5px; font-weight:600; color:#1E1E1C; line-height:1.35;">${esc(g.description)}</div>
+        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:5px;">
+          <span class="rl-code">${esc(g.sku)}</span>
+          ${g.section ? `<span style="font-family:'JetBrains Mono',monospace; font-size:10px; font-weight:700; color:#8A877C; background:#F3F1EC; border-radius:5px; padding:2px 6px;">${esc(g.section)}</span>` : ''}
+          <span style="font-size:11.5px; color:#8A877C;">${g.places.length} location${g.places.length === 1 ? '' : 's'} · ${g.totalQty} total</span>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:6px; margin-top:12px;">${rows}</div>
+        <button class="rl-btn" style="width:100%; min-height:44px; margin-top:8px;" onclick="RL.startPlacing('${esc(g.sku)}', '${esc(g.description).replace(/'/g, '&#39;')}')">+ Place another pallet</button>
+      </div>`;
+    };
 
-      const unCards = unlocated.map(it => `<div class="rl-warehouse" style="padding:14px 16px; margin-bottom:10px; background:#FCFBF8;">
+    let listGroups, unlocated = [], emptyMsg;
+    if (!q) {
+      listGroups = located.slice().sort((a, b) => a.description.localeCompare(b.description));
+      emptyMsg = 'Nothing has been placed in the warehouse yet. Open “Catalog” to give an item its first location.';
+    } else {
+      listGroups = located.filter(g => (g.sku + ' ' + g.description).toLowerCase().includes(q))
+                          .sort((a, b) => a.description.localeCompare(b.description));
+      const locatedKeys = {};
+      listGroups.forEach(g => locatedKeys[g.key] = 1);
+      unlocated = CATALOG.filter(it => !locatedKeys[it.c.toUpperCase()] &&
+        (it.c + ' ' + it.d).toLowerCase().includes(q)).slice(0, 40);
+      emptyMsg = `Nothing matches “${esc(state.findQuery)}”.`;
+    }
+
+    const cards = listGroups.map(cardFor).join('');
+    const unCards = unlocated.map(it => `<div class="rl-warehouse" style="padding:14px 16px; margin-bottom:10px; background:#FCFBF8;">
         <div style="font-family:'Inter',sans-serif; font-size:14px; font-weight:600; color:#1E1E1C; line-height:1.35;">${esc(it.d)}</div>
         <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:5px;">
           <span class="rl-code">${esc(it.c)}</span>
@@ -1668,14 +1673,15 @@
         <button class="rl-btn" style="width:100%; min-height:44px; margin-top:10px;" onclick="RL.startPlacing('${esc(it.c)}', '${esc(it.d).replace(/'/g, '&#39;')}')">Give it a location</button>
       </div>`).join('');
 
-      body = (cards || unCards)
-        ? cards + (unCards ? `<div style="font-family:'JetBrains Mono',monospace; font-size:10.5px; font-weight:700; letter-spacing:1.2px; text-transform:uppercase; color:#A6A398; margin:18px 0 10px;">In the catalog, not yet located</div>` + unCards : '')
-        : `<div style="text-align:center; padding:34px 16px; color:#A6A398; font-size:13.5px;">Nothing matches “${esc(state.findQuery)}”.</div>`;
-    }
+    const summary = `<div style="font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:600; letter-spacing:0.4px; color:#8A877C; margin-bottom:12px;">${q ? listGroups.length + ' match' + (listGroups.length === 1 ? '' : 'es') : located.length + ' item' + (located.length === 1 ? '' : 's') + ' placed'} · ${totalPlaced} pallet placement${totalPlaced === 1 ? '' : 's'} · one shared inventory, all users</div>`;
+
+    const body = (cards || unCards)
+      ? summary + cards + (unCards ? `<div style="font-family:'JetBrains Mono',monospace; font-size:10.5px; font-weight:700; letter-spacing:1.2px; text-transform:uppercase; color:#A6A398; margin:18px 0 10px;">In the catalog, not yet located</div>` + unCards : '')
+      : `<div style="text-align:center; padding:34px 16px; color:#A6A398; font-size:13.5px;">${emptyMsg}</div>`;
 
     return `
       <input type="search" value="${esc(state.findQuery)}" oninput="RL.setFindQuery(this.value)" autocomplete="off"
-             placeholder="Item code or description…"
+             placeholder="Search all items, or scroll the full list…"
              style="width:100%; min-height:52px; padding:12px 14px; border:1.5px solid #DAD6C9; border-radius:10px;
                     font-family:'Inter',sans-serif; font-size:16px; background:#FFF; color:#1E1E1C; margin-bottom:16px;">
       ${body}`;
