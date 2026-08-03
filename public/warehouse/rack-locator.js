@@ -12,7 +12,7 @@
   function initRackLocator(hostEl) {
 
   const root = hostEl.querySelector('#rl-root');
-  const MAX_ITEMS = 6;
+  const MAX_ITEMS = 40;
   const LEVEL_ORDER = ['E', 'D', 'C', 'B', 'A']; // top to bottom display order when present
 
   // Some racks store more than one pallet per column position, one behind the other.
@@ -315,6 +315,123 @@
     catalogDatalistCache = '<datalist id="rl-cat-codes">' + codes + '</datalist>' +
                            '<datalist id="rl-cat-descs">' + descs + '</datalist>';
     return catalogDatalistCache;
+  }
+
+  /* ---------------- CATALOG AUTOCOMPLETE (phone-friendly dropdown) ----------------
+     Native <datalist> dropdowns barely work on phones, so any input marked with
+     class="rl-cat-input" (data-editor="rack"|"floor", data-index="i") gets its own
+     floating suggestion list. Typing a code OR description filters the catalog and
+     tapping a match fills in both fields on the matching item. */
+  let acEl = null, acInput = null, acMatches = [], acActive = -1;
+
+  function catalogMatches(q, limit) {
+    q = String(q || '').trim().toLowerCase();
+    if (!q) return [];
+    limit = limit || 40;
+    const starts = [], contains = [];
+    for (const it of CATALOG) {
+      const c = it.c.toLowerCase(), d = it.d.toLowerCase();
+      if (c.startsWith(q) || d.startsWith(q)) starts.push(it);
+      else if (c.indexOf(q) >= 0 || d.indexOf(q) >= 0) contains.push(it);
+      if (starts.length >= limit) break;
+    }
+    return starts.concat(contains).slice(0, limit);
+  }
+
+  function acHide() {
+    if (acEl) acEl.style.display = 'none';
+    acInput = null; acMatches = []; acActive = -1;
+  }
+  function acPosition() {
+    if (!acEl || !acInput) return;
+    const r = acInput.getBoundingClientRect();
+    acEl.style.left = r.left + 'px';
+    acEl.style.top = (r.bottom + 2) + 'px';
+    acEl.style.width = Math.max(r.width, 200) + 'px';
+  }
+  function acShow() {
+    if (!acEl) return;
+    if (!acMatches.length) { acHide(); return; }
+    acEl.innerHTML = acMatches.map((it, i) =>
+      '<div class="rl-ac-opt' + (i === acActive ? ' active' : '') + '" data-i="' + i + '">' +
+        '<span class="rl-ac-desc">' + esc(it.d) + '</span>' +
+        '<span class="rl-ac-code">' + esc(it.c) + '</span>' +
+      '</div>').join('');
+    acEl.style.display = 'block';
+    acPosition();
+    if (acActive >= 0) {
+      const active = acEl.querySelector('.rl-ac-opt.active');
+      if (active && active.scrollIntoView) active.scrollIntoView({ block: 'nearest' });
+    }
+  }
+  function acChoose(i) {
+    const it = acMatches[i];
+    if (!it || !acInput) { acHide(); return; }
+    const editor = acInput.getAttribute('data-editor');
+    const idx = parseInt(acInput.getAttribute('data-index'), 10);
+    const list = editor === 'floor'
+      ? (state.floorEditing && state.floorEditing.items)
+      : (state.editing && state.editing.items);
+    if (list && list[idx]) { list[idx].sku = it.c; list[idx].description = it.d; }
+    acHide();
+    render();
+  }
+  function isCatInput(t) { return t && t.classList && t.classList.contains('rl-cat-input'); }
+
+  function setupCatalogAutocomplete() {
+    if (window.__rlAcSetup) return;
+    window.__rlAcSetup = true;
+
+    if (!document.getElementById('rl-ac-styles')) {
+      const st = document.createElement('style');
+      st.id = 'rl-ac-styles';
+      st.textContent =
+        ".rl-ac { position: fixed; z-index: 9999; max-height: 46vh; overflow-y: auto;" +
+        " background: #FFF; border: 1px solid #DAD6C9; border-radius: 8px;" +
+        " box-shadow: 0 14px 34px rgba(0,0,0,0.22); -webkit-overflow-scrolling: touch; padding: 4px; }" +
+        ".rl-ac-opt { display: flex; flex-direction: column; gap: 1px; padding: 10px 12px;" +
+        " border-radius: 6px; cursor: pointer; }" +
+        ".rl-ac-opt:hover, .rl-ac-opt.active { background: #FBEAE7; }" +
+        ".rl-ac-desc { font-family: 'Inter', sans-serif; font-size: 14px; color: #1E1E1C; line-height: 1.2; }" +
+        ".rl-ac-code { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #8E2A20; font-weight: 600; }" +
+        "@media (max-width: 640px) { .rl-ac-opt { padding: 12px 12px; } .rl-ac-desc { font-size: 15px; } }";
+      document.head.appendChild(st);
+    }
+
+    acEl = document.createElement('div');
+    acEl.id = 'rl-ac';
+    acEl.className = 'rl-ac';
+    acEl.style.display = 'none';
+    document.body.appendChild(acEl);
+
+    const refresh = (t) => { acInput = t; acMatches = catalogMatches(t.value, 40); acActive = -1; acShow(); };
+    document.addEventListener('input', (e) => { if (isCatInput(e.target)) refresh(e.target); });
+    document.addEventListener('focusin', (e) => { if (isCatInput(e.target)) refresh(e.target); });
+
+    // pointerdown (not click) so the tap registers before the input blurs.
+    acEl.addEventListener('pointerdown', (e) => {
+      const opt = e.target.closest && e.target.closest('.rl-ac-opt');
+      if (!opt) return;
+      e.preventDefault();
+      acChoose(parseInt(opt.getAttribute('data-i'), 10));
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (!acInput || !acEl || acEl.style.display === 'none' || !acMatches.length) return;
+      if (e.key === 'ArrowDown') { e.preventDefault(); acActive = Math.min(acActive + 1, acMatches.length - 1); acShow(); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); acActive = Math.max(acActive - 1, 0); acShow(); }
+      else if (e.key === 'Enter' && acActive >= 0) { e.preventDefault(); acChoose(acActive); }
+      else if (e.key === 'Escape') { acHide(); }
+    });
+
+    // Dismiss on outside tap; keep open when interacting with the box or a catalog input.
+    document.addEventListener('pointerdown', (e) => {
+      if (!acEl || acEl.style.display === 'none') return;
+      if (acEl.contains(e.target) || e.target === acInput || isCatInput(e.target)) return;
+      acHide();
+    }, true);
+    document.addEventListener('scroll', () => { if (acInput) acPosition(); }, true);
+    window.addEventListener('resize', acHide);
   }
 
   /* ---------------- AUDIT TRAIL ---------------- */
@@ -1206,10 +1323,12 @@
       itemsHtml += `
         <tr>
           <td style="border:1px solid #1E1E1C; border-top:none; padding:6px 8px; vertical-align:middle;">
-            <input value="${esc(item.description)}" placeholder="Search the catalog…" list="rl-cat-descs" autocomplete="off"
+            <input value="${esc(item.description)}" placeholder="Search the catalog…" autocomplete="off"
+                   class="rl-cat-input" data-editor="rack" data-index="${i}"
                    onchange="RL.pickItemField(${i}, 'description', this.value)"
                    style="width:100%; border:none; background:transparent; font-family:'Inter',sans-serif; font-size:13px; color:#1E1E1C; padding:0; outline:none;">
-            <input value="${esc(item.sku)}" placeholder="Item code" list="rl-cat-codes" autocomplete="off"
+            <input value="${esc(item.sku)}" placeholder="Item code" autocomplete="off"
+                   class="rl-cat-input" data-editor="rack" data-index="${i}"
                    onchange="RL.pickItemField(${i}, 'sku', this.value)"
                    style="width:100%; border:none; background:transparent; font-family:'JetBrains Mono',monospace; font-size:11px; color:#8A877C; padding:2px 0 0; outline:none;">
             ${item.sku && !catalogByCode(item.sku) ? `<div style="font-family:'Inter',sans-serif; font-size:10px; font-weight:600; color:#B07A12; margin-top:2px;">Not in the item catalog</div>` : ''}
@@ -1336,7 +1455,7 @@
           </div>
           <div class="rl-fieldrow">
             <div class="rl-field">
-              <input value="${esc(item.sku)}" placeholder="Item code" list="rl-cat-codes" autocomplete="off" onchange="RL.pickFloorItemField(${i}, 'sku', this.value)">
+              <input value="${esc(item.sku)}" placeholder="Item code" autocomplete="off" class="rl-cat-input" data-editor="floor" data-index="${i}" onchange="RL.pickFloorItemField(${i}, 'sku', this.value)">
             </div>
             <div class="rl-field rl-qtyfield">
               <label>Qty</label>
@@ -1344,7 +1463,7 @@
             </div>
           </div>
           <div class="rl-field">
-            <textarea rows="${item.description && item.description.length > 42 ? 2 : 1}" placeholder="Description" oninput="this.style.height='auto'; this.style.height=this.scrollHeight+'px';" onchange="RL.updateFloorItemField(${i}, 'description', this.value)">${esc(item.description)}</textarea>
+            <textarea rows="${item.description && item.description.length > 42 ? 2 : 1}" placeholder="Description" class="rl-cat-input" data-editor="floor" data-index="${i}" oninput="this.style.height='auto'; this.style.height=this.scrollHeight+'px';" onchange="RL.updateFloorItemField(${i}, 'description', this.value)">${esc(item.description)}</textarea>
           </div>
           ${itemMoveHtml}
         </div>`;
@@ -2265,6 +2384,7 @@
   };
 
   loadState();
+  setupCatalogAutocomplete();
 
   }
 
