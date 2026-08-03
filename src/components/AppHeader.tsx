@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { signOut } from "@/app/actions/auth";
+import { homePathFor } from "@/lib/auth";
 import type { User } from "@/db/schema";
 
 const roleLabels: Record<User["role"], string> = {
@@ -67,6 +68,12 @@ export default function AppHeader({ user }: { user: User }) {
               </svg>
             </Link>
           )}
+          <Link
+            href={homePathFor(user.role)}
+            className="rounded-full border border-white/30 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/10"
+          >
+            Dashboard
+          </Link>
           <form action={signOut}>
             <button
               type="submit"
