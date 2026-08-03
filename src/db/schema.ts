@@ -386,3 +386,5 @@ export type Role = User["role"];
 export type Department = Order["department"];
 export type SubmissionStatus = Order["submissionStatus"];
 export type BuyerTableStatus = Order["buyerTableStatus"];
+
+export * from "./inventory-schema";

@@ -141,6 +141,20 @@
       "when": 1782400000011,
       "tag": "0019_pickup_alerts",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1785000000000,
+      "tag": "0020_inventory",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1785000000001,
+      "tag": "0021_inventory_rls",
+      "breakpoints": true
     }
   ]
 }

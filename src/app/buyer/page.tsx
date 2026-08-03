@@ -53,6 +53,20 @@ export default async function BuyerDashboard() {
               { label: "Exports", href: "/buyer/exports" },
             ]}
           />
+          {/* Warehouse Inventory is buyer/admin only — hidden from the Butcher role. */}
+          {!isButcher && (
+            <DashboardCard
+              title="Warehouse Inventory"
+              subtitle="Find items, save pallet locations"
+              corner={{ color: "orange", position: "tl" }}
+              links={[
+                { label: "Find an Item", href: "/warehouse?screen=find", primary: true, variant: "highlight" },
+                { label: "Item Catalog", href: "/warehouse?screen=catalog" },
+                { label: "Rack Maps", href: "/warehouse?screen=map" },
+                { label: "Activity Log", href: "/warehouse?screen=activity" },
+              ]}
+            />
+          )}
           {/* The whole Order Errors card is hidden from the Butcher role. */}
           {!isButcher && (
             <DashboardCard
