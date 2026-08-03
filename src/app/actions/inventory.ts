@@ -93,14 +93,24 @@ function normalise(items: ClientItem[] | undefined) {
   return out;
 }
 
-function desiredFromRackBlob(blob: RackBlob): Desired[] {
+interface DesiredBlob {
+  desired: Desired[];
+  /** Every location the client's payload included — the ONLY locations a save
+   *  is allowed to delete from, so it can never wipe a location it never saw. */
+  locations: Set<string>;
+}
+
+function desiredFromRackBlob(blob: RackBlob): DesiredBlob {
   const out: Desired[] = [];
+  const locations = new Set<string>();
   for (const [rackId, slots] of Object.entries(blob ?? {})) {
     for (const [slotCode, items] of Object.entries(slots ?? {})) {
       const [level, position] = slotCode.split("-");
+      const location = `${rackId}-${level}-${position}`;
+      locations.add(location);
       for (const it of normalise(items)) {
         out.push({
-          location: `${rackId}-${level}-${position}`,
+          location,
           rack: Number.parseInt(rackId, 10) || null,
           level,
           position,
@@ -112,15 +122,18 @@ function desiredFromRackBlob(blob: RackBlob): Desired[] {
       }
     }
   }
-  return out;
+  return { desired: out, locations };
 }
 
-function desiredFromFloorBlob(blob: FloorBlob): Desired[] {
+function desiredFromFloorBlob(blob: FloorBlob): DesiredBlob {
   const out: Desired[] = [];
+  const locations = new Set<string>();
   for (const [floorId, items] of Object.entries(blob ?? {})) {
+    const location = `floor:${floorId}`;
+    locations.add(location);
     for (const it of normalise(items)) {
       out.push({
-        location: `floor:${floorId}`,
+        location,
         rack: null,
         level: null,
         position: null,
@@ -131,7 +144,7 @@ function desiredFromFloorBlob(blob: FloorBlob): Desired[] {
       });
     }
   }
-  return out;
+  return { desired: out, locations };
 }
 
 /** Keeps unknown item codes out of the FK by registering them as inactive catalog rows. */
@@ -161,15 +174,19 @@ async function ensureItems(
 }
 
 /**
- * Replaces one unit's rack (or floor) placements with `desired`, writing one
- * audit row per real change. Rack and floor placements are synced separately so
- * saving one never wipes the other.
+ * Syncs the placements at the locations the client actually sent (`scopeLocations`),
+ * writing one audit row per real change. Crucially, it only DELETES placements at
+ * those locations — a save can never remove items from a location the client never
+ * included, so one user's save can't wipe another user's items elsewhere in the
+ * warehouse (the whole warehouse is one shared inventory). Rack and floor
+ * placements are synced separately so saving one never wipes the other.
  */
 async function syncPlacements(
   user: User,
   unit: WarehouseUnit,
   scope: "rack" | "floor",
   desired: Desired[],
+  scopeLocations: Set<string>,
 ) {
   await db.transaction(async (tx) => {
     await ensureItems(tx, desired);
@@ -243,6 +260,9 @@ async function syncPlacements(
     const goneIds: string[] = [];
     for (const [key, prev] of before) {
       if (after.has(key)) continue;
+      // Only remove items at locations this save actually covered. A location the
+      // client never included is left untouched — never wiped.
+      if (!scopeLocations.has(prev.location)) continue;
       goneIds.push(prev.id);
       audits.push({
         ...stamp,
@@ -314,21 +334,13 @@ export async function writeWarehouseKey(
   }
 
   if (parsed.kind === "rack-data") {
-    await syncPlacements(
-      user,
-      parsed.unit,
-      "rack",
-      desiredFromRackBlob(blob as RackBlob),
-    );
+    const { desired, locations } = desiredFromRackBlob(blob as RackBlob);
+    await syncPlacements(user, parsed.unit, "rack", desired, locations);
     return { ok: true };
   }
   if (parsed.kind === "floor-data") {
-    await syncPlacements(
-      user,
-      parsed.unit,
-      "floor",
-      desiredFromFloorBlob(blob as FloorBlob),
-    );
+    const { desired, locations } = desiredFromFloorBlob(blob as FloorBlob);
+    await syncPlacements(user, parsed.unit, "floor", desired, locations);
     return { ok: true };
   }
   return { ok: false, error: `Unknown key ${key}` };

@@ -678,8 +678,8 @@
 
   function floorItems(floorId) { return state.floorData[floorId] || []; }
   function setFloorItems(floorId, items) {
-    if (!items || !items.length) delete state.floorData[floorId];
-    else state.floorData[floorId] = items;
+    // Keep emptied areas as [] so a save still conveys "now empty" (see setCellItems).
+    state.floorData[floorId] = items || [];
   }
 
   function getRow(id) { return state.rows.find(r => r.id === id); }
@@ -687,10 +687,11 @@
     return (state.data[rowId] && state.data[rowId][code]) || [];
   }
   function setCellItems(rowId, code, items) {
-
     if (!state.data[rowId]) state.data[rowId] = {};
-    if (!items || !items.length) delete state.data[rowId][code];
-    else state.data[rowId][code] = items;
+    // Keep emptied slots as [] (don't drop the key) so a save still tells the
+    // server "this location is now empty" — otherwise, under location-scoped
+    // saving, clearing a slot wouldn't remove its items.
+    state.data[rowId][code] = items || [];
   }
 
   function updateRowField(rowId, field, value) {
