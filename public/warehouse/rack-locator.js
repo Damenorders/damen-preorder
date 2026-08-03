@@ -288,6 +288,7 @@
     floorEditing: null, // {floorId, items}
     flash: null, // transient message shown after an invalid drag-drop
     findQuery: '',
+    findView: 'list', // 'list' (cards) | 'table' (spreadsheet of all items + locations)
     placing: null, // {sku, description} picked from the catalog, waiting to be dropped on a slot
     catalogQuery: '',
     catalogFilter: 'all', // all | located | unlocated
@@ -1342,7 +1343,7 @@
 
     return `
       <div class="rl-tablebar">
-        <input class="rl-search" placeholder="Search location, SKU, or description…" value="${esc(state.search)}"
+        <input id="rl-rack-search" class="rl-search rl-keepfocus" placeholder="Search location, SKU, or description…" value="${esc(state.search)}"
                oninput="RL.setSearch(this.value)">
         <div class="rl-tablesummary">${items.length} item(s) stocked across ${state.rows.length} racks in ${esc(CURRENT_WH.name)}</div>
         <div class="rl-configspacer"></div>
@@ -1714,16 +1715,51 @@
 
     const summary = `<div style="font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:600; letter-spacing:0.4px; color:#8A877C; margin-bottom:12px;">${q ? listGroups.length + ' match' + (listGroups.length === 1 ? '' : 'es') : located.length + ' item' + (located.length === 1 ? '' : 's') + ' placed'} · ${totalPlaced} pallet placement${totalPlaced === 1 ? '' : 's'} · one shared inventory, all users</div>`;
 
-    const body = (cards || unCards)
-      ? summary + cards + (unCards ? `<div style="font-family:'JetBrains Mono',monospace; font-size:10.5px; font-weight:700; letter-spacing:1.2px; text-transform:uppercase; color:#A6A398; margin:18px 0 10px;">In the catalog, not yet located</div>` + unCards : '')
+    const listBody = (cards || unCards)
+      ? cards + (unCards ? `<div style="font-family:'JetBrains Mono',monospace; font-size:10.5px; font-weight:700; letter-spacing:1.2px; text-transform:uppercase; color:#A6A398; margin:18px 0 10px;">In the catalog, not yet located</div>` + unCards : '')
       : `<div style="text-align:center; padding:34px 16px; color:#A6A398; font-size:13.5px;">${emptyMsg}</div>`;
 
+    // Spreadsheet view — one row per placed item + its location, across every
+    // warehouse, like the rack spreadsheet. Tap a row to jump to that pallet.
+    let placements = allItemRowsGlobal().map(p => {
+      const cat = catalogByCode(p.sku) || catalogByDesc(p.description);
+      return { ...p, code: cat ? cat.c : p.sku, desc: cat ? cat.d : p.description };
+    });
+    if (q) placements = placements.filter(p =>
+      (p.code + ' ' + p.desc + ' ' + p.full + ' ' + p.whName + ' ' + (p.rowName || '')).toLowerCase().includes(q));
+    placements.sort((a, b) =>
+      (a.desc || '').localeCompare(b.desc || '') || a.full.localeCompare(b.full, undefined, { numeric: true }));
+    let tableRows = placements.map(p => {
+      const go = p.isFloor ? `RL.goToFloor('${p.whId}', '${p.floorId}')`
+                           : `RL.goToLocation('${p.whId}', ${p.rowId}, '${p.level}', '${p.pos}')`;
+      return `<tr onclick="${go}" style="cursor:pointer;">
+        <td class="rl-code">${esc(p.code)}</td>
+        <td>${esc(p.desc)}</td>
+        <td style="font-family:'JetBrains Mono',monospace; font-weight:800; color:#0D0D0C;">${esc(p.full)}</td>
+        <td>${esc(p.whName)}${p.isFloor ? '' : ' · ' + esc(p.rowName)}</td>
+        <td style="text-align:center;">${p.quantity}</td>
+      </tr>`;
+    }).join('');
+    if (!tableRows) tableRows = `<tr><td colspan="5" class="rl-emptytag">${q ? 'No items match your search' : 'Nothing placed yet'}</td></tr>`;
+    const tableBody = `<div class="rl-table-scroll"><table class="rl-table" style="min-width:600px;">
+      <colgroup><col style="width:120px;"><col><col style="width:96px;"><col style="width:150px;"><col style="width:54px;"></colgroup>
+      <thead><tr><th>Item code</th><th>Description</th><th>Location</th><th>Warehouse</th><th>Qty</th></tr></thead>
+      <tbody>${tableRows}</tbody></table></div>`;
+
+    const isTable = state.findView === 'table';
+    const toggle = `<div class="rl-viewtoggle" style="margin-bottom:14px; width:max-content;">
+      <button class="${isTable ? '' : 'active'}" onclick="RL.setFindView('list')">List</button>
+      <button class="${isTable ? 'active' : ''}" onclick="RL.setFindView('table')">Spreadsheet</button>
+    </div>`;
+
     return `
-      <input type="search" value="${esc(state.findQuery)}" oninput="RL.setFindQuery(this.value)" autocomplete="off"
-             placeholder="Search all items, or scroll the full list…"
+      <input id="rl-find-search" class="rl-keepfocus" type="search" value="${esc(state.findQuery)}" oninput="RL.setFindQuery(this.value)" autocomplete="off"
+             placeholder="Search all items…"
              style="width:100%; min-height:52px; padding:12px 14px; border:1.5px solid #DAD6C9; border-radius:10px;
-                    font-family:'Inter',sans-serif; font-size:16px; background:#FFF; color:#1E1E1C; margin-bottom:16px;">
-      ${body}`;
+                    font-family:'Inter',sans-serif; font-size:16px; background:#FFF; color:#1E1E1C; margin-bottom:14px;">
+      ${toggle}
+      ${summary}
+      ${isTable ? tableBody : listBody}`;
   }
 
   /* ---------------- ITEM CATALOG ---------------- */
@@ -1763,7 +1799,7 @@
     }).join('');
 
     return `
-      <input type="search" value="${esc(state.catalogQuery)}" oninput="RL.setCatalogQuery(this.value)" autocomplete="off"
+      <input id="rl-catalog-search" class="rl-keepfocus" type="search" value="${esc(state.catalogQuery)}" oninput="RL.setCatalogQuery(this.value)" autocomplete="off"
              placeholder="Search ${CATALOG.length} items…"
              style="width:100%; min-height:52px; padding:12px 14px; border:1.5px solid #DAD6C9; border-radius:10px;
                     font-family:'Inter',sans-serif; font-size:16px; background:#FFF; color:#1E1E1C; margin-bottom:12px;">
@@ -1805,6 +1841,25 @@
   }
 
   /* ---------------- MAIN RENDER ---------------- */
+  // render() rebuilds the whole screen, which drops focus from a search box the
+  // user is typing in (so only one letter registers). This wraps render() and
+  // restores focus + caret to the same search input afterwards.
+  function renderKeepingFocus() {
+    const active = document.activeElement;
+    const keep = active && active.classList && active.classList.contains('rl-keepfocus');
+    const id = keep ? active.id : null;
+    const caret = keep && active.selectionStart != null ? active.selectionStart : null;
+    render();
+    if (id) {
+      const el = root.querySelector('#' + id);
+      if (el) {
+        el.focus();
+        const pos = caret != null ? caret : el.value.length;
+        try { el.setSelectionRange(pos, pos); } catch (e) {}
+      }
+    }
+  }
+
   function render() {
     if (!state.ready) return;
 
@@ -2167,8 +2222,9 @@
     goFind() { state.screen = 'find'; render(); },
     goCatalog() { state.screen = 'catalog'; render(); },
     goAudit() { state.screen = 'audit'; render(); },
-    setFindQuery(v) { state.findQuery = v; render(); },
-    setCatalogQuery(v) { state.catalogQuery = v; render(); },
+    setFindQuery(v) { state.findQuery = v; renderKeepingFocus(); },
+    setCatalogQuery(v) { state.catalogQuery = v; renderKeepingFocus(); },
+    setFindView(v) { state.findView = v; render(); },
     setCatalogFilter(v) { state.catalogFilter = v; render(); },
     findItem(code) { state.findQuery = code; state.screen = 'find'; render(); },
     startPlacing(sku, description) {
@@ -2455,7 +2511,7 @@
       saveFloorData();
       render();
     },
-    setSearch(v) { state.search = v; render(); },
+    setSearch(v) { state.search = v; renderKeepingFocus(); },
     exportCsv() {
       const items = allItemRows();
       let csv = 'Location,Rack,SKU,Description,Qty\n';
