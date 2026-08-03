@@ -588,19 +588,34 @@
     try { await STORE.set(storageKey('rack-rows'), JSON.stringify(state.rows)); }
     catch (e) { console.error('Failed to save rows', e); }
   }
+  // Every pallet/floor write must reach the shared inventory (window.storage ->
+  // server action -> inventory_placements). If the server says it didn't sync,
+  // warn loudly instead of failing silently, so an entry is never quietly left
+  // on one device instead of the general warehouse inventory.
+  async function persist(key, value, label) {
+    try {
+      const res = await STORE.set(key, value);
+      if (res && res.ok === false) {
+        console.error('Inventory save rejected:', res.error);
+        showFlash('⚠ ' + label + ' did not sync to the main inventory — check your connection and try again.');
+        return false;
+      }
+      return true;
+    } catch (e) {
+      console.error('Failed to save ' + label, e);
+      showFlash('⚠ ' + label + ' failed to sync to the main inventory.');
+      return false;
+    }
+  }
   async function saveData() {
-    try { await STORE.set(storageKey('rack-data'), JSON.stringify(state.data)); }
-    catch (e) { console.error('Failed to save data', e); }
+    await persist(storageKey('rack-data'), JSON.stringify(state.data), 'Pallet update');
   }
   async function saveDataForWarehouse(whId) {
-    try {
-      const wh = WAREHOUSES[whId];
-      await STORE.set((wh.storagePrefix || '') + 'rack-data', JSON.stringify(whCache[whId].data));
-    } catch (e) { console.error('Failed to save data for ' + whId, e); }
+    const wh = WAREHOUSES[whId];
+    await persist((wh.storagePrefix || '') + 'rack-data', JSON.stringify(whCache[whId].data), 'Pallet update');
   }
   async function saveFloorData() {
-    try { await STORE.set(storageKey('floor-data'), JSON.stringify(state.floorData)); }
-    catch (e) { console.error('Failed to save floor data', e); }
+    await persist(storageKey('floor-data'), JSON.stringify(state.floorData), 'Floor update');
   }
 
   async function switchWarehouse(whId) {
