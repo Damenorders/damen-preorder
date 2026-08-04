@@ -347,19 +347,53 @@
   function acPosition() {
     if (!acEl || !acInput || !acInput.isConnected) return;
     const r = acInput.getBoundingClientRect();
-    const vw = window.innerWidth, vh = window.innerHeight;
-    const width = Math.min(Math.max(r.width, 260), vw - 16);
-    let left = r.left;
-    if (left + width > vw - 8) left = vw - width - 8;
-    if (left < 8) left = 8;
-    acEl.style.left = left + 'px';
-    acEl.style.top = (r.bottom + 2) + 'px';
-    acEl.style.width = width + 'px';
-    // A compact list that sits right under the field (a few rows tall, scrolls
-    // if there are more) — never a panel that swallows the whole screen.
-    const below = vh - r.bottom - 10;
+    // With a phone keyboard open, window.innerHeight still reports the full page
+    // height, so measuring against it puts the list behind the keyboard. The
+    // visual viewport is the only thing that knows what is actually on screen —
+    // and on iOS it also shifts, which drags position:fixed boxes off the page.
+    const vv = window.visualViewport;
+    const vw = vv ? vv.width : window.innerWidth;
+    const vh = vv ? vv.height : window.innerHeight;
+    const offX = vv ? vv.offsetLeft : 0;
+    const offY = vv ? vv.offsetTop : 0;
+
+    // getBoundingClientRect() is layout-viewport relative; work in visible-box
+    // coordinates, then add the offset back when writing the fixed position.
+    const inTop = r.top - offY, inBottom = r.bottom - offY, inLeft = r.left - offX;
+
+    const M = 8;   // keep this clear of every screen edge
+    const GAP = 2; // breathing room between the field and the list
+
+    const width = Math.min(Math.max(r.width, 260), vw - M * 2);
+    let left = inLeft;
+    if (left + width > vw - M) left = vw - width - M;
+    if (left < M) left = M;
+
+    // A compact list that hugs the field (a few rows tall, scrolls if there are
+    // more) — never a panel that swallows the whole screen.
+    const below = vh - inBottom - GAP - M;
+    const above = inTop - GAP - M;
     const cap = Math.min(Math.round(vh * 0.4), 300);
-    acEl.style.maxHeight = Math.max(Math.min(below, cap), 132) + 'px';
+    // Prefer dropping down, but flip above the field when the keyboard has eaten
+    // the room below and there is genuinely more space up top.
+    const placeAbove = below < Math.min(cap, 132) && above > below;
+    const maxH = Math.max(Math.min(placeAbove ? above : below, cap), 56);
+
+    acEl.style.width = width + 'px';
+    acEl.style.maxHeight = maxH + 'px';
+    acEl.style.left = (left + offX) + 'px';
+
+    // Measure after the width/max-height land so a short list hugs the field
+    // instead of reserving the full cap.
+    let top;
+    if (placeAbove) {
+      top = inTop - GAP - acEl.offsetHeight;
+      if (top < M) top = M;
+    } else {
+      top = inBottom + GAP;
+      if (top + acEl.offsetHeight > vh - M) top = Math.max(M, vh - M - acEl.offsetHeight);
+    }
+    acEl.style.top = (top + offY) + 'px';
   }
   function acShow() {
     if (!acEl) return;
@@ -463,10 +497,16 @@
       if (acEl.contains(e.target) || e.target === acInput || isCatInput(e.target)) return;
       acHide();
     }, true);
-    document.addEventListener('scroll', () => { if (acInput) acPosition(); }, true);
+    const reposition = () => { if (acInput && acInput.isConnected) acPosition(); };
+    document.addEventListener('scroll', reposition, true);
     // Keyboards toggling fire resize on phones — reposition, don't hide.
-    window.addEventListener('resize', () => { if (acInput && acInput.isConnected) acPosition(); });
-    if (window.visualViewport) window.visualViewport.addEventListener('resize', () => { if (acInput && acInput.isConnected) acPosition(); });
+    window.addEventListener('resize', reposition);
+    if (window.visualViewport) {
+      // Opening the keyboard on iOS *scrolls* the visual viewport as well as
+      // resizing it; without the scroll hook the list is left behind off-page.
+      window.visualViewport.addEventListener('resize', reposition);
+      window.visualViewport.addEventListener('scroll', reposition);
+    }
   }
 
   /* ---------------- AUDIT TRAIL ---------------- */
