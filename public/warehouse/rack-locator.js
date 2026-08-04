@@ -345,7 +345,7 @@
     acInput = null; acMatches = []; acActive = -1; acNudged = false;
   }
   const AC_MARGIN = 8;   // keep the list this clear of every screen edge
-  const AC_GAP = 20;     // breathing room between the field and the list
+  const AC_GAP = 24;     // breathing room between the field and the list
   const AC_MIN_ROOM = 168; // below this, scroll the field up just enough for a usable list
   function acIsMobile() { return acViewport().w <= 760; }
 
