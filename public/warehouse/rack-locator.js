@@ -346,24 +346,36 @@
   }
   const AC_MARGIN = 8;   // keep the list this clear of every screen edge
   const AC_GAP = 2;      // breathing room between the field and the list
-  const AC_MIN_ROOM = 200; // below this, scroll the field up so the list gets real height
+  const AC_MIN_ROW = 56; // always leave at least one row's worth of the list visible
+  const AC_MIN_ROOM = 168; // below this, scroll the field up just enough for a usable list
   function acIsMobile() { return acViewport().w <= 760; }
 
-  // How much of the screen is really usable, and where the visible box sits.
-  // With a phone keyboard open window.innerHeight still reports the full page
-  // height, so sizing against it puts the list behind the keyboard. Note that
-  // position:fixed resolves against the *layout* viewport, so getBoundingClientRect
-  // values are already in the right space — only the sizing needs the visual one.
+  // The visible box: with a phone keyboard open window.innerHeight still reports
+  // the full page height, so the visual viewport is the only thing that knows
+  // what is actually on screen. `top`/`bottom` here are the edges of the visible
+  // area in the *same* coordinate space as getBoundingClientRect() and a
+  // position:fixed box, so we can clamp one against the other directly.
   function acViewport() {
     const vv = window.visualViewport;
-    return {
-      w: vv ? vv.width : window.innerWidth,
-      h: vv ? vv.height : window.innerHeight,
-      x: vv ? vv.offsetLeft : 0,
-      y: vv ? vv.offsetTop : 0
-    };
+    const w = vv ? vv.width : window.innerWidth;
+    const h = vv ? vv.height : window.innerHeight;
+    const x = vv ? vv.offsetLeft : 0;
+    const y = vv ? vv.offsetTop : 0;
+    return { w, h, x, y, left: x, right: x + w, top: y, bottom: y + h };
   }
-  function acRoomBelow(r, v) { return (v.y + v.h) - r.bottom - AC_GAP - AC_MARGIN; }
+  function acRoomBelow(r, v) { return v.bottom - r.bottom - AC_GAP - AC_MARGIN; }
+
+  // Find the scrollable ancestor (the modal body) so we can nudge the field up
+  // by hand rather than relying on scrollIntoView, which yanks it to the top.
+  function acScrollParent(el) {
+    let n = el && el.parentElement;
+    while (n && n !== document.body) {
+      const oy = getComputedStyle(n).overflowY;
+      if ((oy === 'auto' || oy === 'scroll') && n.scrollHeight > n.clientHeight) return n;
+      n = n.parentElement;
+    }
+    return null;
+  }
 
   function acPosition() {
     if (!acEl || !acInput || !acInput.isConnected) return;
@@ -371,43 +383,43 @@
     const v = acViewport();
 
     const width = Math.min(Math.max(r.width, 260), v.w - AC_MARGIN * 2);
-    let left = r.left - v.x;
-    if (left + width > v.w - AC_MARGIN) left = v.w - width - AC_MARGIN;
-    if (left < AC_MARGIN) left = AC_MARGIN;
+    let left = r.left;
+    if (left + width > v.right - AC_MARGIN) left = v.right - width - AC_MARGIN;
+    if (left < v.left + AC_MARGIN) left = v.left + AC_MARGIN;
 
-    // Always drop below the field — never flip above it, never cover what is
-    // being typed. Clamp the top so it can never creep above the visible page
-    // even if the field itself is scrolled off the top edge.
+    // Drop below the field, then clamp hard inside the visible box: never above
+    // the top edge (so it can't spill off the page) and never past the point
+    // where at least one row still fits above the keyboard. Whatever the exact
+    // viewport quirk, the list is always fully on screen and under the field.
     let top = r.bottom + AC_GAP;
-    const visTop = v.y + AC_MARGIN;
-    if (top < visTop) top = visTop;
+    const minTop = v.top + AC_MARGIN;
+    const maxTop = v.bottom - AC_MARGIN - AC_MIN_ROW;
+    if (top < minTop) top = minTop;
+    if (top > maxTop) top = maxTop;
 
-    // The list gets whatever room is left under it (measured from the clamped
-    // top, not the field) and scrolls inside that box. On phones let it grow
-    // taller so more matches are visible without scrolling.
     const cap = acIsMobile()
       ? Math.min(Math.round(v.h * 0.55), 360)
       : Math.min(Math.round(v.h * 0.4), 300);
-    const maxH = Math.max(Math.min((v.y + v.h) - top - AC_MARGIN, cap), 0);
+    const maxH = Math.max(Math.min(v.bottom - top - AC_MARGIN, cap), AC_MIN_ROW);
 
     acEl.style.width = width + 'px';
-    acEl.style.left = (left + v.x) + 'px';
+    acEl.style.left = left + 'px';
     acEl.style.top = top + 'px';
     acEl.style.maxHeight = maxH + 'px';
   }
 
-  // If the keyboard has left little room under the field, scroll the field up
-  // so the list opens with real height instead of a squished sliver. On phones
-  // pull it to the top of its scroll box (max room below); on desktop just
-  // centre it. One nudge per focus, so the scroll handler cannot chase itself.
+  // If the keyboard has left little room under the field, scroll the modal up by
+  // exactly the shortfall — just enough for a usable list, without pulling the
+  // field to the top of the screen. One nudge per focus, so the scroll handler
+  // cannot chase itself in a loop.
   let acNudged = false;
   function acEnsureRoom() {
     if (acNudged || !acInput || !acInput.isConnected) return;
-    if (acRoomBelow(acInput.getBoundingClientRect(), acViewport()) >= AC_MIN_ROOM) return;
+    const need = AC_MIN_ROOM - acRoomBelow(acInput.getBoundingClientRect(), acViewport());
+    if (need <= 0) return;
     acNudged = true;
-    if (acInput.scrollIntoView) {
-      acInput.scrollIntoView({ block: acIsMobile() ? 'start' : 'center' });
-    }
+    const sc = acScrollParent(acInput);
+    if (sc) sc.scrollTop += need; else window.scrollBy(0, need);
     // Follow the field to its new spot once the scroll settles.
     requestAnimationFrame(() => { if (acInput && acInput.isConnected) acPosition(); });
   }
