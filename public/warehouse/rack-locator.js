@@ -342,58 +342,59 @@
 
   function acHide() {
     if (acEl) acEl.style.display = 'none';
-    acInput = null; acMatches = []; acActive = -1;
+    acInput = null; acMatches = []; acActive = -1; acNudged = false;
   }
+  const AC_MARGIN = 8;   // keep the list this clear of every screen edge
+  const AC_GAP = 2;      // breathing room between the field and the list
+  const AC_MIN_ROOM = 132; // below this, nudge the field up rather than squash the list
+
+  // How much of the screen is really usable, and where the visible box sits.
+  // With a phone keyboard open window.innerHeight still reports the full page
+  // height, so sizing against it puts the list behind the keyboard. Note that
+  // position:fixed resolves against the *layout* viewport, so getBoundingClientRect
+  // values are already in the right space — only the sizing needs the visual one.
+  function acViewport() {
+    const vv = window.visualViewport;
+    return {
+      w: vv ? vv.width : window.innerWidth,
+      h: vv ? vv.height : window.innerHeight,
+      x: vv ? vv.offsetLeft : 0,
+      y: vv ? vv.offsetTop : 0
+    };
+  }
+  function acRoomBelow(r, v) { return (v.y + v.h) - r.bottom - AC_GAP - AC_MARGIN; }
+
   function acPosition() {
     if (!acEl || !acInput || !acInput.isConnected) return;
     const r = acInput.getBoundingClientRect();
-    // With a phone keyboard open, window.innerHeight still reports the full page
-    // height, so measuring against it puts the list behind the keyboard. The
-    // visual viewport is the only thing that knows what is actually on screen —
-    // and on iOS it also shifts, which drags position:fixed boxes off the page.
-    const vv = window.visualViewport;
-    const vw = vv ? vv.width : window.innerWidth;
-    const vh = vv ? vv.height : window.innerHeight;
-    const offX = vv ? vv.offsetLeft : 0;
-    const offY = vv ? vv.offsetTop : 0;
+    const v = acViewport();
 
-    // getBoundingClientRect() is layout-viewport relative; work in visible-box
-    // coordinates, then add the offset back when writing the fixed position.
-    const inTop = r.top - offY, inBottom = r.bottom - offY, inLeft = r.left - offX;
+    const width = Math.min(Math.max(r.width, 260), v.w - AC_MARGIN * 2);
+    let left = r.left - v.x;
+    if (left + width > v.w - AC_MARGIN) left = v.w - width - AC_MARGIN;
+    if (left < AC_MARGIN) left = AC_MARGIN;
 
-    const M = 8;   // keep this clear of every screen edge
-    const GAP = 2; // breathing room between the field and the list
-
-    const width = Math.min(Math.max(r.width, 260), vw - M * 2);
-    let left = inLeft;
-    if (left + width > vw - M) left = vw - width - M;
-    if (left < M) left = M;
-
-    // A compact list that hugs the field (a few rows tall, scrolls if there are
-    // more) — never a panel that swallows the whole screen.
-    const below = vh - inBottom - GAP - M;
-    const above = inTop - GAP - M;
-    const cap = Math.min(Math.round(vh * 0.4), 300);
-    // Prefer dropping down, but flip above the field when the keyboard has eaten
-    // the room below and there is genuinely more space up top.
-    const placeAbove = below < Math.min(cap, 132) && above > below;
-    const maxH = Math.max(Math.min(placeAbove ? above : below, cap), 56);
+    // Always drop below the field — never flip above it, never cover what is
+    // being typed. The list gets whatever room is left under the field and
+    // scrolls inside that box rather than spilling off the screen.
+    const cap = Math.min(Math.round(v.h * 0.4), 300);
+    const maxH = Math.max(Math.min(acRoomBelow(r, v), cap), 0);
 
     acEl.style.width = width + 'px';
+    acEl.style.left = (left + v.x) + 'px';
+    acEl.style.top = (r.bottom + AC_GAP) + 'px';
     acEl.style.maxHeight = maxH + 'px';
-    acEl.style.left = (left + offX) + 'px';
+  }
 
-    // Measure after the width/max-height land so a short list hugs the field
-    // instead of reserving the full cap.
-    let top;
-    if (placeAbove) {
-      top = inTop - GAP - acEl.offsetHeight;
-      if (top < M) top = M;
-    } else {
-      top = inBottom + GAP;
-      if (top + acEl.offsetHeight > vh - M) top = Math.max(M, vh - M - acEl.offsetHeight);
-    }
-    acEl.style.top = (top + offY) + 'px';
+  // If the keyboard has left almost no room under the field, scroll the field
+  // up instead of shrinking the list to nothing. One nudge per focus, so the
+  // scroll handler cannot chase itself in a loop.
+  let acNudged = false;
+  function acEnsureRoom() {
+    if (acNudged || !acInput || !acInput.isConnected) return;
+    if (acRoomBelow(acInput.getBoundingClientRect(), acViewport()) >= AC_MIN_ROOM) return;
+    acNudged = true;
+    if (acInput.scrollIntoView) acInput.scrollIntoView({ block: 'center' });
   }
   function acShow() {
     if (!acEl) return;
@@ -457,9 +458,16 @@
     acEl.style.display = 'none';
     document.body.appendChild(acEl);
 
-    const refresh = (t) => { acInput = t; acMatches = catalogMatches(t.value, 40); acActive = -1; acShow(); };
+    const refresh = (t) => {
+      acInput = t; acMatches = catalogMatches(t.value, 40); acActive = -1;
+      acShow(); acEnsureRoom();
+    };
     document.addEventListener('input', (e) => { if (isCatInput(e.target)) refresh(e.target); });
-    document.addEventListener('focusin', (e) => { if (isCatInput(e.target)) refresh(e.target); });
+    document.addEventListener('focusin', (e) => {
+      if (!isCatInput(e.target)) return;
+      acNudged = false; // a new field gets its own nudge allowance
+      refresh(e.target);
+    });
 
     // Distinguish a tap (select) from a drag (scroll the list): remember the
     // option the touch started on, watch for movement, and only select on lift
@@ -504,7 +512,9 @@
     if (window.visualViewport) {
       // Opening the keyboard on iOS *scrolls* the visual viewport as well as
       // resizing it; without the scroll hook the list is left behind off-page.
-      window.visualViewport.addEventListener('resize', reposition);
+      // The resize is also the moment the keyboard actually appears, which is
+      // when a field near the bottom may need nudging up to make room.
+      window.visualViewport.addEventListener('resize', () => { reposition(); acEnsureRoom(); });
       window.visualViewport.addEventListener('scroll', reposition);
     }
   }
