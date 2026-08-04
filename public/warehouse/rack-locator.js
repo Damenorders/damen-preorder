@@ -12,7 +12,7 @@
   function initRackLocator(hostEl) {
 
   const root = hostEl.querySelector('#rl-root');
-  const MAX_ITEMS = 40;
+  const MAX_ITEMS = 70;
   const LEVEL_ORDER = ['E', 'D', 'C', 'B', 'A']; // top to bottom display order when present
 
   // Some racks store more than one pallet per column position, one behind the other.
