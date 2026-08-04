@@ -34,10 +34,14 @@ export default function RackLocatorMount({
   catalog,
   userName,
   screen = "find",
+  assetVersion,
 }: {
   catalog: CatalogEntry[];
   userName: string;
   screen?: WarehouseScreen;
+  // Content hash of rack-locator.js, appended to the script URL so a shipped
+  // change actually reaches phones instead of serving Safari's cached copy.
+  assetVersion?: string;
 }) {
   const [ready, setReady] = useState(false);
   const applied = useRef(false);
@@ -61,10 +65,12 @@ export default function RackLocatorMount({
       return;
     }
     const script = document.createElement("script");
-    script.src = "/warehouse/rack-locator.js";
+    script.src = assetVersion
+      ? `/warehouse/rack-locator.js?v=${assetVersion}`
+      : "/warehouse/rack-locator.js";
     script.onload = () => setReady(true);
     document.body.appendChild(script);
-  }, [catalog, userName]);
+  }, [catalog, userName, assetVersion]);
 
   useEffect(() => {
     if (!ready || applied.current) return;
