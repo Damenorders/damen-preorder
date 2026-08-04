@@ -346,7 +346,8 @@
   }
   const AC_MARGIN = 8;   // keep the list this clear of every screen edge
   const AC_GAP = 2;      // breathing room between the field and the list
-  const AC_MIN_ROOM = 132; // below this, nudge the field up rather than squash the list
+  const AC_MIN_ROOM = 200; // below this, scroll the field up so the list gets real height
+  function acIsMobile() { return acViewport().w <= 760; }
 
   // How much of the screen is really usable, and where the visible box sits.
   // With a phone keyboard open window.innerHeight still reports the full page
@@ -375,26 +376,40 @@
     if (left < AC_MARGIN) left = AC_MARGIN;
 
     // Always drop below the field — never flip above it, never cover what is
-    // being typed. The list gets whatever room is left under the field and
-    // scrolls inside that box rather than spilling off the screen.
-    const cap = Math.min(Math.round(v.h * 0.4), 300);
-    const maxH = Math.max(Math.min(acRoomBelow(r, v), cap), 0);
+    // being typed. Clamp the top so it can never creep above the visible page
+    // even if the field itself is scrolled off the top edge.
+    let top = r.bottom + AC_GAP;
+    const visTop = v.y + AC_MARGIN;
+    if (top < visTop) top = visTop;
+
+    // The list gets whatever room is left under it (measured from the clamped
+    // top, not the field) and scrolls inside that box. On phones let it grow
+    // taller so more matches are visible without scrolling.
+    const cap = acIsMobile()
+      ? Math.min(Math.round(v.h * 0.55), 360)
+      : Math.min(Math.round(v.h * 0.4), 300);
+    const maxH = Math.max(Math.min((v.y + v.h) - top - AC_MARGIN, cap), 0);
 
     acEl.style.width = width + 'px';
     acEl.style.left = (left + v.x) + 'px';
-    acEl.style.top = (r.bottom + AC_GAP) + 'px';
+    acEl.style.top = top + 'px';
     acEl.style.maxHeight = maxH + 'px';
   }
 
-  // If the keyboard has left almost no room under the field, scroll the field
-  // up instead of shrinking the list to nothing. One nudge per focus, so the
-  // scroll handler cannot chase itself in a loop.
+  // If the keyboard has left little room under the field, scroll the field up
+  // so the list opens with real height instead of a squished sliver. On phones
+  // pull it to the top of its scroll box (max room below); on desktop just
+  // centre it. One nudge per focus, so the scroll handler cannot chase itself.
   let acNudged = false;
   function acEnsureRoom() {
     if (acNudged || !acInput || !acInput.isConnected) return;
     if (acRoomBelow(acInput.getBoundingClientRect(), acViewport()) >= AC_MIN_ROOM) return;
     acNudged = true;
-    if (acInput.scrollIntoView) acInput.scrollIntoView({ block: 'center' });
+    if (acInput.scrollIntoView) {
+      acInput.scrollIntoView({ block: acIsMobile() ? 'start' : 'center' });
+    }
+    // Follow the field to its new spot once the scroll settles.
+    requestAnimationFrame(() => { if (acInput && acInput.isConnected) acPosition(); });
   }
   function acShow() {
     if (!acEl) return;
@@ -433,6 +448,7 @@
       const st = document.createElement('style');
       st.id = 'rl-ac-styles';
       st.textContent =
+        ".rl-cat-input { scroll-margin-top: 16px; scroll-margin-bottom: 16px; }" +
         ".rl-ac { position: fixed; z-index: 9999; max-height: 50vh; overflow-y: auto;" +
         " background: #FFF; border: 1px solid #C7C2B2; border-radius: 10px;" +
         " box-shadow: 0 18px 44px rgba(0,0,0,0.28); -webkit-overflow-scrolling: touch;" +
