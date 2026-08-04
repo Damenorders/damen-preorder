@@ -376,9 +376,19 @@
     return null;
   }
 
+  // Drop the list below the whole item row/cell — not just the focused input
+  // line — so it clears the stacked description + item-code boxes and can never
+  // sit over the text being typed.
+  function acAnchorRect() {
+    if (!acInput) return null;
+    const box = (acInput.closest && (acInput.closest('tr') || acInput.closest('td'))) || acInput;
+    return box.getBoundingClientRect();
+  }
+
   function acPosition() {
     if (!acEl || !acInput || !acInput.isConnected) return;
     const r = acInput.getBoundingClientRect();
+    const a = acAnchorRect() || r;
     const v = acViewport();
 
     const width = Math.min(Math.max(r.width, 260), v.w - AC_MARGIN * 2);
@@ -386,13 +396,13 @@
     if (left + width > v.right - AC_MARGIN) left = v.right - width - AC_MARGIN;
     if (left < v.left + AC_MARGIN) left = v.left + AC_MARGIN;
 
-    // Always sit strictly below the field so it can never cover what is being
+    // Always sit strictly below the row so it can never cover what is being
     // typed. Only floor the top at the visible edge (so it can't spill off the
     // page); never pull it up over the field. The list takes whatever room is
     // left beneath it, above the keyboard, and scrolls inside that box — the
     // modal is top-aligned on phones (and nudged when needed) so that room is
     // there in the first place.
-    let top = r.bottom + AC_GAP;
+    let top = a.bottom + AC_GAP;
     const minTop = v.top + AC_MARGIN;
     if (top < minTop) top = minTop;
 
@@ -414,7 +424,9 @@
   let acNudged = false;
   function acEnsureRoom() {
     if (acNudged || !acInput || !acInput.isConnected) return;
-    const need = AC_MIN_ROOM - acRoomBelow(acInput.getBoundingClientRect(), acViewport());
+    const anchor = acAnchorRect();
+    if (!anchor) return;
+    const need = AC_MIN_ROOM - acRoomBelow(anchor, acViewport());
     if (need <= 0) return;
     acNudged = true;
     const sc = acScrollParent(acInput);
