@@ -191,9 +191,12 @@
   const FRIDGE_LAYOUT = buildLayout(FRIDGE_RACK_IDS, FRIDGE_VALID_LOCATIONS);
 
   // Fridge 50: same sizing/shape rules as Fridge 40, new rack numbers. Rack #51 (short,
-  // wide) has 4 positions, 3 levels. Racks #52/#50 (tall) have 10 positions, 2 levels.
+  // wide) has 4 positions, 3 levels. Racks #52/#50 (tall) have 10 positions, 2 levels —
+  // except Rack #52 also has a level C at positions 1 and 2 only.
   const FRIDGE50_DEPTH_SPECS = { 50: 10, 51: 4, 52: 10 };
-  const FRIDGE50_LEVEL_SPECS = { 50: ['A', 'B'], 51: ['A', 'B', 'C'], 52: ['A', 'B'] };
+  const FRIDGE50_LEVEL_SPECS = { 50: ['A', 'B'], 51: ['A', 'B', 'C'], 52: ['A', 'B', 'C'] };
+  // Rack #52: level C exists only at positions 1 and 2 — every other column is A/B only.
+  const RACK52_C_POSITIONS = new Set([1, 2]);
   const FRIDGE50_RACK_IDS = [52, 51, 50];
   const FRIDGE50_VALID_LOCATIONS = (function() {
     const out = [];
@@ -202,6 +205,7 @@
       const levels = FRIDGE50_LEVEL_SPECS[id] || ['A'];
       levels.forEach(level => {
         for (let p = 1; p <= maxPos; p++) {
+          if (id === 52 && level === 'C' && !RACK52_C_POSITIONS.has(p)) continue;
           depthSuffixes(id).forEach(s => out.push(id + '-' + level + '-' + p + s));
         }
       });
