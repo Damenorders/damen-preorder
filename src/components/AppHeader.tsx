@@ -28,7 +28,7 @@ export default function AppHeader({ user }: { user: User }) {
             width={960}
             height={540}
             priority
-            className="-my-3 h-16 w-auto brightness-0 invert"
+            className="-my-3 h-12 w-auto brightness-0 invert sm:h-16"
           />
           <div className="min-w-0">
             <p className="text-[10px] font-medium uppercase tracking-widest text-cyan-flash">
@@ -70,14 +70,30 @@ export default function AppHeader({ user }: { user: User }) {
           )}
           <Link
             href={homePathFor(user.role)}
-            className="rounded-full border border-white/30 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/10"
+            aria-label="Dashboard"
+            title="Dashboard"
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-white/30 text-sm font-medium text-white transition hover:bg-white/10 sm:h-auto sm:w-auto sm:px-4 sm:py-2"
           >
-            Dashboard
+            {/* House icon on mobile, text pill on sm+ */}
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-5 w-5 sm:hidden"
+              aria-hidden
+            >
+              <path d="M3 10.5 12 3l9 7.5" />
+              <path d="M5 9.5V21h14V9.5" />
+            </svg>
+            <span className="hidden sm:inline">Dashboard</span>
           </Link>
           <form action={signOut}>
             <button
               type="submit"
-              className="rounded-full border border-white/30 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/10"
+              className="rounded-full border border-white/30 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-white/10 sm:px-4 sm:py-2"
             >
               Sign out
             </button>

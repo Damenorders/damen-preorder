@@ -58,14 +58,6 @@ export default async function AdminDashboard() {
             ]}
           />
           <DashboardCard
-            title="Order Errors"
-            subtitle="Report or review order errors"
-            links={[
-              { label: "Report an Error", href: "/errors/new" },
-              { label: "Error Reports Table", href: "/buyer/errors" },
-            ]}
-          />
-          <DashboardCard
             title="Pickups & Deliveries"
             subtitle="Pickup sheets and delivery tracking"
             links={[
@@ -83,6 +75,14 @@ export default async function AdminDashboard() {
               { label: "Manage Products", href: "/admin/products" },
               { label: "Applications", href: "/admin/applications" },
               { label: "Audit History", href: "/admin/audit" },
+            ]}
+          />
+          <DashboardCard
+            title="Order Errors"
+            subtitle="Report or review order errors"
+            links={[
+              { label: "Report an Error", href: "/errors/new" },
+              { label: "Error Reports Table", href: "/buyer/errors" },
             ]}
           />
           <PushNotificationsSettings />
