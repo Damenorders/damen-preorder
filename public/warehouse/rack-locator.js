@@ -885,7 +885,7 @@
         ${vaisle('Floor 3', 3, true)}
       </div>`;
 
-    const mainHtml = runWrap(getRow(17), 'v', 'flex:0 0 80px; min-height:480px;', 480) + floor3Group + pair(15, 13, null, 'thin', 'thin') + vaisle('Floor 2', 1.5, 0.9) + pair(12, 11, 'wall', 'thin', 'thin')
+    const mainHtml = runWrap(getRow(17), 'v', 'flex:0 0 80px; min-height:480px;', 480) + floor3Group + pair(15, 13, null, 'thin', 'thin') + vaisle('Floor 2', 2, 0.9) + pair(12, 11, 'wall', 'thin', 'thin')
       + vaisle('Floor 1', 1, 0.9) + runWrap(getRow(10), 'v', 'flex:0 0 80px; min-height:480px;', 480) + wall + rack5Corner;
 
     // Everything below is sized with proportional flex weights (not fixed pixels) so the
