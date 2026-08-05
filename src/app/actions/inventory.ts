@@ -27,6 +27,15 @@ import {
   getInventoryAudit,
   getRackData,
 } from "@/lib/inventory-data";
+import {
+  desiredFromFloorBlob,
+  desiredFromRackBlob,
+  planSync,
+  type ClientItem,
+  type Desired,
+  type FloorBlob,
+  type RackBlob,
+} from "@/lib/placement-sync";
 
 const UNITS: WarehouseUnit[] = [
   "dry",
@@ -55,96 +64,6 @@ function parseKey(key: string): { unit: WarehouseUnit; kind: string } | null {
     return { unit: "dry", kind: key };
   }
   return null;
-}
-
-interface ClientItem {
-  sku?: string;
-  description?: string;
-  quantity?: number;
-}
-type RackBlob = Record<string, Record<string, ClientItem[]>>;
-type FloorBlob = Record<string, ClientItem[]>;
-
-interface Desired {
-  location: string;
-  rack: number | null;
-  level: string | null;
-  position: string | null;
-  floorId: string | null;
-  itemCode: string;
-  description: string;
-  quantity: number;
-}
-
-function normalise(items: ClientItem[] | undefined) {
-  const out: { code: string; description: string; quantity: number }[] = [];
-  for (const it of items ?? []) {
-    const code = (it.sku ?? "").trim();
-    const description = (it.description ?? "").trim();
-    if (!code && !description) continue;
-    // Items typed freehand (not in the catalog) are keyed by their description
-    // so they still get a stable row; the catalog code wins when present.
-    out.push({
-      code: code || description.slice(0, 64),
-      description,
-      quantity: Number.isFinite(it.quantity) ? Number(it.quantity) : 1,
-    });
-  }
-  return out;
-}
-
-interface DesiredBlob {
-  desired: Desired[];
-  /** Every location the client's payload included — the ONLY locations a save
-   *  is allowed to delete from, so it can never wipe a location it never saw. */
-  locations: Set<string>;
-}
-
-function desiredFromRackBlob(blob: RackBlob): DesiredBlob {
-  const out: Desired[] = [];
-  const locations = new Set<string>();
-  for (const [rackId, slots] of Object.entries(blob ?? {})) {
-    for (const [slotCode, items] of Object.entries(slots ?? {})) {
-      const [level, position] = slotCode.split("-");
-      const location = `${rackId}-${level}-${position}`;
-      locations.add(location);
-      for (const it of normalise(items)) {
-        out.push({
-          location,
-          rack: Number.parseInt(rackId, 10) || null,
-          level,
-          position,
-          floorId: null,
-          itemCode: it.code,
-          description: it.description,
-          quantity: it.quantity,
-        });
-      }
-    }
-  }
-  return { desired: out, locations };
-}
-
-function desiredFromFloorBlob(blob: FloorBlob): DesiredBlob {
-  const out: Desired[] = [];
-  const locations = new Set<string>();
-  for (const [floorId, items] of Object.entries(blob ?? {})) {
-    const location = `floor:${floorId}`;
-    locations.add(location);
-    for (const it of normalise(items)) {
-      out.push({
-        location,
-        rack: null,
-        level: null,
-        position: null,
-        floorId,
-        itemCode: it.code,
-        description: it.description,
-        quantity: it.quantity,
-      });
-    }
-  }
-  return { desired: out, locations };
 }
 
 /** Keeps unknown item codes out of the FK by registering them as inactive catalog rows. */
@@ -195,91 +114,51 @@ async function syncPlacements(
       .select()
       .from(inventoryPlacements)
       .where(eq(inventoryPlacements.unit, unit));
-    const inScope = existing.filter((e) =>
-      scope === "floor" ? !!e.floorId : !e.floorId,
-    );
 
-    const keyOf = (location: string, code: string) => `${location}\u0000${code}`;
-    const before = new Map(inScope.map((e) => [keyOf(e.location, e.itemCode), e]));
-    const after = new Map(desired.map((d) => [keyOf(d.location, d.itemCode), d]));
+    // All insert/update/scoped-delete decisions live in the pure planSync
+    // (src/lib/placement-sync.ts) so they can be unit-tested; here we just
+    // apply the plan inside the transaction.
+    const plan = planSync(existing, scope, desired, scopeLocations);
+    const stamp = { unit, userId: user.id, userName: user.name };
 
-    const audits: (typeof inventoryAudit.$inferInsert)[] = [];
-    const stamp = {
-      unit,
-      userId: user.id,
-      userName: user.name,
-    };
-
-    for (const [key, d] of after) {
-      const prev = before.get(key);
-      if (!prev) {
-        await tx.insert(inventoryPlacements).values({
-          unit,
-          location: d.location,
-          rack: d.rack,
-          level: d.level,
-          position: d.position,
-          floorId: d.floorId,
-          itemCode: d.itemCode,
-          description: d.description,
-          quantity: d.quantity,
-          updatedBy: user.id,
-        });
-        audits.push({
-          ...stamp,
-          action: "added",
-          itemCode: d.itemCode,
-          description: d.description,
-          location: d.location,
-          quantity: d.quantity,
-        });
-      } else if (prev.quantity !== d.quantity || prev.description !== d.description) {
-        await tx
-          .update(inventoryPlacements)
-          .set({
-            quantity: d.quantity,
-            description: d.description,
-            updatedBy: user.id,
-            updatedAt: new Date(),
-          })
-          .where(eq(inventoryPlacements.id, prev.id));
-        if (prev.quantity !== d.quantity) {
-          audits.push({
-            ...stamp,
-            action: "qty",
-            itemCode: d.itemCode,
-            description: d.description,
-            location: d.location,
-            quantity: d.quantity,
-            prevQuantity: prev.quantity,
-          });
-        }
-      }
-    }
-
-    const goneIds: string[] = [];
-    for (const [key, prev] of before) {
-      if (after.has(key)) continue;
-      // Only remove items at locations this save actually covered. A location the
-      // client never included is left untouched — never wiped.
-      if (!scopeLocations.has(prev.location)) continue;
-      goneIds.push(prev.id);
-      audits.push({
-        ...stamp,
-        action: "removed",
-        itemCode: prev.itemCode,
-        description: prev.description,
-        location: prev.location,
-        quantity: prev.quantity,
+    for (const d of plan.inserts) {
+      await tx.insert(inventoryPlacements).values({
+        unit,
+        location: d.location,
+        rack: d.rack,
+        level: d.level,
+        position: d.position,
+        floorId: d.floorId,
+        itemCode: d.itemCode,
+        description: d.description,
+        quantity: d.quantity,
+        updatedBy: user.id,
       });
     }
-    if (goneIds.length) {
+
+    for (const u of plan.updates) {
       await tx
-        .delete(inventoryPlacements)
-        .where(inArray(inventoryPlacements.id, goneIds));
+        .update(inventoryPlacements)
+        .set({
+          quantity: u.quantity,
+          description: u.description,
+          updatedBy: user.id,
+          updatedAt: new Date(),
+        })
+        .where(eq(inventoryPlacements.id, u.id));
     }
 
-    if (audits.length) await tx.insert(inventoryAudit).values(audits);
+    if (plan.deleteIds.length) {
+      await tx
+        .delete(inventoryPlacements)
+        .where(inArray(inventoryPlacements.id, plan.deleteIds));
+    }
+
+    if (plan.audits.length) {
+      await tx
+        .insert(inventoryAudit)
+        .values(plan.audits.map((a) => ({ ...stamp, ...a })));
+    }
   });
 
   revalidatePath("/warehouse");
