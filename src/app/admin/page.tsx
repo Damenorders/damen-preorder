@@ -53,7 +53,7 @@ export default async function AdminDashboard() {
             links={[
               { label: "Find an Item", href: "/warehouse?screen=find", primary: true, variant: "highlight" },
               { label: "Item Catalog", href: "/warehouse?screen=catalog" },
-              { label: "Rack Maps", href: "/warehouse?screen=map" },
+              { label: "Warehouse Map", href: "/warehouse?screen=map" },
               { label: "Activity Log", href: "/warehouse?screen=activity" },
             ]}
           />
