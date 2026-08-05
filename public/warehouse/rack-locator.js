@@ -1387,7 +1387,7 @@
         // Rack #41: positions run right-to-left within each column (1 on the right, 2 on
         // the left) instead of the usual left-to-right order. Racks 40/42 also flip
         // within-column order as part of the full-rack mirror.
-        if (row.id === 41 || row.id === 51 || fullyReversed) colPositions.reverse();
+        if (row.id === 41 || fullyReversed) colPositions.reverse();
         for (const p of colPositions) {
           if (isDepthLevel(row.id, level)) {
             const depth = rackDepthOf(row.id);
