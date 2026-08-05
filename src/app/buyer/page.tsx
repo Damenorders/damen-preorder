@@ -67,17 +67,6 @@ export default async function BuyerDashboard() {
               ]}
             />
           )}
-          {/* The whole Order Errors card is hidden from the Butcher role. */}
-          {!isButcher && (
-            <DashboardCard
-              title="Order Errors"
-              subtitle="Report or review order errors"
-              links={[
-                { label: "Report an Error", href: "/errors/new", primary: true },
-                { label: "Error Reports Table", href: "/buyer/errors" },
-              ]}
-            />
-          )}
           {/* Pickups are buyer/admin only — hidden from the Butcher role. */}
           {!isButcher && (
             <DashboardCard
@@ -87,6 +76,17 @@ export default async function BuyerDashboard() {
                 { label: "New Pickup", href: "/buyer/pickups/new", primary: true, variant: "highlight" },
                 { label: "New Delivery", href: "/buyer/deliveries/new" },
                 { label: "All Pickups & Deliveries", href: "/buyer/pickups" },
+              ]}
+            />
+          )}
+          {/* The whole Order Errors card is hidden from the Butcher role. */}
+          {!isButcher && (
+            <DashboardCard
+              title="Order Errors"
+              subtitle="Report or review order errors"
+              links={[
+                { label: "Report an Error", href: "/errors/new", primary: true },
+                { label: "Error Reports Table", href: "/buyer/errors" },
               ]}
             />
           )}
