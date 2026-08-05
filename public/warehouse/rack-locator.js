@@ -1745,37 +1745,52 @@
         `;
       }
       itemsHtml += `
-        <div class="rl-itemcard">
-          <button class="rl-itemremove" onclick="RL.removeFloorItem(${i})" aria-label="Remove item">✕</button>
-          <div class="rl-itemnum">
-            Pallet ${i + 1} of ${e.items.length}
-            <button class="rl-itemmoveicon ${showItemMove ? 'active' : ''}" onclick="RL.toggleFloorItemMove(${i})" title="Move this item onto a rack location" aria-label="Move this item onto a rack location">⇄</button>
-          </div>
-          <div class="rl-fieldrow">
-            <div class="rl-field">
-              <input value="${esc(item.sku)}" placeholder="Item code" autocomplete="off" class="rl-cat-input" data-editor="floor" data-index="${i}" onchange="RL.pickFloorItemField(${i}, 'sku', this.value)">
-            </div>
-            <div class="rl-field rl-qtyfield">
-              <label>Qty</label>
-              <input type="number" min="0" value="${item.quantity != null ? item.quantity : 1}" placeholder="Qty" title="How many of this product" onchange="RL.updateFloorItemField(${i}, 'quantity', parseInt(this.value)||0)">
-            </div>
-          </div>
-          <div class="rl-field">
-            <textarea rows="${item.description && item.description.length > 42 ? 2 : 1}" placeholder="Description" class="rl-cat-input" data-editor="floor" data-index="${i}" oninput="this.style.height='auto'; this.style.height=this.scrollHeight+'px';" onchange="RL.updateFloorItemField(${i}, 'description', this.value)">${esc(item.description)}</textarea>
-          </div>
-          ${itemMoveHtml}
-        </div>`;
+        <tr>
+          <td style="border:1px solid #1E1E1C; border-top:none; padding:6px 8px; vertical-align:middle;">
+            <input value="${esc(item.description)}" placeholder="Search the catalog…" autocomplete="off"
+                   class="rl-cat-input" data-editor="floor" data-index="${i}"
+                   onchange="RL.pickFloorItemField(${i}, 'description', this.value)"
+                   style="width:100%; border:none; background:transparent; font-family:'Inter',sans-serif; font-size:13px; color:#1E1E1C; padding:0; outline:none;">
+            <input value="${esc(item.sku)}" placeholder="Item code" autocomplete="off"
+                   class="rl-cat-input" data-editor="floor" data-index="${i}"
+                   onchange="RL.pickFloorItemField(${i}, 'sku', this.value)"
+                   style="width:100%; border:none; background:transparent; font-family:'JetBrains Mono',monospace; font-size:11px; color:#8A877C; padding:2px 0 0; outline:none;">
+            ${item.sku && !catalogByCode(item.sku) ? `<div style="font-family:'Inter',sans-serif; font-size:10px; font-weight:600; color:#B07A12; margin-top:2px;">Not in the item catalog</div>` : ''}
+          </td>
+          <td style="border:1px solid #1E1E1C; border-top:none; border-left:none; padding:2px 8px; width:110px; text-align:center; vertical-align:middle;">
+            <input type="number" min="0" value="${item.quantity != null ? item.quantity : 1}" onchange="RL.updateFloorItemField(${i}, 'quantity', parseInt(this.value)||0)"
+                   style="width:100%; border:none; background:transparent; font-family:'Inter',sans-serif; font-size:28px; font-weight:500; color:#1E1E1C; text-align:center; padding:0; outline:none;">
+          </td>
+          <td style="border:none; padding:0 0 0 6px; width:22px; vertical-align:middle;">
+            <button onclick="RL.toggleFloorItemMove(${i})" aria-label="Move this pallet onto a rack location" title="Move this pallet onto a rack location"
+                    style="border:none; background:transparent; color:${showItemMove ? '#C0392B' : '#A6A398'}; font-size:15px; cursor:pointer; padding:2px;">⇄</button>
+          </td>
+        </tr>
+        ${showItemMove ? `<tr><td colspan="3" style="border:none; padding:10px 0 4px;">${itemMoveHtml}</td></tr>` : ''}`;
     });
+
+    const addBtn = e.items.length < MAX_ITEMS && e.items.length > 0
+      ? `<button class="rl-addbtn" onclick="RL.addFloorItem()">+ Add pallet</button>` : '';
 
     return `
       <div class="rl-overlay" onclick="if(event.target===this) RL.closeFloorEditor()">
         <div class="rl-modal">
           <div class="rl-eyebrow">Floor storage</div>
-          <h3>${esc(CURRENT_WH.floorLabel(e.floorId))}</h3>
-          <div class="rl-code" style="color:#A6A398;">Pallets sitting on the floor in this aisle — no specific rack location</div>
+          <h3 style="font-size:30px; margin-bottom:6px;">${esc(CURRENT_WH.floorLabel(e.floorId))}</h3>
+          <div class="rl-code" style="color:#A6A398; margin-bottom:14px;">Pallets sitting on the floor in this aisle — no specific rack location</div>
 
-          ${itemsHtml || '<div class="rl-emptytag" style="display:block;margin-top:14px;">No pallets logged on this floor yet.</div>'}
-          <button class="rl-addbtn" onclick="RL.addFloorItem()">+ Add pallet</button>
+          <table style="width:100%; border-collapse:collapse; table-layout:fixed;">
+            <thead>
+              <tr>
+                <th style="border:1px solid #1E1E1C; padding:5px 8px; text-align:left; font-family:'Inter',sans-serif; font-size:11px; font-weight:600; color:#1E1E1C;">Description</th>
+                <th style="border:1px solid #1E1E1C; border-left:none; padding:5px 8px; width:110px; text-align:left; font-family:'Inter',sans-serif; font-size:11px; font-weight:600; color:#1E1E1C;">Quantity</th>
+                <th style="border:none; width:22px;"></th>
+              </tr>
+            </thead>
+            <tbody>${itemsHtml}</tbody>
+          </table>
+          ${itemsHtml ? '' : `<button class="rl-addbtn" style="margin-top:12px;" onclick="RL.addFloorItem()">+ Add pallet</button>`}
+          ${addBtn}
 
           <div class="rl-modalbtns">
             <button class="rl-btn" onclick="RL.closeFloorEditor()">Cancel</button>
