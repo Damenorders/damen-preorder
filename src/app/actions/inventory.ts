@@ -346,6 +346,42 @@ export async function writeWarehouseKey(
   return { ok: false, error: `Unknown key ${key}` };
 }
 
+/**
+ * Targeted, transactional write of ONE location — a single rack slot
+ * ("50-A-1") or floor area ("floor:2"). Unlike writeWarehouseKey, which syncs
+ * the entire warehouse blob and can delete items other people added elsewhere,
+ * this only ever touches the one location it is given: `syncPlacements` is
+ * scoped to that single location, so a concurrent edit on any other slot can
+ * never be wiped. This is the path every per-slot edit should use.
+ */
+export async function writeWarehouseLocation(input: {
+  unit: WarehouseUnit;
+  scope: "rack" | "floor";
+  rackId?: string;
+  slotCode?: string;
+  floorId?: string;
+  items: ClientItem[];
+}): Promise<{ ok: boolean; error?: string }> {
+  const user = await requireRole("buyer", "dispatch");
+  const { unit, scope, rackId, slotCode, floorId, items } = input;
+  if (!UNITS.includes(unit)) return { ok: false, error: `Unknown unit ${unit}` };
+  const list = Array.isArray(items) ? items : [];
+
+  if (scope === "rack") {
+    if (!rackId || !slotCode) return { ok: false, error: "Missing rack location" };
+    const { desired, locations } = desiredFromRackBlob({ [rackId]: { [slotCode]: list } });
+    await syncPlacements(user, unit, "rack", desired, locations);
+    return { ok: true };
+  }
+  if (scope === "floor") {
+    if (!floorId) return { ok: false, error: "Missing floor id" };
+    const { desired, locations } = desiredFromFloorBlob({ [floorId]: list });
+    await syncPlacements(user, unit, "floor", desired, locations);
+    return { ok: true };
+  }
+  return { ok: false, error: `Unknown scope ${scope}` };
+}
+
 /** Clears one unit — used by the locator's "reset" button. */
 export async function clearWarehouseUnit(unit: WarehouseUnit) {
   const user = await requireRole("buyer", "dispatch");

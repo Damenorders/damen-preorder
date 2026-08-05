@@ -6,10 +6,22 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
+  clearWarehouseUnit,
   readWarehouseKey,
   writeWarehouseKey,
+  writeWarehouseLocation,
 } from "@/app/actions/inventory";
 import type { CatalogEntry } from "@/lib/inventory-data";
+import type { WarehouseUnit } from "@/db/schema";
+
+type LocationWrite = {
+  unit: WarehouseUnit;
+  scope: "rack" | "floor";
+  rackId?: string;
+  slotCode?: string;
+  floorId?: string;
+  items: { sku?: string; description?: string; quantity?: number }[];
+};
 
 declare global {
   interface Window {
@@ -18,6 +30,10 @@ declare global {
     storage?: {
       get: (key: string) => Promise<{ value: string } | null>;
       set: (key: string, value: string) => Promise<unknown>;
+      writeLocation: (
+        payload: LocationWrite,
+      ) => Promise<{ ok: boolean; error?: string }>;
+      clearUnit: (unit: string) => Promise<{ ok: boolean; error?: string }>;
     };
     RL?: {
       goFind: () => void;
@@ -54,6 +70,18 @@ export default function RackLocatorMount({
       set: async (key, value) => {
         const res = await writeWarehouseKey(key, value);
         if (!res.ok) console.error("Inventory save failed:", res.error);
+        return res;
+      },
+      // Targeted per-location write — the safe path that can't wipe other
+      // people's items elsewhere in the warehouse.
+      writeLocation: async (payload) => {
+        const res = await writeWarehouseLocation(payload);
+        if (!res.ok) console.error("Inventory location save failed:", res.error);
+        return res;
+      },
+      clearUnit: async (unit) => {
+        const res = await clearWarehouseUnit(unit as WarehouseUnit);
+        if (!res.ok) console.error("Inventory clear failed");
         return res;
       },
     };

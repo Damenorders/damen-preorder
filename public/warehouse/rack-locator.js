@@ -6,7 +6,30 @@
   // browser session falls back to localStorage so the site still saves.
   const STORE = (window.storage && typeof window.storage.get === 'function') ? window.storage : {
     async get(k) { const v = localStorage.getItem('rl:' + k); return v == null ? null : { value: v }; },
-    async set(k, v) { try { localStorage.setItem('rl:' + k, v); } catch (e) {} }
+    async set(k, v) { try { localStorage.setItem('rl:' + k, v); } catch (e) {} },
+    // Standalone fallback: patch just the one location inside the localStorage blob.
+    async writeLocation(p) {
+      try {
+        const prefix = p.unit === 'dry' ? '' : p.unit + '-';
+        const key = 'rl:' + prefix + (p.scope === 'floor' ? 'floor-data' : 'rack-data');
+        let blob = {};
+        try { blob = JSON.parse(localStorage.getItem(key) || '{}') || {}; } catch (e) { blob = {}; }
+        const has = p.items && p.items.length;
+        if (p.scope === 'floor') {
+          if (has) blob[p.floorId] = p.items; else delete blob[p.floorId];
+        } else {
+          blob[p.rackId] = blob[p.rackId] || {};
+          if (has) blob[p.rackId][p.slotCode] = p.items; else delete blob[p.rackId][p.slotCode];
+        }
+        localStorage.setItem(key, JSON.stringify(blob));
+      } catch (e) {}
+      return { ok: true };
+    },
+    async clearUnit(unit) {
+      const prefix = unit === 'dry' ? '' : unit + '-';
+      try { localStorage.removeItem('rl:' + prefix + 'rack-data'); localStorage.removeItem('rl:' + prefix + 'floor-data'); } catch (e) {}
+      return { ok: true };
+    }
   };
 
   function initRackLocator(hostEl) {
@@ -698,6 +721,52 @@
   async function saveData() {
     await persist(storageKey('rack-data'), JSON.stringify(state.data), 'Pallet update');
   }
+
+  // Targeted save: writes ONLY the one slot/floor that changed, so a save can
+  // never delete items other people added elsewhere in the shared warehouse.
+  // This replaces the whole-blob saveData()/saveFloorData() for every per-edit
+  // path; those blob saves are kept only for the (rare) full-warehouse reset.
+  async function persistLocation(payload, label) {
+    if (!STORE.writeLocation) {
+      // Older host without the targeted bridge — fall back to the blob save.
+      return payload.scope === 'floor' ? saveFloorData() : saveData();
+    }
+    try {
+      const res = await STORE.writeLocation(payload);
+      if (res && res.ok === false) {
+        console.error('Inventory save rejected:', res.error);
+        showFlash('⚠ ' + label + ' did not sync to the main inventory — check your connection and try again.');
+        return false;
+      }
+      return true;
+    } catch (e) {
+      console.error('Failed to save ' + label, e);
+      showFlash('⚠ ' + label + ' failed to sync to the main inventory.');
+      return false;
+    }
+  }
+  function cellItemsFor(whId, rowId, code) {
+    const d = whCache[whId] && whCache[whId].data;
+    return (d && d[rowId] && d[rowId][code]) || [];
+  }
+  function saveCellFor(whId, rowId, code) {
+    return persistLocation({
+      unit: whId, scope: 'rack', rackId: String(rowId), slotCode: code,
+      items: cellItemsFor(whId, rowId, code)
+    }, 'Pallet update');
+  }
+  function saveCell(rowId, code) { return saveCellFor(state.warehouseId, rowId, code); }
+  function floorItemsFor(whId, floorId) {
+    const f = whCache[whId] && whCache[whId].floorData;
+    return (f && f[floorId]) || [];
+  }
+  function saveFloorFor(whId, floorId) {
+    return persistLocation({
+      unit: whId, scope: 'floor', floorId: String(floorId),
+      items: floorItemsFor(whId, floorId)
+    }, 'Floor update');
+  }
+  function saveFloor(floorId) { return saveFloorFor(state.warehouseId, floorId); }
   async function saveDataForWarehouse(whId) {
     const wh = WAREHOUSES[whId];
     await persist((wh.storagePrefix || '') + 'rack-data', JSON.stringify(whCache[whId].data), 'Pallet update');
@@ -2201,7 +2270,7 @@
     dragLeave(event, el) {
       el.classList.remove('rl-drop-ok', 'rl-drop-bad');
     },
-    dropOn(event, targetRowId, targetCode) {
+    async dropOn(event, targetRowId, targetCode) {
       event.preventDefault();
       event.currentTarget.classList.remove('rl-drop-ok', 'rl-drop-bad');
 
@@ -2224,7 +2293,8 @@
       }));
       setCellItems(targetRowId, targetCode, srcItems);
       setCellItems(src.rowId, src.code, []);
-      saveData();
+      await saveCell(targetRowId, targetCode);
+      await saveCell(src.rowId, src.code);
       render();
     },
 
@@ -2253,7 +2323,7 @@
       await mergeFloorDataFromServer();
       logItemDiff(CURRENT_WH.floorLabel(e.floorId), CURRENT_WH.name, floorItems(e.floorId), cleaned);
       setFloorItems(e.floorId, cleaned);
-      await saveFloorData();
+      await saveFloor(e.floorId);
       state.floorEditing = null;
       state.placing = null;
       render();
@@ -2277,10 +2347,11 @@
         .map(it => ({ sku: it.sku.trim(), description: it.description.trim(), quantity: it.quantity || 1 }));
       // Refresh everyone else's items first, then change only this slot.
       await mergeRackDataFromServer();
-      const before = cellItems(e.rowId, e.level + '-' + e.pos);
+      const code = e.level + '-' + e.pos;
+      const before = cellItems(e.rowId, code);
       logItemDiff(fullLoc(e.rowId, e.level, e.pos), CURRENT_WH.name, before, cleaned);
-      setCellItems(e.rowId, e.level + '-' + e.pos, cleaned);
-      await saveData();
+      setCellItems(e.rowId, code, cleaned);
+      await saveCell(e.rowId, code);
       state.editing = null;
       state.placing = null;
       render();
@@ -2349,7 +2420,7 @@
       }
       render();
     },
-    confirmMove() {
+    async confirmMove() {
       const e = state.editing;
       const src = { whId: state.warehouseId, rowId: e.rowId, code: e.level + '-' + e.pos };
       const tgt = { whId: e.moveTarget.whId, rowId: e.moveTarget.rowId, code: e.moveTarget.level + '-' + e.moveTarget.pos };
@@ -2387,8 +2458,10 @@
       // write whatever was at the target (for a swap) back into the source slot
       setCellItems(src.rowId, src.code, targetItems);
 
-      saveData();
-      if (tgt.whId !== src.whId) saveDataForWarehouse(tgt.whId);
+      // Write the target first (gains the pallet), then the source — so a failure
+      // mid-move leaves a visible duplicate rather than losing the pallet.
+      await saveCellFor(tgt.whId, tgt.rowId, tgt.code);
+      await saveCellFor(src.whId, src.rowId, src.code);
 
       state.editing = null;
       if (tgt.whId === state.warehouseId) {
@@ -2423,7 +2496,7 @@
       }
       render();
     },
-    confirmItemMove() {
+    async confirmItemMove() {
       const e = state.editing;
       const i = e.itemMoveIndex;
       if (i == null || !e.items[i]) return;
@@ -2467,8 +2540,10 @@
         to: fullLoc(t.rowId, t.level, t.pos) + (t.whId !== state.warehouseId ? ' (' + targetWh.name + ')' : '')
       });
 
-      saveData();
-      if (t.whId !== state.warehouseId) saveDataForWarehouse(t.whId);
+      // Target first (gains the item), then source — so a mid-move failure
+      // duplicates rather than drops the item.
+      await saveCellFor(t.whId, t.rowId, tgtCode);
+      await saveCellFor(state.warehouseId, e.rowId, srcCode);
 
       e.itemMoveIndex = null;
       const dt = depthInfo(t.rowId, t.rowId + '-' + tgtCode);
@@ -2510,7 +2585,7 @@
       }
       render();
     },
-    confirmFloorItemMove() {
+    async confirmFloorItemMove() {
       const e = state.floorEditing;
       const i = e.itemMoveIndex;
       if (i == null || !e.items[i]) return;
@@ -2539,7 +2614,6 @@
       const remainingItems = e.items.filter(it => it.sku.trim() || it.description.trim())
         .map(it => ({ sku: it.sku.trim(), description: it.description.trim(), quantity: it.quantity || 1 }));
       setFloorItems(e.floorId, remainingItems);
-      saveFloorData();
 
       // add it onto the target rack pallet
       targetCache.data[t.rowId][tgtCode] = [...existingTarget, item];
@@ -2548,8 +2622,9 @@
         from: CURRENT_WH.floorLabel(e.floorId),
         to: fullLoc(t.rowId, t.level, t.pos) + (t.whId !== state.warehouseId ? ' (' + targetWh.name + ')' : '')
       });
-      saveData();
-      if (t.whId !== state.warehouseId) saveDataForWarehouse(t.whId);
+      // Rack target first (gains the item), then clear the floor source.
+      await saveCellFor(t.whId, t.rowId, tgtCode);
+      await saveFloor(e.floorId);
 
       e.itemMoveIndex = null;
       const dt = depthInfo(t.rowId, t.rowId + '-' + tgtCode);
@@ -2570,7 +2645,7 @@
       if (description !== null) items[itemIndex].description = description;
       logItemDiff(fullLoc(rowId, code.split('-')[0], code.split('-')[1]), CURRENT_WH.name, cellItems(rowId, code), items);
       setCellItems(rowId, code, items);
-      saveData();
+      saveCell(rowId, code);
       render();
     },
     quickSaveItemQty(rowId, code, itemIndex, qty) {
@@ -2579,7 +2654,7 @@
       items[itemIndex].quantity = parseInt(qty, 10) || 0;
       logItemDiff(fullLoc(rowId, code.split('-')[0], code.split('-')[1]), CURRENT_WH.name, cellItems(rowId, code), items);
       setCellItems(rowId, code, items);
-      saveData();
+      saveCell(rowId, code);
       render();
     },
     quickSaveFloorItem(floorId, itemIndex, sku, description) {
@@ -2588,7 +2663,7 @@
       if (sku !== null) items[itemIndex].sku = sku;
       if (description !== null) items[itemIndex].description = description;
       setFloorItems(floorId, items);
-      saveFloorData();
+      saveFloor(floorId);
       render();
     },
     quickSaveFloorItemQty(floorId, itemIndex, qty) {
@@ -2596,7 +2671,7 @@
       if (!items[itemIndex]) return;
       items[itemIndex].quantity = parseInt(qty, 10) || 0;
       setFloorItems(floorId, items);
-      saveFloorData();
+      saveFloor(floorId);
       render();
     },
     setSearch(v) { state.search = v; renderKeepingFocus(); },
@@ -2651,8 +2726,10 @@
       state.floorData = {};
       whCache[state.warehouseId].data = state.data;
       whCache[state.warehouseId].floorData = state.floorData;
-      saveData();
-      saveFloorData();
+      // Use the dedicated clear action — a whole-blob save of {} would delete
+      // nothing server-side (no locations in scope), leaving stale rows behind.
+      if (STORE.clearUnit) STORE.clearUnit(state.warehouseId);
+      else { saveData(); saveFloorData(); }
       render();
     }
   };
