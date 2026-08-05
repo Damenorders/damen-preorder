@@ -314,6 +314,15 @@
     ready: false
   };
   let flashTimer = null;
+  // Live refresh (multi-user): periodically pull the shared inventory so people
+  // see each other's changes without reloading. Strictly read-only — it never
+  // saves or deletes — and it defers whenever it could disrupt the user or read
+  // mid-save (open editor, typing, placing, dragging, or a save in flight).
+  const LIVE_REFRESH_MS = 12000;
+  let liveTimer = null;
+  let refreshing = false;   // guards against overlapping refresh cycles
+  let pendingSaves = 0;     // >0 while a targeted write is in flight
+  let isDragging = false;   // true between dragstart and dragend
   const whCache = {}; // { dry: {rows,data,floorData}, freezer: {rows,data,floorData} }
 
   /* ---------------- ITEM CATALOG (inventory database) ---------------- */
@@ -731,6 +740,8 @@
       // Older host without the targeted bridge — fall back to the blob save.
       return payload.scope === 'floor' ? saveFloorData() : saveData();
     }
+    pendingSaves++; // pause live refresh until this write lands, so it can't
+                    // momentarily read back stale data and undo the edit on screen
     try {
       const res = await STORE.writeLocation(payload);
       if (res && res.ok === false) {
@@ -743,6 +754,8 @@
       console.error('Failed to save ' + label, e);
       showFlash('⚠ ' + label + ' failed to sync to the main inventory.');
       return false;
+    } finally {
+      pendingSaves--;
     }
   }
   function cellItemsFor(whId, rowId, code) {
@@ -767,6 +780,42 @@
     }, 'Floor update');
   }
   function saveFloor(floorId) { return saveFloorFor(state.warehouseId, floorId); }
+
+  // True when re-rendering now would disrupt the user or discard un-shown input.
+  function isBusyEditing() {
+    if (state.editing || state.floorEditing || state.placing || isDragging) return true;
+    if (pendingSaves > 0) return true;
+    const ae = document.activeElement;
+    if (ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.tagName === 'SELECT')) return true;
+    return false;
+  }
+  // Read-only pull of the shared inventory for the current warehouse, so people
+  // see each other's changes live. Uses the same GET-only merge helpers as the
+  // save flow — it NEVER writes — and only re-renders when something changed and
+  // the user isn't mid-edit, so it can't wipe or revert anyone's entry.
+  async function liveRefresh() {
+    if (!state.ready || refreshing || document.hidden || isBusyEditing()) return;
+    refreshing = true;
+    try {
+      const beforeR = JSON.stringify(state.data);
+      const beforeF = JSON.stringify(state.floorData);
+      let changed = false;
+      if (await mergeRackDataFromServer()) changed = changed || JSON.stringify(state.data) !== beforeR;
+      if (await mergeFloorDataFromServer()) changed = changed || JSON.stringify(state.floorData) !== beforeF;
+      // The user may have started editing while we were fetching — re-check
+      // before touching the DOM so we never interrupt them.
+      if (changed && !isBusyEditing()) render();
+    } catch (e) {
+      // Network hiccup — keep whatever we have; try again next tick.
+    } finally {
+      refreshing = false;
+    }
+  }
+  function startLiveRefresh() {
+    if (liveTimer) return;
+    liveTimer = setInterval(() => { liveRefresh().catch(() => {}); }, LIVE_REFRESH_MS);
+  }
+
   async function saveDataForWarehouse(whId) {
     const wh = WAREHOUSES[whId];
     await persist((wh.storagePrefix || '') + 'rack-data', JSON.stringify(whCache[whId].data), 'Pallet update');
@@ -2259,6 +2308,7 @@
     openEditor, closeEditor,
 
     dragStart(event, rowId, code) {
+      isDragging = true;
       event.dataTransfer.effectAllowed = 'move';
       event.dataTransfer.setData('text/plain', JSON.stringify({ rowId, code }));
     },
@@ -2736,6 +2786,12 @@
 
   loadState();
   setupCatalogAutocomplete();
+
+  // Live multi-user refresh: poll the shared inventory, plus refresh the instant
+  // the tab regains focus. dragend clears the drag guard however a drag ends.
+  document.addEventListener('dragend', () => { isDragging = false; });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) liveRefresh().catch(() => {}); });
+  startLiveRefresh();
 
   }
 
