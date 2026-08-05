@@ -21,7 +21,7 @@ export default async function OwnerDashboard() {
       <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-6">
         <h1 className="text-xl font-semibold">Hello, {user.name}</h1>
         <p className="mt-1 text-sm text-neutral-500">
-          Deliveries, pickups, and order sections.
+          Deliveries, pickups, order sections, and warehouse inventory.
         </p>
         <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {/* Deliveries / Pickups first per request. */}
@@ -47,6 +47,17 @@ export default async function OwnerDashboard() {
               ]}
             />
           ))}
+          <DashboardCard
+            title="Warehouse Inventory"
+            subtitle="Find items, save pallet locations"
+            corner={{ color: "orange", position: "tl" }}
+            links={[
+              { label: "Find an Item", href: "/warehouse?screen=find", primary: true, variant: "highlight" },
+              { label: "Item Catalog", href: "/warehouse?screen=catalog" },
+              { label: "Warehouse Map", href: "/warehouse?screen=map" },
+              { label: "Activity Log", href: "/warehouse?screen=activity" },
+            ]}
+          />
           <PushNotificationsSettings />
         </div>
       </main>
