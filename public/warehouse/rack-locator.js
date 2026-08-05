@@ -851,7 +851,7 @@
       const count = floorId ? floorItems(floorId).length : 0;
       const clickAttr = floorId ? `class="rl-vaisle rl-vaisle-clickable" onclick="RL.openFloorEditor(${floorId})" title="${esc(label)} — click to log pallets stored on the floor here"` : `class="rl-vaisle"`;
       return `
-      <div ${clickAttr} style="${grow ? 'flex:1 1 0;' : ''}">
+      <div ${clickAttr} style="${grow === true ? 'flex:1 1 0;' : (typeof grow === 'number' ? 'flex:' + grow + ' 1 0;' : '')}">
         <div class="rl-vaisleline"></div>
         <div class="rl-vaislelabel">${esc(label)}${count ? ` · ${count}` : ''}</div>
         <div class="rl-vaisleline"></div>
@@ -885,8 +885,8 @@
         ${vaisle('Floor 3', 3, true)}
       </div>`;
 
-    const mainHtml = runWrap(getRow(17), 'v', 'flex:0 0 80px; min-height:480px;', 480) + floor3Group + pair(15, 13, null, 'thin', 'thin') + vaisle('Floor 2', 1.5) + pair(12, 11, 'wall', 'thin', 'thin')
-      + vaisle('Floor 1', 1) + runWrap(getRow(10), 'v', 'flex:0 0 80px; min-height:480px;', 480) + wall + rack5Corner;
+    const mainHtml = runWrap(getRow(17), 'v', 'flex:0 0 80px; min-height:480px;', 480) + floor3Group + pair(15, 13, null, 'thin', 'thin') + vaisle('Floor 2', 1.5, 0.9) + pair(12, 11, 'wall', 'thin', 'thin')
+      + vaisle('Floor 1', 1, 0.9) + runWrap(getRow(10), 'v', 'flex:0 0 80px; min-height:480px;', 480) + wall + rack5Corner;
 
     // Everything below is sized with proportional flex weights (not fixed pixels) so the
     // blueprint always exactly fills the card at any width — no horizontal scrolling ever.
