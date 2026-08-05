@@ -1071,7 +1071,7 @@
       + thinRack(30);
 
     return `
-      <div class="rl-warehouse" style="width:565px; max-width:100%; box-sizing:border-box; overflow:hidden; margin:0 auto;">
+      <div class="rl-warehouse">
         <div class="rl-blueprint-scroll">
         <div class="rl-blueprintbody" style="width:fit-content; min-width:0; margin:0 auto; border:3px solid #2A2925; border-radius:6px; padding:6px; box-sizing:border-box;">
           <div class="rl-mainrow">${mainHtml}</div>
@@ -1112,9 +1112,9 @@
       </div>`;
 
     return `
-      <div class="rl-warehouse" style="width:461px; max-width:100%; box-sizing:border-box; overflow:hidden; margin:0 auto;">
-        <div class="rl-blueprint-scroll" style="overflow:hidden;">
-        <div class="rl-blueprintbody" style="width:807px; margin-left:-200px;">
+      <div class="rl-warehouse">
+        <div class="rl-blueprint-scroll" style="overflow-x:auto; overflow-y:visible; width:fit-content; max-width:100%; margin:0 auto;">
+        <div class="rl-blueprintbody" style="width:807px; min-width:0; margin-left:-200px;">
           <div style="position:relative; padding:6px 0; box-sizing:border-box; display:flex; flex-direction:column; gap:6px;">
             <div style="position:absolute; left:calc(27% - 12px); right:calc(27% - 6px); top:0; height:3px; background:#2A2925;"></div>
             <div style="position:absolute; left:calc(27% - 12px); right:calc(27% - 6px); bottom:0; height:3px; background:#2A2925;"></div>
@@ -1155,9 +1155,9 @@
       </div>`;
 
     return `
-      <div class="rl-warehouse" style="width:461px; max-width:100%; box-sizing:border-box; overflow:hidden; margin:0 auto;">
-        <div class="rl-blueprint-scroll" style="overflow:hidden;">
-        <div class="rl-blueprintbody" style="margin-left:-200px; width:807px;">
+      <div class="rl-warehouse">
+        <div class="rl-blueprint-scroll" style="overflow-x:auto; overflow-y:visible; width:fit-content; max-width:100%; margin:0 auto;">
+        <div class="rl-blueprintbody" style="margin-left:-200px; width:807px; min-width:0;">
           <div style="position:relative; padding:6px 0; box-sizing:border-box; display:flex; flex-direction:column; gap:6px;">
             <div style="position:absolute; left:calc(27% - 12px); right:calc(27% - 6px); top:0; height:3px; background:#2A2925;"></div>
             <div style="position:absolute; left:calc(27% - 12px); right:calc(27% - 6px); bottom:0; height:3px; background:#2A2925;"></div>
@@ -1203,9 +1203,9 @@
       <div style="width:100%; height:100%; min-height:0; box-sizing:border-box; border:2px dashed #A6A398; border-radius:6px; background:#F7F5EF; display:flex; align-items:center; justify-content:center; font-family:'JetBrains Mono', monospace; font-weight:700; font-size:9px; color:#6B6A62; text-transform:uppercase; letter-spacing:0.5px; overflow:hidden;" title="${esc(title)}">Door</div>`;
 
     return `
-      <div class="rl-warehouse" style="width:603px; max-width:100%; box-sizing:border-box; overflow:hidden; margin:0 auto;">
-        <div class="rl-blueprint-scroll" style="overflow:hidden;">
-        <div class="rl-blueprintbody" style="display:flex; flex-direction:column; gap:6px; width:807px;">
+      <div class="rl-warehouse">
+        <div class="rl-blueprint-scroll" style="overflow-x:auto; overflow-y:visible; width:fit-content; max-width:100%; margin:0 auto;">
+        <div class="rl-blueprintbody" style="display:flex; flex-direction:column; gap:6px; width:807px; min-width:0;">
           <div style="position:relative; display:flex; flex-direction:column; gap:6px; border-radius:0 0 0 6px; padding:6px 0 6px 12px; box-sizing:border-box;">
             <div style="position:absolute; left:6px; top:0; width:66%; height:3px; background:#2A2925;"></div>
             <div style="position:absolute; left:6px; bottom:0; width:66%; height:3px; background:#2A2925;"></div>
