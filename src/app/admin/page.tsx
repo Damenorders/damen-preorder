@@ -49,7 +49,6 @@ export default async function AdminDashboard() {
           <DashboardCard
             title="Warehouse Inventory"
             subtitle="Find items, save pallet locations"
-            corner={{ color: "orange", position: "tl" }}
             links={[
               { label: "Find an Item", href: "/warehouse?screen=find", primary: true, variant: "highlight" },
               { label: "Item Catalog", href: "/warehouse?screen=catalog" },
