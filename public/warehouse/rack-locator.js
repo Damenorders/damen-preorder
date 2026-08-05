@@ -229,6 +229,8 @@
   // position groups, one array per column (between uprights). Rack #60's 7/8 column
   // holds a third pallet (9).
   const COLUMN_GROUPS = {
+    // Rack #51 reads right-to-left: positions shown 4, 3, 2, 1.
+    51: [[4, 3], [2, 1]],
     60: [[1, 2], [3, 4], [5, 6], [7, 8, 9]]
   };
   const FRIDGE60_RACK_IDS = [62, 60, 61, 63];
