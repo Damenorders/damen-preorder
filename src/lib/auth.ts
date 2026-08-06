@@ -27,8 +27,9 @@ export function homePathFor(role: Role): string {
     case "owner":
       return "/owner";
     case "warehouse":
-      // Warehouse role lands straight in the Warehouse Inventory — its only tool.
-      return "/warehouse";
+      // Warehouse role lands straight in the Warehouse Inventory — its only tool —
+      // on the Warehouses view (map) rather than the default Find Item screen.
+      return "/warehouse?screen=map";
   }
 }
 
