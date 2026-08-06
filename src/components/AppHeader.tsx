@@ -14,6 +14,7 @@ const roleLabels: Record<User["role"], string> = {
   butcher: "Butcher",
   dispatch: "Dispatch",
   owner: "Owner",
+  warehouse: "Warehouse",
 };
 
 export default function AppHeader({ user }: { user: User }) {

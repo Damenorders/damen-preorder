@@ -26,6 +26,9 @@ export function homePathFor(role: Role): string {
       return "/dispatch";
     case "owner":
       return "/owner";
+    case "warehouse":
+      // Warehouse role lands straight in the Warehouse Inventory — its only tool.
+      return "/warehouse";
   }
 }
 

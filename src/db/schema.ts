@@ -15,8 +15,9 @@ import {
 // Enums
 // ---------------------------------------------------------------------------
 
-// picker: warehouse role — sees all submissions (read-only), nothing else
-export const roleEnum = pgEnum("user_role", ["admin", "buyer", "rep", "picker", "scheduling", "clients", "butcher", "dispatch", "owner"]);
+// picker: warehouse-floor role — sees all submissions (read-only), nothing else
+// warehouse: sees only the Warehouse Inventory tool, nothing else
+export const roleEnum = pgEnum("user_role", ["admin", "buyer", "rep", "picker", "scheduling", "clients", "butcher", "dispatch", "owner", "warehouse"]);
 
 export const applicationStatusEnum = pgEnum("application_status", [
   "new",

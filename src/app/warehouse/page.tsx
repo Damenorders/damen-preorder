@@ -37,7 +37,7 @@ export default async function WarehousePage({
 }: {
   searchParams: Promise<{ screen?: string }>;
 }) {
-  const user = await requireRole("buyer", "dispatch", "owner");
+  const user = await requireRole("buyer", "dispatch", "owner", "warehouse");
   const { screen } = await searchParams;
   const catalog = await getCatalog();
   const landing = SCREENS.includes(screen as WarehouseScreen)

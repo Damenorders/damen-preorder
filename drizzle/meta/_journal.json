@@ -162,6 +162,13 @@
       "when": 1785000000002,
       "tag": "0022_inventory_dispatch_select",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1785000000003,
+      "tag": "0023_warehouse_role",
+      "breakpoints": true
     }
   ]
 }

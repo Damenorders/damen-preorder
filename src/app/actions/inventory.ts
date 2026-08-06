@@ -168,7 +168,7 @@ async function syncPlacements(
 export async function readWarehouseKey(
   key: string,
 ): Promise<{ value: string } | null> {
-  await requireRole("buyer", "dispatch", "owner");
+  await requireRole("buyer", "dispatch", "owner", "warehouse");
 
   if (key === "wh-audit-log") {
     const log = await getInventoryAudit(200);
@@ -196,7 +196,7 @@ export async function writeWarehouseKey(
   key: string,
   value: string,
 ): Promise<{ ok: boolean; error?: string }> {
-  const user = await requireRole("buyer", "dispatch", "owner");
+  const user = await requireRole("buyer", "dispatch", "owner", "warehouse");
 
   // The audit trail is derived server-side — the client's copy is read-only.
   if (key === "wh-audit-log") return { ok: true };
@@ -241,7 +241,7 @@ export async function writeWarehouseLocation(input: {
   floorId?: string;
   items: ClientItem[];
 }): Promise<{ ok: boolean; error?: string }> {
-  const user = await requireRole("buyer", "dispatch", "owner");
+  const user = await requireRole("buyer", "dispatch", "owner", "warehouse");
   const { unit, scope, rackId, slotCode, floorId, items } = input;
   if (!UNITS.includes(unit)) return { ok: false, error: `Unknown unit ${unit}` };
   const list = Array.isArray(items) ? items : [];
@@ -263,7 +263,7 @@ export async function writeWarehouseLocation(input: {
 
 /** Clears one unit — used by the locator's "reset" button. */
 export async function clearWarehouseUnit(unit: WarehouseUnit) {
-  const user = await requireRole("buyer", "dispatch", "owner");
+  const user = await requireRole("buyer", "dispatch", "owner", "warehouse");
   await db.transaction(async (tx) => {
     await tx
       .delete(inventoryPlacements)
@@ -282,7 +282,7 @@ export async function clearWarehouseUnit(unit: WarehouseUnit) {
 
 /** Where is this item? Used by the dashboard/search entry points. */
 export async function findItemLocations(code: string) {
-  await requireRole("buyer", "dispatch", "owner");
+  await requireRole("buyer", "dispatch", "owner", "warehouse");
   const rows = await db
     .select()
     .from(inventoryPlacements)
