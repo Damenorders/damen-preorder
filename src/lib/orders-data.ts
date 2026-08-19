@@ -28,7 +28,12 @@ export async function getProductsForDepartment(department: Department) {
     orderBy: products.productName,
     columns: { id: true, productName: true, formConfig: true },
   });
-  return rows.map((p) => ({
+  // Alphabetical (from the query), but "Other" always sits last.
+  const ordered = [
+    ...rows.filter((p) => p.productName !== "Other"),
+    ...rows.filter((p) => p.productName === "Other"),
+  ];
+  return ordered.map((p) => ({
     id: p.id,
     productName: p.productName,
     formConfig: p.formConfig as ProductFormConfig,

@@ -116,6 +116,22 @@ export default function OrderForm({
     [products],
   );
 
+  // The picker is a 2-column grid that fills row-by-row, but the list should
+  // read alphabetically DOWN the left column then down the right ("Other" stays
+  // last, i.e. bottom-right). Re-sequence the already-sorted list so a
+  // row-major grid renders in column-major order.
+  const pickerProducts = useMemo(() => {
+    const leftCount = Math.ceil(products.length / 2);
+    const left = products.slice(0, leftCount);
+    const right = products.slice(leftCount);
+    const sequenced: typeof products = [];
+    for (let i = 0; i < leftCount; i++) {
+      sequenced.push(left[i]);
+      if (right[i]) sequenced.push(right[i]);
+    }
+    return sequenced;
+  }, [products]);
+
   // Live client suggestions: substring match, hidden once the field is an
   // exact match (nothing left to suggest).
   const clientSuggestions = useMemo(() => {
@@ -514,7 +530,7 @@ export default function OrderForm({
 
         {!activeProduct ? (
           <div className="mt-3 grid grid-cols-2 gap-2">
-            {products.map((p) => (
+            {pickerProducts.map((p) => (
               <button
                 key={p.id}
                 type="button"

@@ -218,8 +218,9 @@ const MEAT_PRODUCTS: Array<{ name: string; formConfig: ProductFormConfig }> = [
   {
     name: "Chicken Breast",
     formConfig: meatConfig([
-      { key: "trim", label: "Trim", type: "select", options: ["Standard", "Full Trim"], required: true, display: "{value} Trim" },
-      { key: "skin", label: "Skin", type: "select", options: ["On", "Off"], required: true, display: "Skin {value}" },
+      { key: "trim", label: "Trim", type: "select", options: ["Standard", "Full Trim", "Scallopini"], required: true, display: "{value} Trim" },
+      // Skin only applies to Standard trim; Full Trim and Scallopini have no skin option.
+      { key: "skin", label: "Skin", type: "select", options: ["On", "Off"], required: true, display: "Skin {value}", showWhen: { field: "trim", equals: "Standard" } },
       // Temporarily removed: Fingers On/Off is no longer an option on Chicken Breast.
       // { key: "fingers", label: "Fingers", type: "select", options: ["On", "Off"], required: true, display: "Fingers {value}" },
     ]),
@@ -266,6 +267,20 @@ const MEAT_PRODUCTS: Array<{ name: string; formConfig: ProductFormConfig }> = [
     name: "Chicken Bone",
     formConfig: { fields: [], quantity: { min: 1, max: 999 } },
   },
+  {
+    // Counted by box, with an optional KG weight
+    name: "Veal Bones",
+    formConfig: {
+      fields: [],
+      quantity: { min: 1, max: 999 },
+      quantityLabel: "Number of Boxes",
+      weightLabel: "Quantity (KG)",
+    },
+  },
+  { name: "Veal Strip", formConfig: boxOrPiecesMeat() },
+  { name: "Lamb Rack 24up", formConfig: boxOrPiecesMeat() },
+  { name: "Veal Chop Frenched", formConfig: boxOrPiecesMeat() },
+  { name: "Ground Pork", formConfig: meatConfig() },
 ];
 
 // "Other": the user writes the order manually in a free-text box.
