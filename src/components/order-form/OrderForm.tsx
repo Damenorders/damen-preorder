@@ -80,6 +80,19 @@ function nextKey() {
   return `line-${keyCounter}`;
 }
 
+// Approximate weight-per-box shown next to certain products so the orderer
+// knows the rough box weight when picking. Display-only: the canonical product
+// name (the key used for the butcher's dispatch shorthand) is left unchanged.
+const APPROX_WEIGHT: Record<string, string> = {
+  "Chicken Bone": "≈ 15kg",
+  "Veal Bones": "≈ 20kg",
+};
+
+function pickerLabel(productName: string): string {
+  const approx = APPROX_WEIGHT[productName];
+  return approx ? `${productName} ${approx}` : productName;
+}
+
 export default function OrderForm({
   department,
   clients,
@@ -537,7 +550,7 @@ export default function OrderForm({
                 onClick={() => chooseProduct(p.id)}
                 className="rounded-xl border border-neutral-300 px-4 py-4 text-base font-medium transition hover:border-accent-600 hover:bg-accent-50"
               >
-                {p.productName}
+                {pickerLabel(p.productName)}
               </button>
             ))}
             {products.length === 0 && (
@@ -550,7 +563,7 @@ export default function OrderForm({
           <div className="mt-3">
             <div className="flex items-center justify-between">
               <p className="text-lg font-semibold text-accent-800">
-                {activeProduct.productName}
+                {pickerLabel(activeProduct.productName)}
               </p>
               {!singleProduct && (
                 <button
