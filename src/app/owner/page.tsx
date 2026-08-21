@@ -29,8 +29,8 @@ export default async function OwnerDashboard() {
             title="Pickups & Deliveries"
             subtitle="Delivery tracking and pickup sheets"
             links={[
-              { label: "New Delivery", href: "/buyer/deliveries/new", primary: true, variant: "highlight" },
-              { label: "New Pickup", href: "/buyer/pickups/new" },
+              { label: "New Pickup", href: "/buyer/pickups/new", primary: true, variant: "highlight" },
+              { label: "New Delivery", href: "/buyer/deliveries/new" },
               { label: "All Pickups & Deliveries", href: "/buyer/pickups" },
             ]}
           />
