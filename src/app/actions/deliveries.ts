@@ -150,9 +150,15 @@ export async function setDeliveryStatus(
   return { ok: true, id };
 }
 
-/** Mark every (still-pending) delivery on a given day as delivered. */
+/**
+ * Mark every (still-pending) delivery on a given day as delivered. When
+ * `createdByName` is given, only that person's deliveries for the day are
+ * marked — so the board's "All delivered" respects an active "Entered by"
+ * filter.
+ */
 export async function markDayDeliveriesDelivered(
   date: string,
+  createdByName?: string,
 ): Promise<DeliveryActionResult> {
   const user = await requireRole("buyer", "dispatch", "owner");
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
@@ -163,7 +169,13 @@ export async function markDayDeliveriesDelivered(
       .update(deliveries)
       .set({ status: "delivered", updatedAt: new Date() })
       .where(
-        and(eq(deliveries.deliveryDate, date), ne(deliveries.status, "delivered")),
+        and(
+          eq(deliveries.deliveryDate, date),
+          ne(deliveries.status, "delivered"),
+          createdByName
+            ? eq(deliveries.createdByName, createdByName)
+            : undefined,
+        ),
       )
       .returning({ id: deliveries.id });
     if (rows.length > 0) {

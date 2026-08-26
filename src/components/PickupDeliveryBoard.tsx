@@ -142,6 +142,44 @@ export default function PickupDeliveryBoard({
   const [openKey, setOpenKey] = useState<string | null>(null);
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [menuDate, setMenuDate] = useState<string | null>(null);
+  // Filter the board by whoever entered the pickup/delivery ("all" = no filter).
+  // Persisted per-browser so the chosen person stays selected on return.
+  const [enteredBy, setEnteredBy] = useState<string>("all");
+
+  // Restore the saved filter after mount (localStorage is client-only, so we
+  // can't seed initial state without risking a hydration mismatch).
+  useEffect(() => {
+    const saved = window.localStorage.getItem("pdBoardEnteredBy");
+    if (saved) setEnteredBy(saved);
+  }, []);
+
+  function chooseEnteredBy(value: string) {
+    setEnteredBy(value);
+    window.localStorage.setItem("pdBoardEnteredBy", value);
+  }
+
+  // Every distinct person who has entered a pickup or delivery, for the filter.
+  const people = useMemo(() => {
+    const set = new Set<string>();
+    pickups.forEach((p) => p.createdByName && set.add(p.createdByName));
+    deliveries.forEach((d) => d.createdByName && set.add(d.createdByName));
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [pickups, deliveries]);
+
+  const filteredPickups = useMemo(
+    () =>
+      enteredBy === "all"
+        ? pickups
+        : pickups.filter((p) => p.createdByName === enteredBy),
+    [pickups, enteredBy],
+  );
+  const filteredDeliveries = useMemo(
+    () =>
+      enteredBy === "all"
+        ? deliveries
+        : deliveries.filter((d) => d.createdByName === enteredBy),
+    [deliveries, enteredBy],
+  );
 
   // Live sync: the pickup/delivery status is a single shared value, so any
   // buyer's change should surface on every open session. Poll the server every
@@ -159,20 +197,20 @@ export default function PickupDeliveryBoard({
   }, [router]);
 
   const activePickups = useMemo(
-    () => pickups.filter((p) => p.status === "pending"),
-    [pickups],
+    () => filteredPickups.filter((p) => p.status === "pending"),
+    [filteredPickups],
   );
   const activeDeliveries = useMemo(
-    () => deliveries.filter((d) => d.status === "pending"),
-    [deliveries],
+    () => filteredDeliveries.filter((d) => d.status === "pending"),
+    [filteredDeliveries],
   );
   const donePickups = useMemo(
-    () => pickups.filter((p) => p.status === "picked_up"),
-    [pickups],
+    () => filteredPickups.filter((p) => p.status === "picked_up"),
+    [filteredPickups],
   );
   const doneDeliveries = useMemo(
-    () => deliveries.filter((d) => d.status === "delivered"),
-    [deliveries],
+    () => filteredDeliveries.filter((d) => d.status === "delivered"),
+    [filteredDeliveries],
   );
 
   const activeDates = useMemo(
@@ -429,7 +467,12 @@ export default function PickupDeliveryBoard({
                         type="button"
                         disabled={!hasPendingPickups}
                         onClick={() =>
-                          run(dayKey, () => markDayPickupsPickedUp(date))
+                          run(dayKey, () =>
+                            markDayPickupsPickedUp(
+                              date,
+                              enteredBy === "all" ? undefined : enteredBy,
+                            ),
+                          )
                         }
                         className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-neutral-800 transition hover:bg-accent-50 disabled:cursor-not-allowed disabled:text-neutral-300 disabled:hover:bg-white"
                       >
@@ -439,7 +482,12 @@ export default function PickupDeliveryBoard({
                         type="button"
                         disabled={!hasPendingDeliveries}
                         onClick={() =>
-                          run(dayKey, () => markDayDeliveriesDelivered(date))
+                          run(dayKey, () =>
+                            markDayDeliveriesDelivered(
+                              date,
+                              enteredBy === "all" ? undefined : enteredBy,
+                            ),
+                          )
                         }
                         className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-neutral-800 transition hover:bg-accent-50 disabled:cursor-not-allowed disabled:text-neutral-300 disabled:hover:bg-white"
                       >
@@ -498,11 +546,30 @@ export default function PickupDeliveryBoard({
         >
           🖨 Print all pickups
         </a>
+        {people.length > 1 && (
+          <label className="ml-auto flex items-center gap-2 text-sm text-neutral-600">
+            <span className="whitespace-nowrap">Entered by</span>
+            <select
+              value={enteredBy}
+              onChange={(e) => chooseEnteredBy(e.target.value)}
+              className="rounded-xl border border-neutral-300 bg-white px-3 py-2.5 text-sm font-medium text-neutral-700 outline-none transition hover:border-accent-600 focus:border-accent-500"
+            >
+              <option value="all">Everyone</option>
+              {people.map((name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
       </div>
 
       {activeDates.length === 0 && doneDates.length === 0 && (
         <p className="rounded-xl bg-neutral-50 px-4 py-3 text-sm text-neutral-500">
-          No pickups or deliveries yet.
+          {enteredBy === "all"
+            ? "No pickups or deliveries yet."
+            : `Nothing entered by ${enteredBy}.`}
         </p>
       )}
 

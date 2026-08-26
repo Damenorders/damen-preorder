@@ -217,9 +217,14 @@ export async function setPickupStatus(
   return { ok: true, id };
 }
 
-/** Mark every (still-pending) pickup on a given day as picked up. */
+/**
+ * Mark every (still-pending) pickup on a given day as picked up. When
+ * `createdByName` is given, only that person's pickups for the day are marked —
+ * so the board's "All picked up" respects an active "Entered by" filter.
+ */
 export async function markDayPickupsPickedUp(
   date: string,
+  createdByName?: string,
 ): Promise<PickupActionResult> {
   const user = await requireRole("buyer", "dispatch", "owner");
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
@@ -230,7 +235,11 @@ export async function markDayPickupsPickedUp(
       .update(pickups)
       .set({ status: "picked_up", updatedAt: new Date() })
       .where(
-        and(eq(pickups.pickupDate, date), ne(pickups.status, "picked_up")),
+        and(
+          eq(pickups.pickupDate, date),
+          ne(pickups.status, "picked_up"),
+          createdByName ? eq(pickups.createdByName, createdByName) : undefined,
+        ),
       )
       .returning({ id: pickups.id });
     if (rows.length > 0) {
