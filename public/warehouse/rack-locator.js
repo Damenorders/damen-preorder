@@ -376,18 +376,18 @@
 
   function acHide() {
     if (acEl) acEl.style.display = 'none';
-    acInput = null; acMatches = []; acActive = -1; acNudged = false;
+    // Pull the in-flow list out of the table so it leaves no gap when closed.
+    if (acHostRow && acHostRow.parentElement) acHostRow.parentElement.removeChild(acHostRow);
+    else if (acEl && acEl.parentElement && acEl.parentElement !== document.body) acEl.parentElement.removeChild(acEl);
+    acInput = null; acMatches = []; acActive = -1;
   }
-  const AC_MARGIN = 8;   // keep the list this clear of every screen edge
-  const AC_GAP = 24;     // breathing room between the field and the list
-  const AC_MIN_ROOM = 168; // below this, scroll the field up just enough for a usable list
-  function acIsMobile() { return acViewport().w <= 760; }
+  const AC_MARGIN = 8;   // keep the field this clear of the visible top/bottom edge
 
   // The visible box: with a phone keyboard open window.innerHeight still reports
   // the full page height, so the visual viewport is the only thing that knows
   // what is actually on screen. `top`/`bottom` here are the edges of the visible
-  // area in the *same* coordinate space as getBoundingClientRect() and a
-  // position:fixed box, so we can clamp one against the other directly.
+  // area in the *same* coordinate space as getBoundingClientRect(), so we can
+  // compare a field's rect against them directly.
   function acViewport() {
     const vv = window.visualViewport;
     const w = vv ? vv.width : window.innerWidth;
@@ -396,11 +396,9 @@
     const y = vv ? vv.offsetTop : 0;
     return { w, h, x, y, left: x, right: x + w, top: y, bottom: y + h };
   }
-  function acRoomBelow(r, v) { return v.bottom - r.bottom - AC_GAP - AC_MARGIN; }
-  function acRoomAbove(r, v) { return r.top - v.top - AC_GAP - AC_MARGIN; }
 
-  // Find the scrollable ancestor (the modal body) so we can nudge the field up
-  // by hand rather than relying on scrollIntoView, which yanks it to the top.
+  // Find the scrollable ancestor (the modal body) so we can bring the field into
+  // view by hand rather than relying on scrollIntoView, which yanks it to the top.
   function acScrollParent(el) {
     let n = el && el.parentElement;
     while (n && n !== document.body) {
@@ -411,90 +409,70 @@
     return null;
   }
 
-  // Drop the list below the whole item row/cell — not just the focused input
-  // line — so it clears the stacked description + item-code boxes and can never
-  // sit over the text being typed.
-  function acAnchorRect() {
-    if (!acInput) return null;
-    const box = (acInput.closest && (acInput.closest('tr') || acInput.closest('td'))) || acInput;
-    return box.getBoundingClientRect();
-  }
-
-  function acPosition() {
-    if (!acEl || !acInput || !acInput.isConnected) return;
-    const r = acInput.getBoundingClientRect();
-    const a = acAnchorRect() || r;
-    const v = acViewport();
-
-    const width = Math.min(Math.max(r.width, 260), v.w - AC_MARGIN * 2);
-    let left = r.left;
-    if (left + width > v.right - AC_MARGIN) left = v.right - width - AC_MARGIN;
-    if (left < v.left + AC_MARGIN) left = v.left + AC_MARGIN;
-
-    const cap = acIsMobile()
-      ? Math.min(Math.round(v.h * 0.55), 360)
-      : Math.min(Math.round(v.h * 0.4), 300);
-
-    // The list is clamped to the row's edge on whichever side it opens, so it
-    // can NEVER sit over the description/code being typed. Prefer dropping below
-    // the whole row; flip above only when the space below is too cramped to be
-    // usable (the phone keyboard has eaten it) and there is more room above.
-    // Below → top starts at the row's bottom. Above → the list ends at the row's
-    // top. The field stays visible on the other side of the list either way.
-    const below = Math.max(acRoomBelow(a, v), 0);
-    const above = Math.max(acRoomAbove(a, v), 0);
-    let top, maxH;
-    if (below >= AC_MIN_ROOM || below >= above) {
-      maxH = Math.max(Math.min(below, cap), 0);
-      top = a.bottom + AC_GAP;
+  // The suggestion list is rendered IN FLOW as a spacer row directly under the
+  // row being edited — NOT as a floating overlay. In-flow content cannot overlap
+  // the field, so the list can never cover what is being typed no matter how the
+  // phone keyboard scrolls the modal around (the failure floating positioning
+  // kept hitting on iOS).
+  let acHostRow = null;
+  function acMount() {
+    if (!acEl || !acInput) return;
+    const row = acInput.closest && acInput.closest('tr');
+    if (row && row.parentElement) {
+      if (!acHostRow) {
+        acHostRow = document.createElement('tr');
+        acHostRow.className = 'rl-ac-row';
+        const td = document.createElement('td');
+        td.style.cssText = 'padding:0; border:none;';
+        td.appendChild(acEl);
+        acHostRow.appendChild(td);
+      }
+      acHostRow.firstChild.colSpan = row.children.length || 3;
+      if (acHostRow.previousElementSibling !== row || !acHostRow.parentElement) {
+        row.parentElement.insertBefore(acHostRow, row.nextSibling);
+      }
     } else {
-      maxH = Math.max(Math.min(above, cap), 0);
-      top = a.top - AC_GAP - maxH;
+      // Non-table fallback: drop it straight after the input.
+      const host = acInput.parentElement;
+      if (host && acInput.nextSibling !== acEl) host.insertBefore(acEl, acInput.nextSibling);
     }
-    const minTop = v.top + AC_MARGIN;
-    if (top < minTop) top = minTop;
-
-    acEl.style.width = width + 'px';
-    acEl.style.left = left + 'px';
-    acEl.style.top = top + 'px';
-    acEl.style.maxHeight = maxH + 'px';
   }
 
-  // If the keyboard has left little room under the field, scroll the modal up by
-  // exactly the shortfall — just enough for a usable list, without pulling the
-  // field to the top of the screen. One nudge per focus, so the scroll handler
-  // cannot chase itself in a loop.
-  let acNudged = false;
-  function acEnsureRoom() {
-    if (acNudged || !acInput || !acInput.isConnected) return;
-    const anchor = acAnchorRect();
-    if (!anchor) return;
+  // Keep the focused field — and the list now sitting under it — clear of the
+  // keyboard: if the field has drifted out of a comfortable band near the top of
+  // the visible area, scroll the modal just enough to bring it back. Only fires
+  // when actually needed, so it never fights the user scrolling the list.
+  function acEnsureVisible() {
+    if (!acInput || !acInput.isConnected) return;
     const v = acViewport();
-    // If either side already has room for a usable list, acPosition's flip
-    // handles it without moving the page — leave the field where it is.
-    if (Math.max(acRoomBelow(anchor, v), acRoomAbove(anchor, v)) >= AC_MIN_ROOM) return;
-    const need = AC_MIN_ROOM - acRoomBelow(anchor, v);
-    if (need <= 0) return;
-    acNudged = true;
+    const r = acInput.getBoundingClientRect();
+    // Enough space under the field to actually reveal the list above the keyboard?
+    const wantBelow = Math.min(220, Math.round(v.h * 0.35));
+    if (r.top >= v.top + AC_MARGIN && (v.bottom - r.bottom) >= wantBelow) return;
+    // Bring the field to a comfortable band near the top so the list below it is
+    // fully on screen; scroll by hand so the browser doesn't yank it to the edge.
+    const band = v.top + Math.max(AC_MARGIN, Math.round(v.h * 0.12));
+    const delta = Math.round(r.top - band);
+    if (!delta) return;
     const sc = acScrollParent(acInput);
-    if (sc) sc.scrollTop += need; else window.scrollBy(0, need);
-    // Follow the field to its new spot once the scroll settles.
-    requestAnimationFrame(() => { if (acInput && acInput.isConnected) acPosition(); });
+    if (sc) sc.scrollTop += delta; else window.scrollBy(0, delta);
   }
+
   function acShow() {
     if (!acEl) return;
-    if (!acMatches.length) { acHide(); return; }
+    if (!acMatches.length || !acInput) { acHide(); return; }
     acEl.innerHTML = acMatches.map((it, i) =>
       '<div class="rl-ac-opt' + (i === acActive ? ' active' : '') + '" data-i="' + i + '">' +
         '<span class="rl-ac-desc">' + esc(it.d) + '</span>' +
         '<span class="rl-ac-code">' + esc(it.c) + '</span>' +
       '</div>').join('');
+    acMount();
     acEl.style.display = 'block';
-    acPosition();
     if (acActive >= 0) {
       const active = acEl.querySelector('.rl-ac-opt.active');
       if (active && active.scrollIntoView) active.scrollIntoView({ block: 'nearest' });
     }
+    acEnsureVisible();
   }
   function acChoose(i) {
     const it = acMatches[i];
@@ -519,9 +497,10 @@
       st.id = 'rl-ac-styles';
       st.textContent =
         ".rl-cat-input { scroll-margin-top: 16px; scroll-margin-bottom: 16px; }" +
-        ".rl-ac { position: fixed; z-index: 9999; max-height: 50vh; overflow-y: auto;" +
-        " background: #FFF; border: 1px solid #C7C2B2; border-radius: 10px;" +
-        " box-shadow: 0 18px 44px rgba(0,0,0,0.28); -webkit-overflow-scrolling: touch;" +
+        ".rl-ac-row td { padding: 0 !important; border: none !important; }" +
+        ".rl-ac { position: static; width: 100%; max-height: 320px; overflow-y: auto;" +
+        " background: #FFF; border: 1px solid #C7C2B2; border-radius: 10px; margin: 6px 0 2px;" +
+        " box-shadow: 0 8px 22px rgba(0,0,0,0.16); -webkit-overflow-scrolling: touch;" +
         " overscroll-behavior: contain; touch-action: pan-y; padding: 4px; }" +
         ".rl-ac-opt { display: flex; flex-direction: column; gap: 2px; padding: 11px 13px;" +
         " border-radius: 7px; cursor: pointer; border-bottom: 1px solid #F0EDE4; }" +
@@ -531,27 +510,26 @@
         ".rl-ac-desc { font-family: 'Inter', sans-serif; font-size: 14px; color: #1E1E1C; line-height: 1.25; }" +
         ".rl-ac-code { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #8E2A20; font-weight: 700; }" +
         "@media (max-width: 760px) {" +
-        " .rl-ac { max-height: 40vh; border-radius: 12px; border-width: 2px; box-shadow: 0 16px 40px rgba(0,0,0,0.3); }" +
+        " .rl-ac { max-height: 44vh; border-radius: 12px; border-width: 2px; }" +
         " .rl-ac-opt { padding: 13px 14px; min-height: 48px; justify-content: center; }" +
         " .rl-ac-desc { font-size: 16px; font-weight: 500; }" +
         " .rl-ac-code { font-size: 12.5px; } }";
       document.head.appendChild(st);
     }
 
+    // Built once and reused; acMount() inserts it into the table on demand.
     acEl = document.createElement('div');
     acEl.id = 'rl-ac';
     acEl.className = 'rl-ac';
     acEl.style.display = 'none';
-    document.body.appendChild(acEl);
 
     const refresh = (t) => {
       acInput = t; acMatches = catalogMatches(t.value, 40); acActive = -1;
-      acShow(); acEnsureRoom();
+      acShow();
     };
     document.addEventListener('input', (e) => { if (isCatInput(e.target)) refresh(e.target); });
     document.addEventListener('focusin', (e) => {
       if (!isCatInput(e.target)) return;
-      acNudged = false; // a new field gets its own nudge allowance
       refresh(e.target);
     });
 
@@ -591,17 +569,14 @@
       if (acEl.contains(e.target) || e.target === acInput || isCatInput(e.target)) return;
       acHide();
     }, true);
-    const reposition = () => { if (acInput && acInput.isConnected) acPosition(); };
-    document.addEventListener('scroll', reposition, true);
-    // Keyboards toggling fire resize on phones — reposition, don't hide.
-    window.addEventListener('resize', reposition);
+    // The list lives in the document flow, so it moves with the page when the
+    // user scrolls — nothing to reposition. We only react to the keyboard
+    // appearing/resizing (visualViewport) to keep the focused field, and the
+    // list beneath it, from ending up hidden behind the keyboard.
+    const keepInView = () => { if (acInput && acInput.isConnected && acEl && acEl.style.display !== 'none') acEnsureVisible(); };
+    window.addEventListener('resize', keepInView);
     if (window.visualViewport) {
-      // Opening the keyboard on iOS *scrolls* the visual viewport as well as
-      // resizing it; without the scroll hook the list is left behind off-page.
-      // The resize is also the moment the keyboard actually appears, which is
-      // when a field near the bottom may need nudging up to make room.
-      window.visualViewport.addEventListener('resize', () => { reposition(); acEnsureRoom(); });
-      window.visualViewport.addEventListener('scroll', reposition);
+      window.visualViewport.addEventListener('resize', keepInView);
     }
   }
 
