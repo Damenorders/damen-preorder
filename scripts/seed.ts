@@ -277,6 +277,16 @@ const MEAT_PRODUCTS: Array<{ name: string; formConfig: ProductFormConfig }> = [
       weightLabel: "Quantity (KG)",
     },
   },
+  {
+    // Counted by box, with an optional KG weight
+    name: "Beef Tongue",
+    formConfig: {
+      fields: [],
+      quantity: { min: 1, max: 999 },
+      quantityLabel: "Number of Boxes",
+      weightLabel: "Quantity (KG)",
+    },
+  },
   { name: "Veal Strip", formConfig: boxOrPiecesMeat() },
   { name: "Lamb Rack 24up", formConfig: boxOrPiecesMeat() },
   { name: "Veal Chop Frenched", formConfig: boxOrPiecesMeat() },
