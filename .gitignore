@@ -40,5 +40,9 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# generated exports (regenerate via scripts/export-locations.js)
+/warehouse-locations.csv
+/warehouse-locations.txt
+
 # keep the env template tracked
 !.env.example
