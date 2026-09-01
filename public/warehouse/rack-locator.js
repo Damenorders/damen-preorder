@@ -459,8 +459,14 @@
   }
 
   function acShow() {
-    if (!acEl) return;
-    if (!acMatches.length || !acInput) { acHide(); return; }
+    if (!acEl || !acInput) return;
+    // No matches (e.g. the field was just cleared): hide the box but keep it
+    // mounted and the field focused. Ripping the row out on every empty↔match
+    // flip churns the DOM under the focused input, which drops the on-screen
+    // keyboard on mobile — so typing a new name looked like it did nothing.
+    // Just toggling display keeps the field live so re-typing pops the list
+    // straight back up. A real dismiss (blur/outside tap/pick) still tears down.
+    if (!acMatches.length) { acEl.style.display = 'none'; return; }
     acEl.innerHTML = acMatches.map((it, i) =>
       '<div class="rl-ac-opt' + (i === acActive ? ' active' : '') + '" data-i="' + i + '">' +
         '<span class="rl-ac-desc">' + esc(it.d) + '</span>' +
@@ -563,9 +569,11 @@
       else if (e.key === 'Escape') { acHide(); }
     });
 
-    // Dismiss on outside tap; keep open when interacting with the box or a catalog input.
+    // Dismiss on outside tap; keep open when interacting with the box or a
+    // catalog input. Keyed off acInput (not the box's visibility) so it still
+    // tears down cleanly when the box is only hidden because the field is empty.
     document.addEventListener('pointerdown', (e) => {
-      if (!acEl || acEl.style.display === 'none') return;
+      if (!acInput) return;
       if (acEl.contains(e.target) || e.target === acInput || isCatInput(e.target)) return;
       acHide();
     }, true);
