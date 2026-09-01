@@ -44,5 +44,8 @@ next-env.d.ts
 /warehouse-locations.csv
 /warehouse-locations.txt
 
+# machine-local Claude Code settings
+.claude/settings.local.json
+
 # keep the env template tracked
 !.env.example
