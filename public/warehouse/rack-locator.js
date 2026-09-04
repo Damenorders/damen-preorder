@@ -1665,7 +1665,7 @@
             ${item.sku && !catalogByCode(item.sku) ? `<div class="rl-notincat">Not in the item catalog</div>` : ''}
           </td>
           <td class="rl-qtycol" style="border:1px solid #1E1E1C; border-top:none; border-left:none; padding:2px 8px; text-align:center; vertical-align:middle;">
-            <input type="number" min="0" value="${item.quantity != null ? item.quantity : 1}" onchange="RL.updateItemField(${i}, 'quantity', parseInt(this.value)||0)"
+            <input type="number" min="1" value="${item.quantity != null ? item.quantity : 1}" onchange="RL.setItemQty(${i}, this)"
                    style="width:100%; border:none; background:transparent; font-family:'Inter',sans-serif; font-size:28px; font-weight:500; color:#1E1E1C; text-align:center; padding:0; outline:none;">
           </td>
           <td class="rl-actcol" style="border:none; padding:0 0 0 4px; vertical-align:middle; white-space:nowrap;">
@@ -1709,8 +1709,11 @@
       <button class="rl-btn rl-primary" style="width:100%; margin-top:14px; padding:12px; font-size:14px;" onclick="RL.confirmMove()">Move / swap pallet here</button>
     ` : '';
 
+    // Neither editor closes on a tap outside. The overlay is the scroll
+    // container now, so a stray tap on the dimmed area mid-scroll would throw
+    // away everything typed since it opened. Cancel and Save are the way out.
     return `
-      <div class="rl-overlay" onclick="if(event.target===this) return;">
+      <div class="rl-overlay">
         <div class="rl-modal">
           <div class="rl-eyebrow">Pallet #</div>
           <h3 style="font-size:30px; margin-bottom:14px;">${esc(full)}</h3>
@@ -1793,7 +1796,7 @@
             ${item.sku && !catalogByCode(item.sku) ? `<div class="rl-notincat">Not in the item catalog</div>` : ''}
           </td>
           <td class="rl-qtycol" style="border:1px solid #1E1E1C; border-top:none; border-left:none; padding:2px 8px; text-align:center; vertical-align:middle;">
-            <input type="number" min="0" value="${item.quantity != null ? item.quantity : 1}" onchange="RL.updateFloorItemField(${i}, 'quantity', parseInt(this.value)||0)"
+            <input type="number" min="1" value="${item.quantity != null ? item.quantity : 1}" onchange="RL.setFloorItemQty(${i}, this)"
                    style="width:100%; border:none; background:transparent; font-family:'Inter',sans-serif; font-size:28px; font-weight:500; color:#1E1E1C; text-align:center; padding:0; outline:none;">
           </td>
           <td class="rl-actcol" style="border:none; padding:0 0 0 4px; vertical-align:middle; white-space:nowrap;">
@@ -1810,7 +1813,7 @@
       ? `<button class="rl-addbtn" onclick="RL.addFloorItem()">+ Add pallet</button>` : '';
 
     return `
-      <div class="rl-overlay" onclick="if(event.target===this) RL.closeFloorEditor()">
+      <div class="rl-overlay">
         <div class="rl-modal">
           <div class="rl-eyebrow">Floor storage</div>
           <h3 style="font-size:30px; margin-bottom:6px;">${esc(CURRENT_WH.floorLabel(e.floorId))}</h3>
@@ -2450,8 +2453,12 @@
       state.floorEditing.items.splice(i, 1);
       render();
     },
-    updateFloorItemField(i, field, value) {
-      state.floorEditing.items[i][field] = value;
+    setFloorItemQty(i, el) {
+      const it = state.floorEditing.items[i];
+      if (!it) return;
+      const n = Math.max(1, parseInt(el.value, 10) || 1);
+      it.quantity = n;
+      if (el.value !== String(n)) el.value = n;
     },
     async submitFloorEditor() {
       const e = state.floorEditing;
@@ -2476,8 +2483,17 @@
       state.editing.items.splice(i, 1);
       render();
     },
-    updateItemField(i, field, value) {
-      state.editing.items[i][field] = value;
+    // Clamp the quantity to at least 1 and write it straight back into the box.
+    // Clearing the field, or typing 0, used to leave "" or "0" on screen while
+    // submitEditor's `it.quantity || 1` quietly stored 1 instead — the screen and
+    // the saved row disagreed with nothing to tell you. Same value is stored as
+    // before; the difference is that you can now see it.
+    setItemQty(i, el) {
+      const it = state.editing.items[i];
+      if (!it) return;
+      const n = Math.max(1, parseInt(el.value, 10) || 1);
+      it.quantity = n;
+      if (el.value !== String(n)) el.value = n;
     },
     async submitEditor() {
       const e = state.editing;
