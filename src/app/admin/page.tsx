@@ -84,6 +84,20 @@ export default async function AdminDashboard() {
               { label: "Error Reports Table", href: "/buyer/errors" },
             ]}
           />
+          <DashboardCard
+            title="Product List"
+            subtitle="Build a list for a client, export to Excel"
+            links={[
+              {
+                label: "Create Product List",
+                href: "/buyer/product-lists/new",
+                primary: true,
+                variant: "highlight",
+              },
+              { label: "Current Product Lists", href: "/buyer/product-lists" },
+              { label: "Upload Prices", href: "/buyer/product-lists/prices" },
+            ]}
+          />
           <PushNotificationsSettings />
         </div>
       </main>

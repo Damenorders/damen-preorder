@@ -169,6 +169,20 @@
       "when": 1785000000003,
       "tag": "0023_warehouse_role",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1785000000004,
+      "tag": "0024_product_lists",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1785000000005,
+      "tag": "0025_item_prices",
+      "breakpoints": true
     }
   ]
 }

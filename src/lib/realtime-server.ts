@@ -26,3 +26,30 @@ export async function notifyOrdersChanged() {
     // Realtime is best-effort; the change itself is already committed.
   }
 }
+
+// Product Lists get their own channel: two buyers building the same list must
+// see each other's taps, but that traffic has no business waking every open
+// order screen in the building.
+export async function notifyProductListsChanged() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) return;
+
+  try {
+    await fetch(`${url}/realtime/v1/api/broadcast`, {
+      method: "POST",
+      headers: {
+        apikey: key,
+        Authorization: `Bearer ${key}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        messages: [
+          { topic: "product-lists", event: "changed", payload: {} },
+        ],
+      }),
+    });
+  } catch {
+    // Best-effort, exactly like the orders ping.
+  }
+}

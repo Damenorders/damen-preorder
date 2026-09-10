@@ -1,0 +1,131 @@
+import "server-only";
+import { asc, desc, eq, sql } from "drizzle-orm";
+import { db } from "@/db";
+import {
+  itemPrices,
+  productLists,
+  productListItems,
+  type ProductList,
+} from "@/db/schema";
+
+// Product Lists — the buyer walks the warehouse tapping catalog items into a
+// list, then exports it to Excel to print for a client. Reads only; every
+// mutation lives in src/app/actions/product-lists.ts behind a role check.
+
+export interface ProductListSummary {
+  id: number;
+  name: string;
+  status: ProductList["status"];
+  itemCount: number;
+  /** Sum of the effective prices; items with no price count as zero. */
+  total: number;
+  /** How many lines have no price at all, so the UI can say so. */
+  unpricedCount: number;
+  createdByName: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export async function listProductLists(): Promise<ProductListSummary[]> {
+  return db
+    .select({
+      id: productLists.id,
+      name: productLists.name,
+      status: productLists.status,
+      createdByName: productLists.createdByName,
+      createdAt: productLists.createdAt,
+      updatedAt: productLists.updatedAt,
+      itemCount: sql<number>`count(${productListItems.id})::int`,
+      total: sql<number>`coalesce(sum(coalesce(${productListItems.priceOverride}, ${itemPrices.price})), 0)::float8`,
+      unpricedCount: sql<number>`count(*) filter (where ${productListItems.id} is not null and ${productListItems.priceOverride} is null and ${itemPrices.price} is null)::int`,
+    })
+    .from(productLists)
+    .leftJoin(productListItems, eq(productListItems.listId, productLists.id))
+    .leftJoin(itemPrices, eq(itemPrices.itemCode, productListItems.itemCode))
+    .groupBy(productLists.id)
+    .orderBy(desc(productLists.updatedAt));
+}
+
+export async function getProductList(
+  id: number,
+): Promise<ProductList | undefined> {
+  return db.query.productLists.findFirst({ where: eq(productLists.id, id) });
+}
+
+export interface ProductListLine {
+  itemCode: string;
+  description: string;
+  addedByName: string;
+  /** The uploaded catalog price, or null when the price file never had it. */
+  catalogPrice: number | null;
+  /** A price typed on this line for this client, or null to use the catalog. */
+  priceOverride: number | null;
+  /** What the sheet actually prints. */
+  price: number | null;
+}
+
+/** List order is the order the buyer walked the warehouse in. */
+export async function getProductListItems(
+  id: number,
+): Promise<ProductListLine[]> {
+  const rows = await db
+    .select({
+      itemCode: productListItems.itemCode,
+      description: productListItems.description,
+      addedByName: productListItems.addedByName,
+      priceOverride: productListItems.priceOverride,
+      catalogPrice: itemPrices.price,
+    })
+    .from(productListItems)
+    .leftJoin(itemPrices, eq(itemPrices.itemCode, productListItems.itemCode))
+    .where(eq(productListItems.listId, id))
+    .orderBy(asc(productListItems.createdAt), asc(productListItems.id));
+
+  // numeric columns arrive as strings (same as order weights elsewhere).
+  return rows.map((r) => {
+    const catalogPrice = r.catalogPrice === null ? null : Number(r.catalogPrice);
+    const priceOverride =
+      r.priceOverride === null ? null : Number(r.priceOverride);
+    return {
+      itemCode: r.itemCode,
+      description: r.description,
+      addedByName: r.addedByName,
+      catalogPrice,
+      priceOverride,
+      price: priceOverride ?? catalogPrice,
+    };
+  });
+}
+
+export interface PriceFileStatus {
+  pricedItems: number;
+  lastUpdatedAt: Date | null;
+  lastFile: string | null;
+  lastBy: string | null;
+}
+
+/** What the upload screen shows about the price file already loaded. */
+export async function getPriceFileStatus(): Promise<PriceFileStatus> {
+  const [row] = await db
+    .select({
+      pricedItems: sql<number>`count(*)::int`,
+      lastUpdatedAt: sql<Date | null>`max(${itemPrices.updatedAt})`,
+    })
+    .from(itemPrices);
+
+  const [latest] = await db
+    .select({
+      sourceFile: itemPrices.sourceFile,
+      updatedByName: itemPrices.updatedByName,
+    })
+    .from(itemPrices)
+    .orderBy(desc(itemPrices.updatedAt))
+    .limit(1);
+
+  return {
+    pricedItems: row?.pricedItems ?? 0,
+    lastUpdatedAt: row?.lastUpdatedAt ?? null,
+    lastFile: latest?.sourceFile ?? null,
+    lastBy: latest?.updatedByName ?? null,
+  };
+}

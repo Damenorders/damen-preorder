@@ -389,3 +389,5 @@ export type SubmissionStatus = Order["submissionStatus"];
 export type BuyerTableStatus = Order["buyerTableStatus"];
 
 export * from "./inventory-schema";
+
+export * from "./product-list-schema";
