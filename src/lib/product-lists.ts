@@ -7,6 +7,7 @@ import {
   productListItems,
   type ProductList,
 } from "@/db/schema";
+import type { ProductListLine } from "@/lib/product-list-types";
 
 // Product Lists — the buyer walks the warehouse tapping catalog items into a
 // list, then exports it to Excel to print for a client. Reads only; every
@@ -52,17 +53,7 @@ export async function getProductList(
   return db.query.productLists.findFirst({ where: eq(productLists.id, id) });
 }
 
-export interface ProductListLine {
-  itemCode: string;
-  description: string;
-  addedByName: string;
-  /** The uploaded catalog price, or null when the price file never had it. */
-  catalogPrice: number | null;
-  /** A price typed on this line for this client, or null to use the catalog. */
-  priceOverride: number | null;
-  /** What the sheet actually prints. */
-  price: number | null;
-}
+export type { ProductListLine } from "@/lib/product-list-types";
 
 /** List order is the order the buyer walked the warehouse in. */
 export async function getProductListItems(

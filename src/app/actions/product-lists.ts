@@ -16,23 +16,17 @@ import {
 } from "@/db/schema";
 import { requireRole } from "@/lib/auth";
 import { notifyProductListsChanged } from "@/lib/realtime-server";
-import {
-  getProductListItems,
-  type ProductListLine,
-} from "@/lib/product-lists";
-import {
-  applyPriceRows,
-  parsePriceFile,
-  type PriceImportReport,
-} from "@/lib/price-import";
-
-export type ProductListResult =
-  | { ok: true }
-  | { ok: false; error: string };
-
-export type CreateProductListResult =
-  | { ok: true; id: number }
-  | { ok: false; error: string };
+import { getProductListItems } from "@/lib/product-lists";
+import { applyPriceRows, parsePriceFile } from "@/lib/price-import";
+// Types live in a separate module: a "use server" file may only export async
+// functions, and re-exporting a type from one crashes on module evaluation.
+import type {
+  CatalogHit,
+  CreateProductListResult,
+  PriceImportResult,
+  ProductListLine,
+  ProductListResult,
+} from "@/lib/product-list-types";
 
 /** Every entry point sits behind this; admin passes automatically. */
 function requireBuyer() {
@@ -180,13 +174,6 @@ export async function deleteProductList(
   return { ok: true };
 }
 
-export interface CatalogHit {
-  code: string;
-  description: string;
-  /** Uploaded price, or null when the price file doesn't cover this SKU. */
-  price: number | null;
-}
-
 /**
  * Catalog search for the item picker. Runs on the server so the phone never
  * downloads the whole catalog, and so a live refresh (another user's tap)
@@ -256,12 +243,6 @@ export async function setProductListItemPrice(
   await announce(listId);
   return { ok: true };
 }
-
-export type { PriceImportReport, ProductListLine };
-
-export type PriceImportResult =
-  | { ok: true; report: PriceImportReport }
-  | { ok: false; error: string };
 
 /**
  * Loads an uploaded price file (SKU, Product, Price) as .xlsx or .csv.

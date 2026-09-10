@@ -7,10 +7,8 @@
 // (a teammate's tap arrives over the live channel and bumps `updatedAt`).
 
 import { useEffect, useRef, useState } from "react";
-import {
-  getProductListLines,
-  type ProductListLine,
-} from "@/app/actions/product-lists";
+import { getProductListLines } from "@/app/actions/product-lists";
+import type { ProductListLine } from "@/lib/product-list-types";
 import { formatMoney } from "@/lib/money";
 
 export default function ProductListPreview({

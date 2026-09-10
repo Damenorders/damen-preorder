@@ -6,10 +6,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  importPrices,
-  type PriceImportReport,
-} from "@/app/actions/product-lists";
+import { importPrices } from "@/app/actions/product-lists";
+import type { PriceImportReport } from "@/lib/product-list-types";
 
 export default function PriceUploadForm() {
   const router = useRouter();

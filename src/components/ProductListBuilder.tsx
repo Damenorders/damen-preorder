@@ -15,8 +15,8 @@ import {
   saveProductList,
   searchCatalog,
   setProductListItemPrice,
-  type CatalogHit,
 } from "@/app/actions/product-lists";
+import type { CatalogHit } from "@/lib/product-list-types";
 import { formatMoney } from "@/lib/money";
 
 export interface BuilderItem {

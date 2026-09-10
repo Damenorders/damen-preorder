@@ -4,6 +4,7 @@ import { inventoryItems, itemPrices } from "@/db/schema";
 import { parseCsv } from "@/lib/csv";
 import { readXlsx } from "@/lib/xlsx-read";
 import { readPriceFile, type PriceRow } from "@/lib/price-file";
+import type { PriceImportReport } from "@/lib/product-list-types";
 
 // The one place a price file turns into rows in the database. The upload screen
 // and scripts/import-prices.ts both come through here, so a price loaded from
@@ -16,12 +17,7 @@ import { readPriceFile, type PriceRow } from "@/lib/price-file";
 // these are meant to stay.
 export const PRICE_FILE_SECTION = "PRICELIST";
 
-export interface PriceImportReport {
-  fileName: string;
-  pricesSet: number;
-  itemsCreated: number;
-  skipped: Array<{ line: number; reason: string; text: string }>;
-}
+export type { PriceImportReport } from "@/lib/product-list-types";
 
 export type ParseResult =
   | { ok: true; rows: PriceRow[]; skipped: PriceImportReport["skipped"] }
