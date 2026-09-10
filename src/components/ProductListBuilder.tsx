@@ -52,6 +52,20 @@ export default function ProductListBuilder({
 
   const searchRef = useRef<HTMLInputElement>(null);
 
+  // One chain per SKU: tapping Remove then Add fires two writes for the same
+  // row, and if the delete landed after the insert the item would silently
+  // vanish. Chaining keeps them in the order the thumb pressed them.
+  const chains = useRef(new Map<string, Promise<void>>());
+  function enqueue(code: string, task: () => Promise<void>): Promise<void> {
+    const previous = chains.current.get(code) ?? Promise.resolve();
+    const next = previous.then(task, task);
+    chains.current.set(
+      code,
+      next.catch(() => {}),
+    );
+    return next;
+  }
+
   // A fresh `items` array means the server (our own action, or a teammate's tap
   // arriving over the live channel) has caught up — drop the overlays it now
   // covers. Adjusting state during render is the supported way to react to new
@@ -133,15 +147,24 @@ export default function ProductListBuilder({
       if (onList.has(hit.code)) return;
       setError(null);
       setPending((prev) => new Map(prev).set(hit.code, hit));
-      const result = await addProductListItem(listId, hit.code);
-      if (!result.ok) {
+      // Undo any optimistic removal still in flight for this SKU.
+      setRemoving((prev) => {
+        if (!prev.has(hit.code)) return prev;
+        const next = new Set(prev);
+        next.delete(hit.code);
+        return next;
+      });
+
+      await enqueue(hit.code, async () => {
+        const result = await addProductListItem(listId, hit.code);
+        if (result.ok) return;
         setPending((prev) => {
           const next = new Map(prev);
           next.delete(hit.code);
           return next;
         });
         setError(result.error);
-      }
+      });
     },
     [listId, onList],
   );
@@ -154,15 +177,17 @@ export default function ProductListBuilder({
       next.delete(itemCode);
       return next;
     });
-    const result = await removeProductListItem(listId, itemCode);
-    if (!result.ok) {
+
+    await enqueue(itemCode, async () => {
+      const result = await removeProductListItem(listId, itemCode);
+      if (result.ok) return;
       setRemoving((prev) => {
         const next = new Set(prev);
         next.delete(itemCode);
         return next;
       });
       setError(result.error);
-    }
+    });
   }
 
   async function commitName() {
@@ -253,13 +278,10 @@ export default function ProductListBuilder({
               results.map((hit) => {
                 const added = onList.has(hit.code);
                 return (
-                  <button
+                  <div
                     key={hit.code}
-                    type="button"
-                    disabled={added}
-                    onClick={() => add(hit)}
-                    className={`flex w-full items-center gap-3 border-b border-neutral-100 px-3 py-3 text-left last:border-b-0 ${
-                      added ? "bg-neutral-50" : "active:bg-accent-50"
+                    className={`flex items-center gap-3 border-b border-neutral-100 px-3 py-2 last:border-b-0 ${
+                      added ? "bg-accent-50/40" : ""
                     }`}
                   >
                     <span className="min-w-0 flex-1">
@@ -271,14 +293,20 @@ export default function ProductListBuilder({
                         {hit.price !== null && ` · ${formatMoney(hit.price)}`}
                       </span>
                     </span>
-                    <span
-                      className={`shrink-0 rounded-lg px-3 py-2 text-xs font-semibold ${
-                        added ? "text-neutral-400" : "bg-accent-600 text-white"
+                    {/* Add flips to Remove in place, so the same thumb that put
+                        an item on the list can take it straight back off. */}
+                    <button
+                      type="button"
+                      onClick={() => (added ? remove(hit.code) : add(hit))}
+                      className={`h-11 min-w-[5.5rem] shrink-0 rounded-lg px-4 text-sm font-semibold ${
+                        added
+                          ? "border border-neutral-300 bg-white text-neutral-700 active:bg-neutral-100"
+                          : "bg-accent-600 text-white active:bg-accent-700"
                       }`}
                     >
-                      {added ? "On list" : "Add"}
-                    </span>
-                  </button>
+                      {added ? "Remove" : "Add"}
+                    </button>
+                  </div>
                 );
               })}
           </div>
@@ -297,7 +325,7 @@ export default function ProductListBuilder({
             On this list ({shown.length})
           </h2>
           <span className="text-xs text-neutral-500">
-            Saved as you tap · updates live
+            Tap a price to change it for this list
           </span>
         </div>
 
