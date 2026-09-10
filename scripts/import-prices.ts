@@ -62,6 +62,7 @@ async function main() {
     `\nWrote ${result.pricesSet.toLocaleString()} prices, ` +
       `added ${result.itemsCreated.toLocaleString()} catalog items, ` +
       `updated ${result.descriptionsUpdated.toLocaleString()} descriptions, ` +
+      `re-worded ${result.listLinesSynced.toLocaleString()} product list lines, ` +
       `re-synced ${result.placementsSynced.toLocaleString()} warehouse pallet cards.`,
   );
   process.exit(0);

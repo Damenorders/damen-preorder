@@ -30,6 +30,8 @@ export interface PriceImportReport {
   descriptionsUpdated: number;
   /** Warehouse pallet cards brought back in line with the catalog. */
   placementsSynced: number;
+  /** Existing product list lines re-worded from the catalog. */
+  listLinesSynced: number;
   skipped: Array<{ line: number; reason: string; text: string }>;
 }
 

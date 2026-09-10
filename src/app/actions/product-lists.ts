@@ -270,8 +270,13 @@ export async function importPrices(
   const parsed = parsePriceFile(buffer, file.name);
   if (!parsed.ok) return { ok: false, error: parsed.error };
 
-  const { pricesSet, itemsCreated, descriptionsUpdated, placementsSynced } =
-    await applyPriceRows(parsed.rows, {
+  const {
+    pricesSet,
+    itemsCreated,
+    descriptionsUpdated,
+    placementsSynced,
+    listLinesSynced,
+  } = await applyPriceRows(parsed.rows, {
     userId: user.id,
     userName: user.name,
     sourceFile: file.name,
@@ -289,6 +294,7 @@ export async function importPrices(
       itemsCreated,
       descriptionsUpdated,
       placementsSynced,
+      listLinesSynced,
       skipped: parsed.skipped,
     },
   };

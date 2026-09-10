@@ -1,6 +1,11 @@
 import { and, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { inventoryItems, inventoryPlacements, itemPrices } from "@/db/schema";
+import {
+  inventoryItems,
+  inventoryPlacements,
+  itemPrices,
+  productListItems,
+} from "@/db/schema";
 import { parseCsv } from "@/lib/csv";
 import { readXlsx } from "@/lib/xlsx-read";
 import { readPriceFile, type PriceRow } from "@/lib/price-file";
@@ -111,6 +116,7 @@ export async function applyPriceRows(
   itemsCreated: number;
   descriptionsUpdated: number;
   placementsSynced: number;
+  listLinesSynced: number;
 }> {
   const existing = await existingItems(rows.map((r) => r.code));
   const { itemsCreated, descriptionsUpdated } = countChanges(rows, existing);
@@ -164,11 +170,44 @@ export async function applyPriceRows(
     });
   }
 
-  const placementsSynced = await syncPlacementDescriptions(
-    rows.map((r) => r.code),
-  );
+  const codes = rows.map((r) => r.code);
+  const placementsSynced = await syncPlacementDescriptions(codes);
+  const listLinesSynced = await syncListLineDescriptions(codes);
 
-  return { pricesSet: rows.length, itemsCreated, descriptionsUpdated, placementsSynced };
+  return {
+    pricesSet: rows.length,
+    itemsCreated,
+    descriptionsUpdated,
+    placementsSynced,
+    listLinesSynced,
+  };
+}
+
+/**
+ * Product list lines keep the description copied in when the item was tapped.
+ * Reads prefer the catalog, but the stored copy is updated too so the wording
+ * is right no matter which screen or build renders it — and so a line whose
+ * item later leaves the catalog falls back to current wording, not stale.
+ */
+async function syncListLineDescriptions(codes: string[]): Promise<number> {
+  let synced = 0;
+  const CHUNK = 800;
+  for (let i = 0; i < codes.length; i += CHUNK) {
+    const updated = await db
+      .update(productListItems)
+      .set({
+        description: sql`(select i.description from inventory_items i where i.code = ${productListItems.itemCode})`,
+      })
+      .where(
+        and(
+          inArray(productListItems.itemCode, codes.slice(i, i + CHUNK)),
+          sql`${productListItems.description} is distinct from (select i.description from inventory_items i where i.code = ${productListItems.itemCode})`,
+        ),
+      )
+      .returning({ id: productListItems.id });
+    synced += updated.length;
+  }
+  return synced;
 }
 
 /**

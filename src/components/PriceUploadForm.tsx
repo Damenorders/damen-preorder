@@ -99,6 +99,10 @@ export default function PriceUploadForm() {
               descriptions updated from the file
             </li>
             <li>
+              <strong>{report.listLinesSynced.toLocaleString()}</strong> product
+              list lines re-worded
+            </li>
+            <li>
               <strong>{report.placementsSynced.toLocaleString()}</strong>{" "}
               warehouse pallet cards re-synced
             </li>
