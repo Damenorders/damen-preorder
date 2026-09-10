@@ -2,6 +2,7 @@ import "server-only";
 import { asc, desc, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
+  inventoryItems,
   itemPrices,
   productLists,
   productListItems,
@@ -62,6 +63,11 @@ export async function getProductListItems(
   const rows = await db
     .select({
       itemCode: productListItems.itemCode,
+      // The catalog leads on wording — a price-file upload that corrects a
+      // pack size or flags an item shows up on lists built before it. The copy
+      // stored on the line is the fallback for an item since dropped from the
+      // catalog, so an old sheet never loses its description entirely.
+      catalogDescription: inventoryItems.description,
       description: productListItems.description,
       addedByName: productListItems.addedByName,
       priceOverride: productListItems.priceOverride,
@@ -69,6 +75,10 @@ export async function getProductListItems(
     })
     .from(productListItems)
     .leftJoin(itemPrices, eq(itemPrices.itemCode, productListItems.itemCode))
+    .leftJoin(
+      inventoryItems,
+      eq(inventoryItems.code, productListItems.itemCode),
+    )
     .where(eq(productListItems.listId, id))
     .orderBy(asc(productListItems.createdAt), asc(productListItems.id));
 
@@ -79,7 +89,7 @@ export async function getProductListItems(
       r.priceOverride === null ? null : Number(r.priceOverride);
     return {
       itemCode: r.itemCode,
-      description: r.description,
+      description: r.catalogDescription || r.description,
       addedByName: r.addedByName,
       catalogPrice,
       priceOverride,

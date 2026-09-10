@@ -1,6 +1,6 @@
-import { inArray, sql } from "drizzle-orm";
+import { and, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { inventoryItems, itemPrices } from "@/db/schema";
+import { inventoryItems, inventoryPlacements, itemPrices } from "@/db/schema";
 import { parseCsv } from "@/lib/csv";
 import { readXlsx } from "@/lib/xlsx-read";
 import { readPriceFile, type PriceRow } from "@/lib/price-file";
@@ -57,56 +57,88 @@ export function parsePriceFile(buffer: Buffer, fileName: string): ParseResult {
   return { ok: true, rows: parsed.rows, skipped: parsed.skipped };
 }
 
-/** How many of these SKUs the catalog doesn't have yet. */
-export async function countNewItems(rows: PriceRow[]): Promise<number> {
-  const existing = await existingCodes(rows.map((r) => r.code));
-  return rows.filter((r) => !existing.has(r.code)).length;
+/** What the file would change: new items, and descriptions it rewrites. */
+export async function previewChanges(
+  rows: PriceRow[],
+): Promise<{ itemsCreated: number; descriptionsUpdated: number }> {
+  const existing = await existingItems(rows.map((r) => r.code));
+  return countChanges(rows, existing);
 }
 
-async function existingCodes(codes: string[]): Promise<Set<string>> {
-  const found = new Set<string>();
+function countChanges(rows: PriceRow[], existing: Map<string, string>) {
+  let itemsCreated = 0;
+  let descriptionsUpdated = 0;
+  for (const row of rows) {
+    const current = existing.get(row.code);
+    if (current === undefined) itemsCreated++;
+    else if (row.description && row.description !== current) {
+      descriptionsUpdated++;
+    }
+  }
+  return { itemsCreated, descriptionsUpdated };
+}
+
+/** Current code -> description for the SKUs in the file. */
+async function existingItems(codes: string[]): Promise<Map<string, string>> {
+  const found = new Map<string, string>();
   // Chunked: a few thousand codes in one IN (...) is a needlessly huge query.
   const CHUNK = 800;
   for (let i = 0; i < codes.length; i += CHUNK) {
     const rows = await db
-      .select({ code: inventoryItems.code })
+      .select({
+        code: inventoryItems.code,
+        description: inventoryItems.description,
+      })
       .from(inventoryItems)
       .where(inArray(inventoryItems.code, codes.slice(i, i + CHUNK)));
-    for (const row of rows) found.add(row.code);
+    for (const row of rows) found.set(row.code, row.description);
   }
   return found;
 }
 
 /**
- * Writes the prices. A SKU the catalog doesn't have is added so it becomes
- * searchable; an existing item keeps its own description and section. Per-line
- * overrides a buyer typed on a list are untouched — that is the point of them.
+ * Writes the prices, with the uploaded file leading on descriptions: a SKU the
+ * catalog doesn't have is added, and one it does have takes the file's wording
+ * (its section is left alone — that's warehouse data, not price-file data).
+ * Per-line price overrides a buyer typed on a list are untouched — that is the
+ * point of them.
  */
 export async function applyPriceRows(
   rows: PriceRow[],
   by: { userId?: string; userName: string; sourceFile: string },
-): Promise<{ pricesSet: number; itemsCreated: number }> {
-  const existing = await existingCodes(rows.map((r) => r.code));
-  const itemsCreated = rows.filter((r) => !existing.has(r.code)).length;
+): Promise<{
+  pricesSet: number;
+  itemsCreated: number;
+  descriptionsUpdated: number;
+  placementsSynced: number;
+}> {
+  const existing = await existingItems(rows.map((r) => r.code));
+  const { itemsCreated, descriptionsUpdated } = countChanges(rows, existing);
 
   const CHUNK = 400;
   for (let i = 0; i < rows.length; i += CHUNK) {
     const chunk = rows.slice(i, i + CHUNK);
 
     await db.transaction(async (tx) => {
-      const newItems = chunk.filter((r) => !existing.has(r.code));
-      if (newItems.length > 0) {
-        await tx
-          .insert(inventoryItems)
-          .values(
-            newItems.map((r) => ({
-              code: r.code,
-              description: r.description || r.code,
-              section: PRICE_FILE_SECTION,
-            })),
-          )
-          .onConflictDoNothing();
-      }
+      await tx
+        .insert(inventoryItems)
+        .values(
+          chunk.map((r) => ({
+            code: r.code,
+            description: r.description || r.code,
+            // Only used when the row is genuinely new: the DO UPDATE below
+            // never touches section, so an existing item keeps the warehouse's.
+            section: PRICE_FILE_SECTION,
+          })),
+        )
+        .onConflictDoUpdate({
+          target: inventoryItems.code,
+          set: {
+            // A blank description in the file must not wipe a good one.
+            description: sql`coalesce(nullif(excluded.description, ''), inventory_items.description)`,
+            updatedAt: new Date(),
+          },
+        });
 
       await tx
         .insert(itemPrices)
@@ -132,5 +164,37 @@ export async function applyPriceRows(
     });
   }
 
-  return { pricesSet: rows.length, itemsCreated };
+  const placementsSynced = await syncPlacementDescriptions(
+    rows.map((r) => r.code),
+  );
+
+  return { pricesSet: rows.length, itemsCreated, descriptionsUpdated, placementsSynced };
+}
+
+/**
+ * Pallet cards store their own copy of the description, so a corrected pack
+ * size or a "DO NOT USE" flag has to be pushed out to them or the person at the
+ * rack reads stale text. Text only: this updates a column and never inserts or
+ * deletes a placement, so it cannot disturb what is physically on a pallet.
+ */
+async function syncPlacementDescriptions(codes: string[]): Promise<number> {
+  let synced = 0;
+  const CHUNK = 800;
+  for (let i = 0; i < codes.length; i += CHUNK) {
+    const slice = codes.slice(i, i + CHUNK);
+    const updated = await db
+      .update(inventoryPlacements)
+      .set({
+        description: sql`(select i.description from inventory_items i where i.code = ${inventoryPlacements.itemCode})`,
+      })
+      .where(
+        and(
+          inArray(inventoryPlacements.itemCode, slice),
+          sql`${inventoryPlacements.description} is distinct from (select i.description from inventory_items i where i.code = ${inventoryPlacements.itemCode})`,
+        ),
+      )
+      .returning({ id: inventoryPlacements.id });
+    synced += updated.length;
+  }
+  return synced;
 }

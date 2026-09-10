@@ -62,7 +62,8 @@ export default function PriceUploadForm() {
         <p className="mt-1 text-xs text-neutral-500">
           Three columns: SKU, Product, Price. A header row is optional — the
           PriceList export works as-is. Old .xls files need a Save As .xlsx
-          first.
+          first. The file leads: a description that changed in it is updated
+          across the catalog, product lists and warehouse pallet cards.
         </p>
       </div>
 
@@ -92,6 +93,14 @@ export default function PriceUploadForm() {
             <li>
               <strong>{report.itemsCreated.toLocaleString()}</strong> new items
               added to the catalog
+            </li>
+            <li>
+              <strong>{report.descriptionsUpdated.toLocaleString()}</strong>{" "}
+              descriptions updated from the file
+            </li>
+            <li>
+              <strong>{report.placementsSynced.toLocaleString()}</strong>{" "}
+              warehouse pallet cards re-synced
             </li>
             <li>
               <strong>{report.skipped.length.toLocaleString()}</strong> rows

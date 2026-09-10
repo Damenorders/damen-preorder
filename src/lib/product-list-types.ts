@@ -26,6 +26,10 @@ export interface PriceImportReport {
   fileName: string;
   pricesSet: number;
   itemsCreated: number;
+  /** Catalog descriptions the file rewrote — the file leads on wording. */
+  descriptionsUpdated: number;
+  /** Warehouse pallet cards brought back in line with the catalog. */
+  placementsSynced: number;
   skipped: Array<{ line: number; reason: string; text: string }>;
 }
 

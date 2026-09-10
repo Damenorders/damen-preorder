@@ -17,8 +17,8 @@ import { readFileSync } from "node:fs";
 import { basename } from "node:path";
 import {
   applyPriceRows,
-  countNewItems,
   parsePriceFile,
+  previewChanges,
 } from "../src/lib/price-import";
 
 async function main() {
@@ -36,11 +36,12 @@ async function main() {
     process.exit(1);
   }
 
-  const newItems = await countNewItems(parsed.rows);
-  console.log(`File:            ${basename(path)}`);
-  console.log(`Priced rows:     ${parsed.rows.length.toLocaleString()}`);
-  console.log(`New catalog items: ${newItems.toLocaleString()}`);
-  console.log(`Skipped rows:    ${parsed.skipped.length.toLocaleString()}`);
+  const preview = await previewChanges(parsed.rows);
+  console.log(`File:                  ${basename(path)}`);
+  console.log(`Priced rows:           ${parsed.rows.length.toLocaleString()}`);
+  console.log(`New catalog items:     ${preview.itemsCreated.toLocaleString()}`);
+  console.log(`Descriptions to update: ${preview.descriptionsUpdated.toLocaleString()}`);
+  console.log(`Skipped rows:          ${parsed.skipped.length.toLocaleString()}`);
   for (const row of parsed.skipped.slice(0, 20)) {
     console.log(`  line ${row.line}: ${row.text || "(blank)"} — ${row.reason}`);
   }
@@ -58,7 +59,10 @@ async function main() {
     sourceFile: basename(path),
   });
   console.log(
-    `\nWrote ${result.pricesSet.toLocaleString()} prices; added ${result.itemsCreated.toLocaleString()} catalog items.`,
+    `\nWrote ${result.pricesSet.toLocaleString()} prices, ` +
+      `added ${result.itemsCreated.toLocaleString()} catalog items, ` +
+      `updated ${result.descriptionsUpdated.toLocaleString()} descriptions, ` +
+      `re-synced ${result.placementsSynced.toLocaleString()} warehouse pallet cards.`,
   );
   process.exit(0);
 }
