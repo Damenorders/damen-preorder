@@ -226,10 +226,11 @@ export async function getDelivery(id: number) {
  * rows at the bottom — completed deliveries drop out of the way automatically.
  *
  * Visibility mirrors pickups: buyers don't see dispatch/owner-entered rows;
- * dispatch and owner see every delivery.
+ * dispatch, owner and warehouse see every delivery. Warehouse is read-only:
+ * it is gated into this listing and nothing else in this module.
  */
 export async function listDeliveries() {
-  const user = await requireRole("buyer", "dispatch", "owner");
+  const user = await requireRole("buyer", "dispatch", "owner", "warehouse");
   const rows = await db
     .select({ delivery: deliveries, creatorRole: users.role })
     .from(deliveries)

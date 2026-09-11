@@ -289,11 +289,12 @@ export async function getPickup(id: number) {
  * pickups drop out of the way automatically.
  *
  * Visibility: buyers only see pickups entered by buyers (or admins). Pickups
- * created by dispatch/owner are hidden from buyers — dispatch and owner are the
- * ones who see every pickup.
+ * created by dispatch/owner are hidden from buyers — dispatch, owner and
+ * warehouse are the ones who see every pickup. Warehouse is read-only: it is
+ * gated into this listing and nothing else in this module.
  */
 export async function listPickups() {
-  const user = await requireRole("buyer", "dispatch", "owner");
+  const user = await requireRole("buyer", "dispatch", "owner", "warehouse");
   const rows = await db
     .select({ pickup: pickups, creatorRole: users.role })
     .from(pickups)

@@ -4,11 +4,14 @@ import { listDeliveries } from "@/app/actions/deliveries";
 import PageShell from "@/components/PageShell";
 import PickupDeliveryBoard from "@/components/PickupDeliveryBoard";
 
-// All Pickups & Deliveries — buyer/admin only. Pickups (with print) up top,
-// delivery tracking below; each grouped by date (closest first) with completed
-// rows sinking to the bottom.
+// All Pickups & Deliveries — Pickups (with print) up top, delivery tracking
+// below; each grouped by date (closest first) with completed rows sinking to
+// the bottom. Warehouse gets the whole board read-only: every control that
+// writes is hidden here and the matching server actions never gate warehouse
+// in, so the page is safe even if someone calls one by hand.
 export default async function PickupsPage() {
-  const user = await requireRole("buyer", "dispatch", "owner");
+  const user = await requireRole("buyer", "dispatch", "owner", "warehouse");
+  const readOnly = user.role === "warehouse";
   const [pickupRows, deliveryRows] = await Promise.all([
     listPickups(),
     listDeliveries(),
@@ -39,15 +42,20 @@ export default async function PickupsPage() {
     <PageShell
       user={user}
       backHref={homePathFor(user.role)}
-      backLabel="Dashboard"
+      backLabel={readOnly ? "Warehouse Inventory" : "Dashboard"}
       title="Pickups & Deliveries"
-      subtitle="Pickup sheets and delivery tracking, grouped by date."
+      subtitle={
+        readOnly
+          ? "Pickup sheets and delivery tracking, grouped by date. View only."
+          : "Pickup sheets and delivery tracking, grouped by date."
+      }
       wide
     >
       <PickupDeliveryBoard
         pickups={pickups}
         deliveries={deliveries}
-        canEditDriver={user.role !== "buyer"}
+        canEditDriver={!readOnly && user.role !== "buyer"}
+        readOnly={readOnly}
       />
     </PageShell>
   );

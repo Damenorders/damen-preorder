@@ -42,7 +42,8 @@ export default async function PickupPrintPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  await requireRole("buyer", "dispatch", "owner");
+  // Warehouse is view-only but printing only reads, so it is allowed here.
+  await requireRole("buyer", "dispatch", "owner", "warehouse");
   const params = await searchParams;
   const dateParam = typeof params.date === "string" ? params.date : undefined;
   const idParam = typeof params.id === "string" ? Number(params.id) : undefined;

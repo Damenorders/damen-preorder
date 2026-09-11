@@ -132,11 +132,17 @@ export default function PickupDeliveryBoard({
   pickups,
   deliveries,
   canEditDriver = false,
+  readOnly = false,
 }: {
   pickups: PickupRow[];
   deliveries: DeliveryRow[];
   /** Show the inline driver quick-edit in expanded pickup cards (dispatch). */
   canEditDriver?: boolean;
+  /**
+   * View-only board (warehouse): every control that writes — new, edit,
+   * delete, status, mark-the-whole-day — is hidden. Printing stays, it reads.
+   */
+  readOnly?: boolean;
 }) {
   const router = useRouter();
   const [openKey, setOpenKey] = useState<string | null>(null);
@@ -281,7 +287,7 @@ export default function PickupDeliveryBoard({
                 </dt>
                 <dd className="mt-0.5 flex items-center gap-2 text-sm text-neutral-800">
                   <span className="whitespace-pre-wrap">{p.driver || "—"}</span>
-                  {canEditDriver && (
+                  {canEditDriver && !readOnly && (
                     <DriverQuickEdit pickupId={p.id} initial={p.driver ?? ""} />
                   )}
                 </dd>
@@ -292,20 +298,22 @@ export default function PickupDeliveryBoard({
                 Entered by {p.createdByName}
               </span>
               <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() =>
-                    run(key, () =>
-                      setPickupStatus(p.id, done ? "pending" : "picked_up"),
-                    )
-                  }
-                  disabled={busy}
-                  className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition disabled:opacity-50 ${
-                    done ? actionBtn : "bg-accent-600 text-white hover:bg-accent-700"
-                  }`}
-                >
-                  {busy ? "Saving…" : done ? "↩ Mark as Pending" : "✓ Mark as Picked up"}
-                </button>
+                {!readOnly && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      run(key, () =>
+                        setPickupStatus(p.id, done ? "pending" : "picked_up"),
+                      )
+                    }
+                    disabled={busy}
+                    className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition disabled:opacity-50 ${
+                      done ? actionBtn : "bg-accent-600 text-white hover:bg-accent-700"
+                    }`}
+                  >
+                    {busy ? "Saving…" : done ? "↩ Mark as Pending" : "✓ Mark as Picked up"}
+                  </button>
+                )}
                 <a
                   href={`/buyer/pickups/print?id=${p.id}`}
                   target="_blank"
@@ -314,20 +322,24 @@ export default function PickupDeliveryBoard({
                 >
                   🖨 Print
                 </a>
-                <a href={`/buyer/pickups/${p.id}/edit`} className={actionBtn}>
-                  Edit
-                </a>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!confirm("Delete this pickup? This can't be undone.")) return;
-                    run(key, () => deletePickup(p.id));
-                  }}
-                  disabled={busy}
-                  className="rounded-lg px-3 py-1.5 text-xs font-medium text-red-600 transition hover:bg-red-50 disabled:opacity-50"
-                >
-                  Delete
-                </button>
+                {!readOnly && (
+                  <>
+                    <a href={`/buyer/pickups/${p.id}/edit`} className={actionBtn}>
+                      Edit
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!confirm("Delete this pickup? This can't be undone.")) return;
+                        run(key, () => deletePickup(p.id));
+                      }}
+                      disabled={busy}
+                      className="rounded-lg px-3 py-1.5 text-xs font-medium text-red-600 transition hover:bg-red-50 disabled:opacity-50"
+                    >
+                      Delete
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -369,36 +381,38 @@ export default function PickupDeliveryBoard({
             <span className="text-xs text-neutral-400">
               Entered by {d.createdByName}
             </span>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() =>
-                  run(key, () =>
-                    setDeliveryStatus(d.id, done ? "pending" : "delivered"),
-                  )
-                }
-                disabled={busy}
-                className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition disabled:opacity-50 ${
-                  done ? actionBtn : "bg-accent-600 text-white hover:bg-accent-700"
-                }`}
-              >
-                {busy ? "Saving…" : done ? "↩ Mark as Pending" : "✓ Mark as Delivered"}
-              </button>
-              <a href={`/buyer/deliveries/${d.id}/edit`} className={actionBtn}>
-                Edit
-              </a>
-              <button
-                type="button"
-                onClick={() => {
-                  if (!confirm("Delete this delivery? This can't be undone.")) return;
-                  run(key, () => deleteDelivery(d.id));
-                }}
-                disabled={busy}
-                className="rounded-lg px-3 py-1.5 text-xs font-medium text-red-600 transition hover:bg-red-50 disabled:opacity-50"
-              >
-                Delete
-              </button>
-            </div>
+            {!readOnly && (
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() =>
+                    run(key, () =>
+                      setDeliveryStatus(d.id, done ? "pending" : "delivered"),
+                    )
+                  }
+                  disabled={busy}
+                  className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition disabled:opacity-50 ${
+                    done ? actionBtn : "bg-accent-600 text-white hover:bg-accent-700"
+                  }`}
+                >
+                  {busy ? "Saving…" : done ? "↩ Mark as Pending" : "✓ Mark as Delivered"}
+                </button>
+                <a href={`/buyer/deliveries/${d.id}/edit`} className={actionBtn}>
+                  Edit
+                </a>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!confirm("Delete this delivery? This can't be undone.")) return;
+                    run(key, () => deleteDelivery(d.id));
+                  }}
+                  disabled={busy}
+                  className="rounded-lg px-3 py-1.5 text-xs font-medium text-red-600 transition hover:bg-red-50 disabled:opacity-50"
+                >
+                  Delete
+                </button>
+              </div>
+            )}
           </div>
         )}
       </li>
@@ -442,7 +456,7 @@ export default function PickupDeliveryBoard({
                 🖨 Print this day
               </a>
             )}
-            {!completed && (hasPendingPickups || hasPendingDeliveries) && (
+            {!readOnly && !completed && (hasPendingPickups || hasPendingDeliveries) && (
               <div className="relative">
                 <button
                   type="button"
@@ -526,18 +540,22 @@ export default function PickupDeliveryBoard({
   return (
     <div className="flex flex-col gap-5">
       <div className="flex flex-wrap gap-2">
-        <a
-          href="/buyer/pickups/new"
-          className="rounded-xl bg-accent-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-accent-700"
-        >
-          + New Pickup
-        </a>
-        <a
-          href="/buyer/deliveries/new"
-          className="rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-sm font-medium text-neutral-700 transition hover:border-accent-600"
-        >
-          + New Delivery
-        </a>
+        {!readOnly && (
+          <>
+            <a
+              href="/buyer/pickups/new"
+              className="rounded-xl bg-accent-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-accent-700"
+            >
+              + New Pickup
+            </a>
+            <a
+              href="/buyer/deliveries/new"
+              className="rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-sm font-medium text-neutral-700 transition hover:border-accent-600"
+            >
+              + New Delivery
+            </a>
+          </>
+        )}
         <a
           href="/buyer/pickups/print"
           target="_blank"

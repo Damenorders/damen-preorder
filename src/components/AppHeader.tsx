@@ -69,6 +69,34 @@ export default function AppHeader({ user }: { user: User }) {
               </svg>
             </Link>
           )}
+          {/* Warehouse has no dashboard of cards — the locator is its home — so
+              its one extra tool, the view-only Pickups & Deliveries board,
+              hangs off the header. */}
+          {user.role === "warehouse" && (
+            <Link
+              href="/buyer/pickups"
+              aria-label="Pickups & Deliveries"
+              title="Pickups & Deliveries"
+              className="flex h-9 items-center gap-1.5 rounded-full border border-white/30 px-3 text-sm font-medium text-white transition hover:bg-white/10 sm:px-4"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="h-5 w-5"
+                aria-hidden
+              >
+                <path d="M3 7h11v9H3z" />
+                <path d="M14 10h4l3 3v3h-7" />
+                <circle cx="7" cy="18" r="1.6" />
+                <circle cx="17" cy="18" r="1.6" />
+              </svg>
+              <span className="hidden sm:inline">Pickups</span>
+            </Link>
+          )}
           <Link
             href={homePathFor(user.role)}
             aria-label="Dashboard"
