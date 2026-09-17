@@ -300,6 +300,7 @@ export async function getSupplierBlocks(): Promise<SupplierBlock[]> {
       .select({
         id: suppliers.id,
         name: suppliers.name,
+        address: suppliers.address,
         contact: suppliers.contact,
         email: suppliers.email,
       })

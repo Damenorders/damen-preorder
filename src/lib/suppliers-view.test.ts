@@ -5,6 +5,7 @@ import {
   applyCostChange,
   checkPrice,
   checkProductEdit,
+  checkSupplierEdit,
   computeMargin,
   markOrderedInBook,
   matchSupplierName,
@@ -17,7 +18,7 @@ import {
   type SupplierProduct,
 } from "./order-book-core";
 
-// SUPPLIERS-TAB-SPEC.md §12, numbered as in the spec. The server actions apply
+// SUPPLIERS-TAB-SPEC.md §13, numbered as in the spec. The server actions apply
 // these same rules in SQL; see src/app/actions/purchase-orders.ts.
 
 function product(over: Partial<SupplierProduct> & { code: string; name: string }): SupplierProduct {
@@ -36,6 +37,7 @@ function product(over: Partial<SupplierProduct> & { code: string; name: string }
 const transhing: SupplierBlock = {
   id: 1,
   name: "Transhing",
+  address: "1500 Rue Legendre, Montreal",
   contact: "Dandan",
   email: "dandan@transhing.com",
   products: [
@@ -48,11 +50,12 @@ const transhing: SupplierBlock = {
 const fraDi: SupplierBlock = {
   id: 2,
   name: "Fra-Di",
+  address: "",
   contact: "Mario",
   email: "",
   products: [product({ code: "TOM711", name: "STANISLAUS - 7/11 UNPEELED GROUND TOMATOES", pack: "6 X 2.84L" })],
 };
-const empty: SupplierBlock = { id: 3, name: "VIEDERA", contact: "", email: "", products: [] };
+const empty: SupplierBlock = { id: 3, name: "VIEDERA", address: "", contact: "", email: "", products: [] };
 const all = [fraDi, transhing, empty];
 
 // 1
@@ -279,4 +282,59 @@ test("#17 removing a product leaves past orders unchanged", () => {
 test("#18 read-only viewer: no add forms, search still works", () => {
   assert.equal(showAddForms(false, false), false);
   assert.equal(viewSuppliers(all, "sesame", {}).rows.length, 1);
+});
+
+// 19
+test("#19 searching a supplier name finds the supplier itself", () => {
+  // A supplier we hold no products for is reachable by name.
+  const v = viewSuppliers(all, "viedera", {});
+  assert.deepEqual(v.rows.map((r) => r.supplier.name), ["VIEDERA"]);
+  assert.equal(v.rows[0].expanded, true);
+  assert.equal(v.rows[0].countLabel, "0 products");
+  assert.equal(v.total, "0 products in 1 supplier");
+
+  // A supplier that does have products keeps all of them, not "n of m".
+  const t = viewSuppliers(all, "transhing", {});
+  assert.equal(t.rows.length, 1);
+  assert.equal(t.rows[0].products.length, 4);
+  assert.equal(t.rows[0].countLabel, "4 products");
+
+  // Punctuation and case are ignored here too.
+  assert.equal(viewSuppliers(all, "fra di", {}).rows[0].supplier.name, "Fra-Di");
+
+  // A term the supplier name does not carry still filters products.
+  assert.equal(viewSuppliers(all, "transhing sesame", {}).rows[0].countLabel, "2 of 4 match");
+  assert.equal(viewSuppliers(all, "viedera sesame", {}).rows.length, 0);
+});
+
+// 20
+test("#20 managing a supplier: rename rules", () => {
+  const others = [
+    { id: 1, name: "Transhing" },
+    { id: 2, name: "Fra-Di" },
+    { id: 3, name: "VIEDERA", aliases: ["Viedera Foods"] },
+  ];
+
+  // A name is required.
+  assert.equal(checkSupplierEdit(1, { name: "  " }, others).kind, "blank");
+  assert.equal(checkSupplierEdit(1, { name: " - / " }, others).kind, "blank");
+
+  // Landing on another supplier is refused, however it is spelled.
+  const clash = checkSupplierEdit(1, { name: "fra di" }, others);
+  assert.equal(clash.kind, "clash");
+  assert.equal(clash.kind === "clash" && clash.supplier.name, "Fra-Di");
+  // Including on one of its aliases.
+  assert.equal(checkSupplierEdit(1, { name: "viedera foods" }, others).kind, "clash");
+
+  // Tidying a supplier's own spelling is not a clash with itself.
+  const own = checkSupplierEdit(2, { name: "Fra Di Inc", address: "  12 Rue Jean  " }, others);
+  assert.deepEqual(own, { kind: "ok", name: "Fra Di Inc", address: "12 Rue Jean" });
+  assert.equal(checkSupplierEdit(1, { name: "  Transhing  " }, others).kind, "ok");
+
+  // A missing address is empty, never invented.
+  assert.deepEqual(checkSupplierEdit(1, { name: "Transhing" }, others), {
+    kind: "ok",
+    name: "Transhing",
+    address: "",
+  });
 });

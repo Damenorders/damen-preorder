@@ -565,9 +565,40 @@ export interface SupplierProduct {
 export interface SupplierBlock {
   id: number;
   name: string;
+  address: string;
   contact: string;
   email: string;
   products: SupplierProduct[];
+}
+
+export type SupplierEditCheck =
+  | { kind: "blank" }
+  | { kind: "clash"; supplier: SupplierRef }
+  | { kind: "ok"; name: string; address: string };
+
+/**
+ * A rename on one supplier. The name is required, and it may not land on
+ * another supplier's name or alias: two records for one supplier split its
+ * price history and its orders, which is exactly the mess this refuses to
+ * create. The address is free text — only trimmed.
+ */
+export function checkSupplierEdit<S extends SupplierRef>(
+  supplierId: number,
+  next: { name: string; address?: string | null },
+  others: S[],
+): SupplierEditCheck {
+  const name = String(next.name ?? "").trim();
+  const key = supplierKey(name);
+  if (!key) return { kind: "blank" };
+
+  const clash = others.find(
+    (s) =>
+      s.id !== supplierId &&
+      [s.name, ...(s.aliases ?? [])].some((n) => supplierKey(n) === key),
+  );
+  if (clash) return { kind: "clash", supplier: clash };
+
+  return { kind: "ok", name, address: String(next.address ?? "").trim() };
 }
 
 export type PriceCheck =
@@ -708,7 +739,7 @@ export interface SupplierView {
   /** The rows to show: all of them, or the matches while searching. */
   products: SupplierProduct[];
   expanded: boolean;
-  /** "3 of 12 match" while searching, "12 products" otherwise. */
+  /** "3 of 12 match" while filtering, "12 products" otherwise. */
   countLabel: string;
 }
 
@@ -716,6 +747,10 @@ export interface SupplierView {
  * What the Suppliers tab shows. Searching looks across every supplier at once
  * (product name, pack and supplier name, all terms, any order), hides
  * suppliers with no match and opens the ones that match.
+ *
+ * When the terms all land on the supplier's own name, the supplier itself is
+ * the hit: it keeps every product and stays in the list even with none yet,
+ * which is the only way to reach a supplier we hold no products for.
  */
 export function viewSuppliers(
   suppliers: SupplierBlock[],
@@ -732,16 +767,18 @@ export function viewSuppliers(
   let hits = 0;
   for (const supplier of suppliers) {
     const all = supplier.products;
-    const products = searching
+    const supplierHit = searching && matchesQuery(query, [supplier.name]);
+    const filtering = searching && !supplierHit;
+    const products = filtering
       ? all.filter((p) => matchesQuery(query, [supplier.name, p.name, p.pack]))
       : all;
-    if (searching && products.length === 0) continue;
+    if (filtering && products.length === 0) continue;
     hits += products.length;
     rows.push({
       supplier,
       products,
       expanded: searching || !!opened[`sup:${supplier.id}`],
-      countLabel: searching
+      countLabel: filtering
         ? `${products.length} of ${all.length} match`
         : `${all.length} product${all.length === 1 ? "" : "s"}`,
     });

@@ -9,6 +9,8 @@ import { useEffect, useRef, useState } from "react";
 import {
   addSupplierByName,
   addSupplierProduct,
+  deleteSupplier,
+  editSupplier,
   editSupplierProduct,
   removeSupplierProduct,
   searchPurchaseCatalog,
@@ -29,6 +31,7 @@ import type {
   OtherSupplierLink,
   PurchaseHit,
   SupplierOption,
+  SupplierUse,
 } from "@/lib/purchase-order-types";
 import { formatMoney } from "@/lib/money";
 import Dialog, { buttonClass } from "./Dialog";
@@ -69,8 +72,8 @@ export default function SuppliersView({
           autoCapitalize="off"
           autoCorrect="off"
           spellCheck={false}
-          placeholder="Search products across all suppliers"
-          aria-label="Search products"
+          placeholder="Search products or suppliers"
+          aria-label="Search products and suppliers"
           className={`${inputClass} min-w-0 flex-1`}
         />
         {view.searching && (
@@ -159,18 +162,38 @@ function SupplierSection({
   notify: Notify;
 }) {
   const { supplier, products, expanded } = row;
+  const [managing, setManaging] = useState(false);
   return (
     <section className="rounded-2xl border border-neutral-200 bg-white shadow-sm">
-      <button
-        type="button"
-        onClick={onToggle}
-        aria-expanded={expanded}
-        className="flex w-full items-center gap-2 px-3 py-2 text-left"
-      >
-        <span className="w-4 text-neutral-400">{expanded ? "▾" : "▸"}</span>
-        <span className="flex-1 font-semibold">{supplier.name}</span>
-        <span className="text-xs text-neutral-500">{row.countLabel}</span>
-      </button>
+      <div className="flex items-center">
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-expanded={expanded}
+          className="flex min-w-0 flex-1 items-center gap-2 px-3 py-2 text-left"
+        >
+          <span className="w-4 shrink-0 text-neutral-400">{expanded ? "▾" : "▸"}</span>
+          <span className="min-w-0 flex-1 truncate font-semibold">{supplier.name}</span>
+          <span className="shrink-0 text-xs text-neutral-500">{row.countLabel}</span>
+        </button>
+        {canEdit && (
+          <button
+            type="button"
+            onClick={() => setManaging(true)}
+            aria-label={`Manage ${supplier.name}`}
+            className="mr-2 ml-2 h-8 shrink-0 rounded-lg border border-neutral-300 px-2 text-xs font-medium text-neutral-700 active:bg-neutral-100"
+          >
+            Manage
+          </button>
+        )}
+      </div>
+      {managing && (
+        <ManageSupplierDialog
+          supplier={supplier}
+          onClose={() => setManaging(false)}
+          notify={notify}
+        />
+      )}
       {expanded && (
         <div className="border-t border-neutral-100 px-3 pb-3 pt-2">
           <ContactRow supplier={supplier} canEdit={canEdit} notify={notify} />
@@ -280,6 +303,205 @@ function ContactRow({
         className={`${cell} min-w-0 flex-1`}
       />
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Manage supplier — name, address, delete (SUPPLIERS-TAB-SPEC.md §11)
+// ---------------------------------------------------------------------------
+
+function ManageSupplierDialog({
+  supplier,
+  onClose,
+  notify,
+}: {
+  supplier: SupplierBlock;
+  onClose: () => void;
+  notify: Notify;
+}) {
+  const [name, setName] = useState(supplier.name);
+  const [address, setAddress] = useState(supplier.address);
+  // "edit" is the form; "confirm" asks before deleting; "in-use" is what the
+  // server answered when something still points at this supplier.
+  const [stage, setStage] = useState<"edit" | "confirm" | "in-use">("edit");
+  const [inUse, setInUse] = useState<SupplierUse | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function save() {
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await editSupplier(supplier.id, { name, address });
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
+      notify(name.trim() === supplier.name ? "Saved." : `Saved. Now “${name.trim()}”.`);
+      onClose();
+    } catch {
+      setError("That didn't save. Check your connection and try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function remove(hideIfInUse: boolean) {
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await deleteSupplier(supplier.id, hideIfInUse);
+      if (!result.ok) {
+        if (result.inUse) {
+          setInUse(result.inUse);
+          setStage("in-use");
+          return;
+        }
+        setError(result.error);
+        setStage("edit");
+        return;
+      }
+      notify(
+        result.removed === "deleted"
+          ? `${result.name} deleted.`
+          : `${result.name} hidden. Its history is kept; adding the name back brings it back.`,
+      );
+      onClose();
+    } catch {
+      setError("That didn't go through. Check your connection and try again.");
+      setStage("edit");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (stage === "confirm") {
+    return (
+      <Dialog
+        title={`Delete ${supplier.name}?`}
+        onCancel={() => setStage("edit")}
+        actions={
+          <>
+            <button type="button" className={buttonClass.ghost} onClick={() => setStage("edit")}>
+              Keep it
+            </button>
+            <button
+              type="button"
+              disabled={busy}
+              className="h-11 rounded-xl bg-red-700 px-4 text-sm font-semibold text-white active:bg-red-800 disabled:bg-neutral-300"
+              onClick={() => remove(false)}
+            >
+              Delete
+            </button>
+          </>
+        }
+      >
+        <p>
+          This removes the supplier record. It is refused if any product, order or pickup still
+          points at it.
+        </p>
+      </Dialog>
+    );
+  }
+
+  if (stage === "in-use" && inUse) {
+    const held = [
+      inUse.products > 0 && `${inUse.products} product${inUse.products === 1 ? "" : "s"}`,
+      inUse.orders > 0 &&
+        `${inUse.orders} purchase order${inUse.orders === 1 ? "" : "s"}${inUse.openOrders > 0 ? ` (${inUse.openOrders} open)` : ""}`,
+      inUse.pickups > 0 && `${inUse.pickups} pickup${inUse.pickups === 1 ? "" : "s"}`,
+    ].filter(Boolean) as string[];
+    return (
+      <Dialog
+        title={`${supplier.name} can't be deleted`}
+        onCancel={() => setStage("edit")}
+        actions={
+          <>
+            <button type="button" className={buttonClass.ghost} onClick={() => setStage("edit")}>
+              Back
+            </button>
+            <button
+              type="button"
+              disabled={busy}
+              className={buttonClass.primary}
+              onClick={() => remove(true)}
+            >
+              Hide it instead
+            </button>
+          </>
+        }
+      >
+        <p>
+          It still holds {held.join(", ")}. Deleting it would take that history with it.
+        </p>
+        <p className="mt-2">
+          Hiding takes it out of the Suppliers tab, the pickup list and the buyer’s supplier list,
+          and keeps everything it holds. Adding the name again brings this same record back.
+        </p>
+        {inUse.openOrders > 0 && (
+          <p className="mt-2 text-amber-700">
+            It has an open order. Hiding it does not close that order.
+          </p>
+        )}
+      </Dialog>
+    );
+  }
+
+  return (
+    <Dialog
+      title={`Manage ${supplier.name}`}
+      onCancel={onClose}
+      actions={
+        <>
+          <button
+            type="button"
+            disabled={busy}
+            className="mr-auto h-11 rounded-xl border border-red-300 bg-white px-4 text-sm font-medium text-red-700 active:bg-red-50 disabled:text-neutral-400"
+            onClick={() => setStage("confirm")}
+          >
+            Delete supplier
+          </button>
+          <button type="button" className={buttonClass.ghost} onClick={onClose}>
+            Cancel
+          </button>
+          <button type="button" disabled={busy} className={buttonClass.primary} onClick={save}>
+            Save
+          </button>
+        </>
+      }
+    >
+      <div className="flex flex-col gap-3">
+        <label className="flex flex-col gap-1">
+          <span className="text-xs text-neutral-500">Name</span>
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            aria-label="Supplier name"
+            className={inputClass}
+          />
+        </label>
+        <label className="flex flex-col gap-1">
+          <span className="text-xs text-neutral-500">Address</span>
+          <input
+            value={address}
+            onChange={(e) => setAddress(e.target.value)}
+            placeholder="Street, city, postal code"
+            aria-label="Supplier address"
+            className={inputClass}
+          />
+        </label>
+        <p className="text-xs text-neutral-500">
+          The address is what the pickup sheets use. A rename keeps the old spelling as an alias,
+          so a pickup typed the old way still lands on this supplier instead of making a second
+          one. Order-to contact and email are on the supplier’s own row.
+        </p>
+        {error && (
+          <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+            {error}
+          </p>
+        )}
+      </div>
+    </Dialog>
   );
 }
 

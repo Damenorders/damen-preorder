@@ -53,6 +53,10 @@ One box, top of the tab, searching **across all suppliers at once**.
 - Uses `normalizeName` — case, punctuation and spacing are ignored
 - Terms match in any order: "paper rice" finds "TS - SQUARE RICE PAPER 22CM"
 - All terms must be present (AND, not OR)
+- When every term lands on the supplier's own name, the supplier is the hit:
+  it shows all of its products and its plain count, and it stays in the list
+  even when we hold no products for it yet — otherwise a supplier with an
+  empty catalogue could not be reached at all
 - Suppliers with no match are hidden entirely
 - Matching suppliers **expand automatically**, overriding collapse state
 - Each header shows `3 of 12 match` instead of the product count
@@ -150,7 +154,29 @@ If the viewer lacks catalogue-edit permission: inputs render as plain text,
 both add forms and the × buttons are hidden, and search and collapse still
 work. Do not render disabled inputs that look editable.
 
-## 11. Known gaps — decide before building
+## 11. Managing a supplier
+
+A **Manage** button on every supplier header, editors only. It opens a dialog
+holding the supplier's own fields — the product rows are edited in the table,
+and order-to contact and email stay on the contact row (§4).
+
+- **Name.** Required. Refused when it lands on another supplier's name or any
+  of its aliases, under `supplierKey` — that is how a supplier ends up as two
+  records with its prices and orders split between them. The old spelling is
+  kept as an alias, so a pickup typed the old way still resolves here instead
+  of filing a second record.
+- **Address.** Free text, trimmed, never looked up. This is the address the
+  pickup sheets print.
+- **Delete.** Confirmed in a second dialog stage, never `confirm()`.
+  - Nothing points at it → the row is deleted and audited.
+  - It holds products, purchase orders or pickups → **refused**, naming what
+    holds it, with **Hide it instead** offered. Hiding sets `active = false`:
+    it leaves the Suppliers tab, the pickup list and the buyer's supplier list,
+    keeps everything it holds, and adding the name back returns the same
+    record (§8 reactivates it). This is §9's "much louder confirmation",
+    settled: history is never deleted to make a name go away.
+
+## 12. Known gaps — decide before building
 
 The Order Book does not have these. Flag them to me rather than inventing a
 design:
@@ -163,7 +189,7 @@ design:
   account number. Real buying needs at least lead time and minimum.
 - **No supplier-side pack/unit defaults.** Each product carries its own.
 
-## 12. Acceptance criteria
+## 13. Acceptance criteria
 
 | # | Given | Then |
 |---|---|---|
@@ -185,8 +211,12 @@ design:
 | 16 | Add a supplier named "fra di" when "Fra-Di" exists | Resolves to the existing supplier |
 | 17 | Remove a product | Confirmed first; past orders unchanged |
 | 18 | Read-only viewer | No editable inputs, no add forms, search still works |
+| 19 | Search a supplier name | That supplier shown and expanded with all its products, plain count; found even with no products |
+| 20 | Manage → rename onto another supplier | Refused, naming the supplier that holds it; old spelling kept as an alias on a rename that goes through |
+| 21 | Manage → delete a supplier nothing points at | Confirmed, then the record is deleted |
+| 22 | Manage → delete a supplier holding products, orders or pickups | Refused, naming what holds it; hide offered instead |
 
-## 13. Out of scope
+## 14. Out of scope
 
 No price lookups from external sources. No supplier scoring. No automatic
 margin targets. Nothing enters the catalogue that a person did not type.

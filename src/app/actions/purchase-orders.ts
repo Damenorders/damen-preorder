@@ -37,6 +37,7 @@ import {
   checkPrice,
   checkProductEdit,
   checkSourcingInput,
+  checkSupplierEdit,
   isPurchaseMethod,
   isPurchaseUnit,
   looksSimilar,
@@ -45,6 +46,7 @@ import {
   normalizeName,
   resolvePicked,
   resolveTyped,
+  supplierKey,
   type PurchaseUnit,
 } from "@/lib/order-book-core";
 import {
@@ -64,8 +66,10 @@ import type {
   AddSupplierProductResult,
   AddSupplierResult,
   PriceEditResult,
+  DeleteSupplierResult,
   RemoveSupplierProductResult,
   SupplierEditResult,
+  SupplierUse,
   AddLineInput,
   AddLineResult,
   AssignInput,
@@ -1329,6 +1333,158 @@ export async function removeSupplierProduct(
       },
     ]);
     return { ok: true };
+  });
+
+  if (result.ok) await announce();
+  return result;
+}
+
+// ---------------------------------------------------------------------------
+// Manage supplier — SUPPLIERS-TAB-SPEC.md §11 (rename, address, delete/hide)
+// ---------------------------------------------------------------------------
+
+/**
+ * Renames a supplier and corrects its address. The rename is refused when it
+ * lands on another supplier, and the old spelling is kept as an alias so the
+ * pickup form, which matches typed names, goes on finding this record instead
+ * of quietly filing a second one.
+ */
+export async function editSupplier(
+  supplierId: number,
+  next: { name: string; address: string },
+): Promise<PurchaseActionResult> {
+  const user = await requireBuyer();
+  const id = Number(supplierId);
+
+  const result = await db.transaction(async (tx): Promise<PurchaseActionResult> => {
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext('suppliers'))`);
+    const [row] = await tx.select().from(suppliers).where(eq(suppliers.id, id));
+    if (!row) return { ok: false, error: "That supplier is no longer on file." };
+
+    const all = await tx
+      .select({ id: suppliers.id, name: suppliers.name, aliases: suppliers.aliases })
+      .from(suppliers);
+    const check = checkSupplierEdit(id, next, all);
+    if (check.kind === "blank") return { ok: false, error: "The supplier needs a name." };
+    if (check.kind === "clash") {
+      return {
+        ok: false,
+        error: `“${check.supplier.name}” already goes by that name. Two records for one supplier split its prices and orders, so this one keeps its name.`,
+      };
+    }
+
+    const renamed = supplierKey(check.name) !== supplierKey(row.name);
+    if (!renamed && check.name === row.name && check.address === row.address) {
+      return { ok: true };
+    }
+    // Every spelling this supplier has answered to, without duplicates.
+    const aliases = renamed
+      ? [...row.aliases, row.name].filter(
+          (a, i, list) =>
+            supplierKey(a) !== supplierKey(check.name) &&
+            list.findIndex((b) => supplierKey(b) === supplierKey(a)) === i,
+        )
+      : row.aliases;
+
+    await tx
+      .update(suppliers)
+      .set({
+        name: check.name,
+        address: check.address,
+        aliases,
+        updatedAt: new Date(),
+      })
+      .where(eq(suppliers.id, id));
+    await logAudit(tx, user, [
+      {
+        action: "update",
+        recordType: "supplier",
+        recordId: id,
+        oldValue: { name: row.name, address: row.address, aliases: row.aliases },
+        newValue: { name: check.name, address: check.address, aliases },
+      },
+    ]);
+    return { ok: true };
+  });
+
+  if (result.ok) await announce();
+  return result;
+}
+
+/**
+ * Deletes a supplier nothing points at. One that carries products, orders or
+ * pickups is never deleted — that would take the history with it — so the
+ * buyer is told what holds it and can hide it instead: hidden suppliers drop
+ * out of every list, and adding the name back brings the same record, with its
+ * history, straight back.
+ */
+export async function deleteSupplier(
+  supplierId: number,
+  hideIfInUse = false,
+): Promise<DeleteSupplierResult> {
+  const user = await requireBuyer();
+  const id = Number(supplierId);
+
+  const result = await db.transaction(async (tx): Promise<DeleteSupplierResult> => {
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext('suppliers'))`);
+    await lockSupplierOrders(tx, id);
+    const [row] = await tx.select().from(suppliers).where(eq(suppliers.id, id));
+    if (!row) return { ok: false, error: "That supplier is no longer on file." };
+
+    const [counts] = await tx.execute<Record<string, number>>(sql`
+      select
+        (select count(*) from item_sourcing where supplier_id = ${id})::int as products,
+        (select count(*) from purchase_orders where supplier_id = ${id})::int as orders,
+        (select count(*) from purchase_orders where supplier_id = ${id} and status = 'open')::int as "openOrders",
+        (select count(*) from pickups where supplier_id = ${id})::int as pickups
+    `);
+    const use: SupplierUse = {
+      products: Number(counts.products),
+      orders: Number(counts.orders),
+      openOrders: Number(counts.openOrders),
+      pickups: Number(counts.pickups),
+    };
+    const held = use.products + use.orders + use.pickups > 0;
+
+    if (held && !hideIfInUse) {
+      return { ok: false, error: `${row.name} is still in use.`, inUse: use };
+    }
+
+    if (held) {
+      if (!row.active) return { ok: true, removed: "hidden", name: row.name };
+      await tx
+        .update(suppliers)
+        .set({ active: false, updatedAt: new Date() })
+        .where(eq(suppliers.id, id));
+      await logAudit(tx, user, [
+        {
+          action: "update:active",
+          recordType: "supplier",
+          recordId: id,
+          oldValue: { active: true },
+          newValue: { active: false, held: use },
+        },
+      ]);
+      return { ok: true, removed: "hidden", name: row.name };
+    }
+
+    await tx.delete(suppliers).where(eq(suppliers.id, id));
+    await logAudit(tx, user, [
+      {
+        action: "delete",
+        recordType: "supplier",
+        recordId: id,
+        oldValue: {
+          name: row.name,
+          address: row.address,
+          contact: row.contact,
+          email: row.email,
+          aliases: row.aliases,
+          externalId: row.externalId,
+        },
+      },
+    ]);
+    return { ok: true, removed: "deleted", name: row.name };
   });
 
   if (result.ok) await announce();

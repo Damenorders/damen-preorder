@@ -172,6 +172,20 @@ export type PriceEditResult =
   | { ok: true; costSetOn: string | null }
   | { ok: false; error: string };
 
+/** What still points at a supplier, so nothing is deleted out from under it. */
+export interface SupplierUse {
+  products: number;
+  orders: number;
+  openOrders: number;
+  pickups: number;
+}
+
+export type DeleteSupplierResult =
+  | { ok: true; removed: "deleted" | "hidden"; name: string }
+  /** Something still points at it: delete would take history with it. */
+  | { ok: false; error: string; inUse: SupplierUse }
+  | { ok: false; error: string; inUse?: undefined };
+
 export interface AddSupplierProductInput {
   supplierId: number;
   /** A catalogue product picked from the search… */
