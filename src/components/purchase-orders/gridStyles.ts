@@ -8,7 +8,9 @@ export const td = "px-1.5 py-0.5 align-middle";
 export const th = "px-1.5 py-1 font-medium";
 export const gridInput =
   "h-7 rounded border border-transparent bg-transparent px-1 text-base sm:text-sm hover:border-neutral-300 focus:border-accent-600 focus:bg-white focus:outline-none";
+// Reads as plain text beside the quantity it belongs to — no box, no native
+// arrow — until hovered or focused, which is when it shows it can be changed.
 export const gridSelect =
-  "h-7 rounded border border-neutral-200 bg-white px-0.5 text-base sm:text-sm hover:border-neutral-400 focus:border-accent-600 focus:outline-none";
+  "h-7 cursor-pointer appearance-none rounded border border-transparent bg-transparent px-1 text-base sm:text-sm hover:border-neutral-300 focus:border-accent-600 focus:bg-white focus:outline-none";
 export const gridButton =
   "h-7 w-7 shrink-0 rounded text-base leading-none text-neutral-400 hover:bg-neutral-200 hover:text-red-700";

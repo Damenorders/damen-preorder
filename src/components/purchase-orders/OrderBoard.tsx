@@ -483,7 +483,7 @@ function OpenLine({
             );
           }
         }}
-        className={`${gridSelect} w-20 shrink-0`}
+        className={`${gridSelect} w-16 shrink-0`}
       >
         {PURCHASE_UNITS.map((u) => (
           <option key={u} value={u}>
