@@ -1,0 +1,1107 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Order Book</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..700&display=swap" rel="stylesheet">
+<style id="css">
+:root{
+  --paper:#EFEFE9; --card:#FCFCFA; --ink:#22261F; --muted:#6C7165;
+  --rule:#D3D5CB; --rule-hard:#B4B7AC; --gari:#B54A62; --leaf:#3E6A4B;
+  --shade:#E4E5DD; --focus:#2B5FA8;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#161814; --card:#1E211B; --ink:#E7E8E1; --muted:#9AA093;
+    --rule:#333729; --rule-hard:#4A4F40; --gari:#E08096; --leaf:#7FB58D;
+    --shade:#24271F; --focus:#7FA9E8;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#161814; --card:#1E211B; --ink:#E7E8E1; --muted:#9AA093;
+  --rule:#333729; --rule-hard:#4A4F40; --gari:#E08096; --leaf:#7FB58D;
+  --shade:#24271F; --focus:#7FA9E8;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--paper); color:var(--ink);
+  font-family:"Archivo","Helvetica Neue",Helvetica,Arial,sans-serif;
+  font-size:16px; line-height:1.45; -webkit-text-size-adjust:100%;
+}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+
+.wrap{max-width:940px;margin:0 auto;padding:0 20px 96px}
+
+/* masthead */
+header{
+  position:sticky;top:0;z-index:20;background:var(--paper);
+  border-bottom:1px solid var(--rule-hard);
+  padding:18px 0 0;
+}
+.brand{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+h1{
+  margin:0;font-size:30px;font-weight:700;font-stretch:70%;
+  letter-spacing:.01em;line-height:1;
+}
+.saved{font-size:13px;color:var(--muted);font-stretch:85%;margin-left:auto}
+.saved.busy{color:var(--gari)}
+nav{display:flex;gap:0;margin-top:14px}
+nav button{
+  background:none;border:0;border-bottom:3px solid transparent;
+  padding:8px 0;margin-right:26px;cursor:pointer;
+  font-weight:500;font-stretch:85%;color:var(--muted);
+}
+nav button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--gari);font-weight:600}
+nav .count{font-size:12px;color:var(--muted);margin-left:5px;font-variant-numeric:tabular-nums}
+
+/* supplier block */
+.block{margin-top:34px}
+.block-head{
+  display:flex;align-items:baseline;gap:12px;
+  border-bottom:2px solid var(--ink);padding-bottom:5px;
+}
+.block-head h2{
+  margin:0;font-size:19px;font-weight:600;font-stretch:75%;
+  letter-spacing:.02em;
+}
+.block-head .meta{font-size:13px;color:var(--muted);margin-left:auto;font-variant-numeric:tabular-nums}
+
+/* order lines */
+.line{
+  display:grid;grid-template-columns:88px 1fr auto;gap:14px;
+  align-items:baseline;padding:11px 0;border-bottom:1px solid var(--rule);
+}
+.qty{
+  font-size:23px;font-weight:600;font-variant-numeric:tabular-nums;
+  text-align:right;line-height:1.1;
+}
+.qty span{display:block;font-size:11px;font-weight:400;color:var(--muted);letter-spacing:.04em}
+.name{font-weight:500}
+.pack{color:var(--muted);font-size:14px;display:block;font-weight:400}
+.x{
+  background:none;border:0;color:var(--muted);cursor:pointer;
+  padding:2px 6px;font-size:17px;line-height:1;border-radius:3px;
+}
+.x:hover{color:var(--gari);background:var(--shade)}
+.qtybox{
+  width:100%;text-align:right;font-size:23px;font-weight:600;
+  font-variant-numeric:tabular-nums;background:transparent;
+  border:1px solid transparent;border-radius:4px;padding:1px 4px;
+  -moz-appearance:textfield;
+}
+.qtybox::-webkit-outer-spin-button,.qtybox::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.qtybox:hover{border-color:var(--rule-hard)}
+.qtybox:focus{border-color:var(--focus);background:var(--card)}
+.unitbox{
+  width:100%;background:transparent;border:1px solid transparent;border-radius:4px;
+  font-size:11px;color:var(--muted);padding:1px 2px;text-align:right;
+  text-align-last:right;cursor:pointer;
+}
+.unitbox:hover{border-color:var(--rule-hard)}
+.unitbox:focus{border-color:var(--focus);background:var(--card)}
+.block-head .toggle{
+  background:none;border:0;cursor:pointer;padding:2px 6px 2px 0;
+  color:var(--muted);font-size:13px;line-height:1;margin-left:-4px;
+}
+.block-head .toggle:hover{color:var(--ink)}
+.block-head h2{cursor:pointer}
+.copy{
+  background:transparent;border:1px solid var(--rule-hard);border-radius:4px;
+  padding:4px 11px;font-size:13px;font-weight:500;font-stretch:88%;cursor:pointer;
+}
+.copy:hover{background:var(--shade)}
+.copy.done{border-color:var(--leaf);color:var(--leaf)}
+.lines[hidden]{display:none}
+.meta-row{display:flex;align-items:center;gap:11px;flex-wrap:wrap;margin:10px 0 4px}
+.seg{display:inline-flex;border:1px solid var(--rule-hard);border-radius:5px;overflow:hidden}
+.seg button{
+  background:transparent;border:0;padding:6px 15px;cursor:pointer;
+  font-size:13px;font-weight:500;font-stretch:88%;color:var(--muted);
+}
+.seg button+button{border-left:1px solid var(--rule-hard)}
+.seg button:hover{background:var(--shade);color:var(--ink)}
+.seg button.on{background:var(--ink);color:var(--paper)}
+.whenlbl{font-size:14px;color:var(--muted);display:inline-flex;align-items:center;gap:7px}
+.whenbox{
+  background:var(--card);border:1px solid var(--rule-hard);border-radius:4px;
+  padding:5px 8px;font-family:inherit;font-size:14px;color:var(--ink);
+}
+.whenbox:focus{border-color:var(--focus)}
+.nodate{font-size:12px;color:var(--gari)}
+.contact{
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+  margin:9px 0 0;font-size:14px;color:var(--muted);
+}
+.contact a{color:var(--gari)}
+.cbox{
+  background:transparent;border:1px solid transparent;border-radius:4px;
+  padding:3px 7px;font-size:14px;width:150px;color:var(--ink);
+}
+.cbox.wide{width:230px}
+.cbox:hover{border-color:var(--rule-hard)}
+.cbox:focus{border-color:var(--focus);background:var(--card)}
+.cbox::placeholder{color:var(--muted);opacity:.6}
+.dlg{
+  position:fixed;inset:0;z-index:100;background:rgba(20,22,18,.55);
+  display:flex;align-items:center;justify-content:center;padding:20px;
+}
+.dlg-box{
+  background:var(--card);border:1px solid var(--rule-hard);border-radius:6px;
+  max-width:430px;width:100%;padding:22px 22px 18px;
+  box-shadow:0 12px 40px rgba(0,0,0,.28);
+}
+.dlg-box h3{margin:0 0 9px;font-size:18px;font-weight:600;font-stretch:80%}
+.dlg-box p{margin:0 0 15px;font-size:15px;color:var(--muted);line-height:1.5}
+.dlg-box input,.dlg-box textarea{
+  width:100%;background:var(--paper);border:1px solid var(--rule-hard);
+  border-radius:4px;padding:8px 10px;margin-bottom:15px;font-family:inherit;
+}
+.dlg-box textarea{font-size:13px;line-height:1.5;resize:vertical}
+.dlg-btns{display:flex;gap:9px;justify-content:flex-end;flex-wrap:wrap}
+.search{display:flex;gap:9px;align-items:center;margin-top:22px}
+.search input{
+  flex:1 1 auto;background:var(--card);border:1px solid var(--rule-hard);
+  border-radius:4px;padding:9px 12px;font-size:15px;-webkit-appearance:none;
+}
+.search input:focus{border-color:var(--focus)}
+.search input::placeholder{color:var(--muted)}
+.toast{
+  position:fixed;left:50%;bottom:26px;transform:translateX(-50%);z-index:110;
+  background:var(--ink);color:var(--paper);padding:10px 17px;border-radius:5px;
+  font-size:14px;max-width:88vw;box-shadow:0 6px 22px rgba(0,0,0,.3);
+}
+
+/* product ledger */
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+th{
+  text-align:left;font-size:12px;font-weight:600;color:var(--muted);
+  font-stretch:85%;padding:9px 8px 6px;border-bottom:1px solid var(--rule-hard);
+  letter-spacing:.03em;
+}
+th.n,td.n{text-align:right}
+td{padding:9px 8px;border-bottom:1px solid var(--rule);vertical-align:baseline}
+td.prod{font-weight:500}
+td.prod small{display:block;color:var(--muted);font-weight:400;font-size:13px}
+.pricebox{
+  width:88px;text-align:right;background:transparent;border:1px solid transparent;
+  border-radius:4px;padding:4px 6px;font-variant-numeric:tabular-nums;
+}
+.pricebox:hover{border-color:var(--rule-hard)}
+.pricebox:focus{border-color:var(--focus);background:var(--card)}
+.pricebox::placeholder{color:var(--muted);opacity:.65}
+.marg{font-weight:600;color:var(--leaf)}
+.marg.thin{color:var(--gari)}
+.marg small{display:block;font-weight:400;font-size:12px;color:var(--muted)}
+.dash{color:var(--muted)}
+
+/* forms */
+.add{margin-top:16px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.add input,.add select{
+  background:var(--card);border:1px solid var(--rule-hard);border-radius:4px;
+  padding:7px 9px;min-width:0;
+}
+.add input.grow{flex:1 1 190px}
+.add input.tiny{width:62px;text-align:right}
+.add input.small{width:118px}
+.btn{
+  background:var(--ink);color:var(--paper);border:0;border-radius:4px;
+  padding:8px 15px;font-weight:600;font-stretch:88%;cursor:pointer;
+}
+.btn:hover{background:var(--gari)}
+.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--rule-hard);font-weight:500}
+.btn.ghost:hover{background:var(--shade);color:var(--ink)}
+.btn.mark{background:var(--leaf)}
+.btn.mark:hover{background:var(--ink)}
+
+.rowactions{margin-top:14px;display:flex;gap:10px;flex-wrap:wrap}
+.empty{
+  padding:26px 0 8px;color:var(--muted);border-bottom:1px solid var(--rule);
+}
+.hint{font-size:13px;color:var(--muted);margin:6px 0 0}
+
+/* history */
+.hist{border-bottom:1px solid var(--rule);padding:15px 0}
+.hist-h{display:flex;gap:12px;align-items:baseline;cursor:pointer}
+.hist-h h3{margin:0;font-size:16px;font-weight:600;font-stretch:80%}
+.hist-h .d{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.hist-h .n{margin-left:auto;font-size:13px;color:var(--muted)}
+.hist ul{margin:11px 0 0;padding:0 0 0 2px;list-style:none}
+.hist li{padding:4px 0;font-size:15px;display:flex;gap:11px}
+.hist li b{font-variant-numeric:tabular-nums;min-width:56px;text-align:right;font-weight:600}
+.hist[hidden]{display:none}
+.histbody[hidden]{display:none}
+.histbody .rowactions{margin-top:12px}
+
+.notice{
+  background:var(--shade);border-left:3px solid var(--gari);
+  padding:11px 14px;margin-top:20px;font-size:14px;
+}
+footer{margin-top:44px;padding-top:16px;border-top:1px solid var(--rule);
+  display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+footer .hint{margin:0;margin-right:auto}
+
+@media (max-width:640px){
+  .wrap{padding:0 14px 80px}
+  h1{font-size:25px}
+  .line{grid-template-columns:76px 1fr auto;gap:10px}
+  .qty,.qtybox{font-size:20px}
+  .scroll{overflow-x:auto}
+  .scroll table{min-width:520px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="application/json" id="state">{"suppliers":{"Wismettac":{"products":[{"id":"p1","name":"WHITE MARINATED GINGER SUSHI","pack":"25 LBS","cost":null,"sell":null,"costDate":null},{"id":"p2","name":"EDAMAME SKINLESS (SHELLED)","pack":"20 X 400 G","cost":null,"sell":null,"costDate":null},{"id":"p3","name":"SHIRAKIKU BROWN MEDIUM GRAIN RICE","pack":"15 LBS","cost":null,"sell":null,"costDate":null},{"id":"p4","name":"TEMPURA BATTER MIX FLOUR","pack":"40 LBS","cost":null,"sell":null,"costDate":null}]},"Transhing":{"products":[{"id":"t1","name":"TS - SQUARE RICE PAPER 22CM","pack":"40 X 400G","cost":null,"sell":null,"costDate":null},{"id":"t2","name":"ERAWAN - RICE STICKS MEDIUM","pack":"30 X 454G","cost":null,"sell":null,"costDate":null},{"id":"t3","name":"YAMADA - NORI GOLD *HALF* SHEET BIG BOX","pack":"4 X 1000UN","cost":null,"sell":null,"costDate":null},{"id":"t4","name":"NORI GOLD FULL SHEET BIG BOX","pack":"4000UN","cost":null,"sell":null,"costDate":null},{"id":"t5","name":"BLACK ROASTED SESAME SEEDS FULL BOX","pack":"12 X 1KG","cost":null,"sell":null,"costDate":null},{"id":"t6","name":"WHITE ROASTED SESAME SEEDS FULL BOX","pack":"10 X 1KG","cost":null,"sell":null,"costDate":null},{"id":"t7","name":"HUY FONG - SAMBAL OELEK","pack":"3 X 3,5L","cost":null,"sell":null,"costDate":null},{"id":"t8","name":"SQUID BRAND - FISH SAUCE","pack":"12 X 725ML","cost":null,"sell":null,"costDate":null},{"id":"t9","name":"OYSTER SAUCE PANDA","pack":"6 X 5LBS","cost":null,"sell":null,"costDate":null},{"id":"t10","name":"HOISIN SAUCE","pack":"6 X 5LBS","cost":null,"sell":null,"costDate":null},{"id":"t11","name":"GOBERGE - SURIMI IMITATION CRAB STICKS - 9 CM","pack":"20 X 500G","cost":null,"sell":null,"costDate":null},{"id":"t12","name":"GOLDEN SWALLOW - DONGGUAN RICE VERMICELLI","pack":"50 X 400G","cost":null,"sell":null,"costDate":null},{"id":"ztv00zu","name":"FRIED TEMPURA TENKTASU","pack":"6kg","cost":null,"sell":null,"costDate":null}],"contact":"Dandan","email":"dandan@transhing.com"},"Fra-Di":{"contact":"Mario","email":"INFO@FRA-DI.COM","products":[{"id":"f1","name":"STANISLAUS - 7/11 UNPEELED GROUND TOMATOES","pack":"6 X 2.84L","cost":null,"sell":null,"costDate":null},{"id":"01uefuv","name":"STANISLAUS - VALOROSO / WHOLE PEELED PEAR TOMATOES","pack":"6 X 2.84L","cost":null,"sell":null,"costDate":null}]},"Mega Importing":{"contact":"Marco","email":"marco@megaimporting.com","products":[{"id":"m1","name":"ROSSO - WHOLE PEELED TOMATOES","pack":"6 X 100OZ","cost":null,"sell":null,"costDate":null}]},"JFC":{"contact":"Miyoko","email":"","products":[{"id":"j1","name":"SANGARIA RAMUNE MELON","pack":"18X200ML","cost":null,"sell":null,"costDate":null},{"id":"j2","name":"SANGARIA RAMUNE LYCHEE","pack":"18X200ML","cost":null,"sell":null,"costDate":null},{"id":"j3","name":"SANGARIA RAMUNE ORIGINAL","pack":"18X200ML","cost":null,"sell":null,"costDate":null}]}},"toOrder":{"Wismettac":[{"id":"l2","qty":1,"unit":"pallet","name":"EDAMAME SKINLESS (SHELLED)","pack":"20 X 400 G"},{"id":"l3","qty":10,"unit":"x","name":"SHIRAKIKU BROWN MEDIUM GRAIN RICE","pack":"15 LBS"},{"id":"l4","qty":1,"unit":"pallet","name":"TEMPURA BATTER MIX FLOUR","pack":"40 LBS"}],"Fra-Di":[{"id":"fl1","qty":1,"unit":"pallet","name":"STANISLAUS - 7/11 UNPEELED GROUND TOMATOES","pack":"6 X 2.84L"}],"JFC":[{"id":"jl1","qty":6,"unit":"x","name":"SANGARIA RAMUNE MELON","pack":"18X200ML"},{"id":"jl2","qty":8,"unit":"x","name":"SANGARIA RAMUNE LYCHEE","pack":"18X200ML"},{"id":"jl3","qty":6,"unit":"x","name":"SANGARIA RAMUNE ORIGINAL","pack":"18X200ML"}],"Mega Importing":[{"id":"lltqlk1","qty":1,"unit":"pallet","name":"ROSSO - WHOLE PEELED TOMATOES","pack":"6 X 100OZ"}]},"pastOrders":[{"id":"79jez5x","supplier":"Transhing","date":"2026-09-08","items":[{"id":"tl1","qty":2,"unit":"pallet","name":"TS - SQUARE RICE PAPER 22CM","pack":"40 X 400G"},{"id":"tl2","qty":12,"unit":"x","name":"ERAWAN - RICE STICKS MEDIUM","pack":"30 X 454G"},{"id":"tl3","qty":8,"unit":"x","name":"YAMADA - NORI GOLD *HALF* SHEET BIG BOX","pack":"4 X 1000UN"},{"id":"tl4","qty":8,"unit":"x","name":"NORI GOLD FULL SHEET BIG BOX","pack":"4000UN"},{"id":"tl5","qty":2,"unit":"x","name":"BLACK ROASTED SESAME SEEDS FULL BOX","pack":"12 X 1KG"},{"id":"tl6","qty":2,"unit":"x","name":"WHITE ROASTED SESAME SEEDS FULL BOX","pack":"10 X 1KG"},{"id":"tl7","qty":4,"unit":"x","name":"HUY FONG - SAMBAL OELEK","pack":"3 X 3,5L"},{"id":"tl8","qty":4,"unit":"x","name":"SQUID BRAND - FISH SAUCE","pack":"12 X 725ML"},{"id":"tl9","qty":6,"unit":"x","name":"OYSTER SAUCE PANDA","pack":"6 X 5LBS"},{"id":"tl10","qty":2,"unit":"x","name":"HOISIN SAUCE","pack":"6 X 5LBS"},{"id":"tl11","qty":20,"unit":"x","name":"GOBERGE - SURIMI IMITATION CRAB STICKS - 9 CM","pack":"20 X 500G"},{"id":"tl12","qty":4,"unit":"x","name":"GOLDEN SWALLOW - DONGGUAN RICE VERMICELLI","pack":"50 X 400G"},{"id":"bpnoxwz","qty":5,"unit":"x","name":"FRIED TEMPURA TENKTASU","pack":"6kg"}],"method":"delivery","wanted":"2026-09-10"}],"orderMeta":{"Fra-Di":{"method":"delivery","date":""},"JFC":{"method":"delivery","date":""},"Mega Importing":{"method":"delivery","date":""},"Wismettac":{"method":"delivery","date":""}}}</script>
+<script id="app">
+(function(){
+  "use strict";
+
+  var state, art = null, readOnly = false, saveTimer = null, saving = false;
+  function ssGet(k){ try { return sessionStorage.getItem(k); } catch(e){ return null; } }
+  function ssSet(k,v){ try { sessionStorage.setItem(k,v); } catch(e){} }
+
+  var tab = ssGet("ob.tab") || "order";
+  var openHist = {};
+  var query = "", refocus = false;
+  var opened = {};
+  try { opened = JSON.parse(ssGet("ob.opened") || "{}"); } catch(e){ opened = {}; }
+
+  try { state = JSON.parse(document.getElementById("state").textContent); }
+  catch(e){ state = {suppliers:{},toOrder:{},pastOrders:[]}; }
+  state.suppliers = state.suppliers || {};
+  state.toOrder = state.toOrder || {};
+  state.pastOrders = state.pastOrders || [];
+  state.orderMeta = state.orderMeta || {};
+
+  var root = document.getElementById("root");
+
+  function uid(){ return Math.random().toString(36).slice(2,9); }
+  function esc(s){
+    return String(s==null?"":s).replace(/[&<>"']/g,function(c){
+      return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
+    });
+  }
+  function today(){
+    var d = new Date();
+    return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+  }
+  function money(v){ return v==null||v===""?null:Number(v); }
+  function fmt(v){ return v==null?null:"$"+Number(v).toFixed(2); }
+  function supplierNames(){ 
+    var s = Object.keys(state.suppliers);
+    Object.keys(state.toOrder).forEach(function(n){ if(s.indexOf(n)<0) s.push(n); });
+    return s.sort(function(a,b){ return a.localeCompare(b); });
+  }
+  function openLineCount(){
+    var n = 0;
+    Object.keys(state.toOrder).forEach(function(k){ n += (state.toOrder[k]||[]).length; });
+    return n;
+  }
+  function productCount(){
+    var n = 0;
+    Object.keys(state.suppliers).forEach(function(k){ n += (state.suppliers[k].products||[]).length; });
+    return n;
+  }
+  function ensureSupplier(name){
+    if(!name) return null;
+    name = name.trim();
+    if(!name) return null;
+    if(!state.suppliers[name]) state.suppliers[name] = {products:[]};
+    return name;
+  }
+
+  /* ---------- persistence ---------- */
+
+  function buildDoc(s){
+    var css = document.getElementById("css").textContent;
+    var js  = document.getElementById("app").textContent;
+    var json = JSON.stringify(s).replace(/</g,"\\u003c");
+    return '<!doctype html>\n<html lang="en">\n<head>\n' +
+      '<meta charset="utf-8">\n' +
+      '<meta name="viewport" content="width=device-width, initial-scale=1">\n' +
+      '<title>Order Book</title>\n' +
+      '<link rel="preconnect" href="https://fonts.googleapis.com">\n' +
+      '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>\n' +
+      '<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..700&display=swap" rel="stylesheet">\n' +
+      '<style id="css">' + css + '</style>\n</head>\n<body>\n' +
+      '<div id="root"></div>\n' +
+      '<script type="application/json" id="state">' + json + '<\/script>\n' +
+      '<script id="app">' + js + '<\/script>\n' +
+      '</body>\n</html>';
+  }
+
+  function setStatus(text, busy){
+    var el = document.getElementById("saved");
+    if(el){ el.textContent = text; el.className = "saved" + (busy?" busy":""); }
+  }
+
+  function scheduleSave(){
+    if(readOnly) return;
+    setStatus("Unsaved changes", true);
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(doSave, 1100);
+  }
+
+  function doSave(){
+    if(readOnly || saving) return;
+    var a = document.activeElement;
+    if(a && (a.tagName === "INPUT" || a.tagName === "SELECT")){
+      saveTimer = setTimeout(doSave, 1100);
+      return;
+    }
+    if(!art){ setStatus("Not saved — offline copy only"); return; }
+    saving = true;
+    setStatus("Saving…", true);
+    art.publish(buildDoc(state)).then(function(){
+      /* the view reloads to the new version */
+    }).catch(function(err){
+      saving = false;
+      var code = err && err.code;
+      if(code === "conflict"){ setStatus("Reloading…", true); return; }
+      if(code === "not_writer" || code === "not_granted" || code === "not_declared" || code === "capability_disabled"){
+        readOnly = true; render(); return;
+      }
+      if(code === "rate_limited"){ setStatus("Saving shortly…", true); saveTimer = setTimeout(doSave, 5000); return; }
+      setStatus("Save failed — changes are still on screen");
+    });
+  }
+
+  /* ---------- rendering ---------- */
+
+  function unitLabel(u){ return u === "x" ? "each" : u; }
+
+  var MONTHS = ["January","February","March","April","May","June","July",
+                "August","September","October","November","December"];
+  function longDate(iso){
+    if(!iso) return "";
+    var b = String(iso).split("-");
+    if(b.length !== 3) return iso;
+    var mi = Number(b[1]) - 1;
+    if(!MONTHS[mi]) return iso;
+    return MONTHS[mi] + " " + Number(b[2]) + ", " + b[0];
+  }
+  function meta(sup){
+    if(!state.orderMeta[sup]) state.orderMeta[sup] = {method:"delivery", date:""};
+    return state.orderMeta[sup];
+  }
+
+  /* The message sent to the supplier. */
+  function linesText(sup, lines, m){
+    var o = state.suppliers[sup] || {};
+    var who = (o.contact || "").trim();
+    var when = m && m.date ? longDate(m.date) : "____";
+    var how = (m && m.method) || "delivery";
+    var out = "Hello " + (who || "there") + ", I would like to order the following products for " +
+              how + " on " + when + " : \n\n";
+    lines.forEach(function(l){
+      var q = l.unit === "x" ? l.qty + "x" : l.qty + " " + l.unit;
+      out += "* " + q + " " + l.name + (l.pack ? " (" + l.pack + ")" : "") + "\n";
+    });
+    out += "\n\nPlease Confirm\nThank you\n";
+    return out;
+  }
+
+  var UNITS = ["pallet","case","box","bag","x"];
+  function metaRow(sup){
+    var m = meta(sup);
+    if(readOnly){
+      return '<p class="contact">' + esc(m.method === "pickup" ? "Pickup" : "Delivery") +
+             (m.date ? " on " + esc(longDate(m.date)) : "") + '</p>';
+    }
+    return '<div class="meta-row">' +
+      '<span class="seg">' +
+        '<button data-act="method" data-sup="' + esc(sup) + '" data-v="delivery"' +
+          (m.method !== "pickup" ? ' class="on"' : '') + '>Delivery</button>' +
+        '<button data-act="method" data-sup="' + esc(sup) + '" data-v="pickup"' +
+          (m.method === "pickup" ? ' class="on"' : '') + '>Pickup</button>' +
+      '</span>' +
+      '<label class="whenlbl">on <input type="date" class="whenbox" value="' + esc(m.date || "") +
+        '" data-when="' + esc(sup) + '" aria-label="Date wanted for ' + esc(sup) + '"></label>' +
+      (m.date ? '' : '<span class="nodate">no date set</span>') +
+      '</div>';
+  }
+
+  function unitOptions(current){
+    var list = UNITS.slice();
+    if(current && list.indexOf(current) < 0) list.push(current);
+    return list.map(function(u){
+      return '<option value="' + esc(u) + '"' + (u === current ? " selected" : "") + '>' + esc(unitLabel(u)) + '</option>';
+    }).join("");
+  }
+
+  function contactRow(sup){
+    var o = state.suppliers[sup] || {};
+    if(readOnly){
+      if(!o.contact && !o.email) return "";
+      return '<p class="contact">Order to ' + esc(o.contact || "—") +
+        (o.email ? ' · <a href="mailto:' + esc(o.email) + '">' + esc(o.email) + '</a>' : '') + '</p>';
+    }
+    return '<div class="contact">' +
+      '<span>Order to</span>' +
+      '<input class="cbox" value="' + esc(o.contact || "") + '" placeholder="Contact name" data-sup-f="contact" data-sup="' + esc(sup) + '" aria-label="Contact at ' + esc(sup) + '">' +
+      '<input class="cbox wide" value="' + esc(o.email || "") + '" placeholder="Email" type="email" data-sup-f="email" data-sup="' + esc(sup) + '" aria-label="Email for ' + esc(sup) + '">' +
+      '</div>';
+  }
+
+  function orderText(sup){
+    return linesText(sup, state.toOrder[sup] || [], meta(sup));
+  }
+
+  function flashCopied(btn){
+    if(!btn) return;
+    var was = btn.textContent;
+    btn.textContent = "Copied";
+    btn.classList.add("done");
+    setTimeout(function(){ btn.textContent = was; btn.classList.remove("done"); }, 1800);
+  }
+
+  function legacyCopy(text, btn){
+    var ta = document.createElement("textarea");
+    ta.value = text;
+    ta.setAttribute("readonly","");
+    ta.style.position = "fixed";
+    ta.style.top = "-1000px";
+    document.body.appendChild(ta);
+    ta.select();
+    var ok = false;
+    try { ok = document.execCommand("copy"); } catch(e){ ok = false; }
+    document.body.removeChild(ta);
+    if(ok) flashCopied(btn);
+    else dialog({title:"Copy the order", body:"Select the text below and copy it.",
+                 text:text, hideCancel:true, confirmLabel:"Done"});
+  }
+
+  function copyOrder(sup, btn){ copyText(orderText(sup), btn); }
+
+  function copyText(text, btn){
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(function(){ flashCopied(btn); })
+        .catch(function(){ legacyCopy(text, btn); });
+    } else {
+      legacyCopy(text, btn);
+    }
+  }
+
+  function renderOrder(){
+    var names = Object.keys(state.toOrder).filter(function(n){ return (state.toOrder[n]||[]).length; }).sort();
+    var h = "";
+    if(!names.length){
+      h += '<div class="block"><p class="empty">Nothing on the next order yet. Add the first line below.</p></div>';
+    }
+    names.forEach(function(sup){
+      var lines = state.toOrder[sup];
+      var shut = !opened["ord:" + sup];
+      h += '<section class="block"><div class="block-head">' +
+           '<button class="toggle" data-act="fold" data-key="ord:' + esc(sup) + '" aria-expanded="' + (!shut) + '">' + (shut ? "&#9656;" : "&#9662;") + '</button>' +
+           '<h2 data-act="fold" data-key="ord:' + esc(sup) + '">' + esc(sup) + '</h2>' +
+           '<span class="meta">' + lines.length + (lines.length===1?" line":" lines") + '</span></div>';
+      h += '<div class="lines"' + (shut ? " hidden" : "") + '>';
+      h += metaRow(sup);
+      lines.forEach(function(l){
+        h += '<div class="line">' +
+             '<div class="qty">' +
+               (readOnly
+                 ? esc(l.qty) + '<span>' + esc(unitLabel(l.unit)) + '</span>'
+                 : '<input class="qtybox" type="number" min="0" step="1" value="' + esc(l.qty) + '" data-line="' + esc(sup) + '" data-id="' + esc(l.id) + '" data-f="qty" aria-label="Quantity of ' + esc(l.name) + '">' +
+                   '<select class="unitbox" data-line="' + esc(sup) + '" data-id="' + esc(l.id) + '" data-f="unit" aria-label="Unit for ' + esc(l.name) + '">' + unitOptions(l.unit) + '</select>') +
+             '</div>' +
+             '<div class="name">' + esc(l.name) + (l.pack ? '<span class="pack">' + esc(l.pack) + '</span>' : '') + '</div>' +
+             (readOnly ? '' : '<button class="x" data-act="dropline" data-sup="' + esc(sup) + '" data-id="' + esc(l.id) + '" aria-label="Remove ' + esc(l.name) + '">&times;</button>') +
+             '</div>';
+      });
+      h += '<div class="rowactions">' +
+           '<button class="copy" data-act="copy" data-sup="' + esc(sup) + '">Copy order</button>' +
+           (readOnly ? '' : '<button class="btn mark" data-act="ordered" data-sup="' + esc(sup) + '">Mark ' + esc(sup) + ' as ordered</button>') +
+           '</div></div></section>';
+    });
+
+    if(!readOnly){
+      var opts = supplierNames().map(function(n){ return '<option value="' + esc(n) + '">' + esc(n) + '</option>'; }).join("");
+      h += '<section class="block"><div class="block-head"><h2>Add a line</h2></div>' +
+        '<div class="add">' +
+        '<input class="tiny" id="nq" type="number" min="0" step="1" value="1" aria-label="Quantity">' +
+        '<select id="nu" aria-label="Unit"><option value="pallet">pallet</option><option value="case">case</option><option value="box">box</option><option value="bag">bag</option><option value="x">each</option></select>' +
+        '<select id="ns" aria-label="Supplier">' + opts + '<option value="__new">New supplier…</option></select>' +
+        '<input class="grow" id="nn" placeholder="Product" aria-label="Product" list="prodlist">' +
+        '<input class="small" id="np" placeholder="Pack size" aria-label="Pack size">' +
+        '<button class="btn" data-act="addline">Add to order</button>' +
+        '</div>' + datalist() +
+        '<p class="hint">Products you add here are saved to the supplier automatically.</p></section>';
+    }
+    return h;
+  }
+
+  function datalist(){
+    var seen = {}, out = "";
+    Object.keys(state.suppliers).forEach(function(s){
+      (state.suppliers[s].products||[]).forEach(function(p){
+        if(!seen[p.name]){ seen[p.name] = 1; out += '<option value="' + esc(p.name) + '">'; }
+      });
+    });
+    return '<datalist id="prodlist">' + out + '</datalist>';
+  }
+
+  function marginCell(p){
+    var c = money(p.cost), s = money(p.sell);
+    if(c == null || s == null || !s) return '<td class="n dash">—</td>';
+    var pct = ((s - c) / s) * 100;
+    var cls = pct < 15 ? "marg thin" : "marg";
+    return '<td class="n"><span class="' + cls + '">' + pct.toFixed(0) + '%<small>' + fmt(s - c) + '</small></span></td>';
+  }
+
+  function searchTerms(){
+    return norm(query).split(" ").filter(function(t){ return t.length > 0; });
+  }
+  function productHit(sup, p, terms){
+    var hay = norm(sup + " " + p.name + " " + (p.pack || ""));
+    return terms.every(function(t){ return hay.indexOf(t) >= 0; });
+  }
+
+  function renderSuppliers(){
+    var names = supplierNames();
+    var terms = searchTerms();
+    var searching = terms.length > 0;
+
+    var h = '<div class="search">' +
+      '<input id="psearch" type="search" value="' + esc(query) + '" ' +
+      'placeholder="Search products across all suppliers" aria-label="Search products">' +
+      (searching ? '<button class="btn ghost" data-act="clearsearch">Clear</button>' : '') +
+      '</div>';
+
+    if(!names.length) return h + '<p class="empty">No suppliers yet. Add one below.</p>';
+
+    var body = "", sups = 0, hits = 0;
+    names.forEach(function(sup){
+      var all = (state.suppliers[sup] && state.suppliers[sup].products) || [];
+      var prods = searching ? all.filter(function(p){ return productHit(sup, p, terms); }) : all;
+      if(searching && !prods.length) return;
+      sups++; hits += prods.length;
+      var shut = searching ? false : !opened["sup:" + sup];
+      h += '<section class="block"><div class="block-head">' +
+        '<button class="toggle" data-act="fold" data-key="sup:' + esc(sup) + '" aria-expanded="' + (!shut) + '">' + (shut ? "&#9656;" : "&#9662;") + '</button>' +
+        '<h2 data-act="fold" data-key="sup:' + esc(sup) + '">' + esc(sup) + '</h2>' +
+        '<span class="meta">' + prods.length +
+          (searching ? " of " + all.length + " match" : (prods.length===1?" product":" products")) +
+        '</span></div>';
+      h += '<div class="lines"' + (shut ? " hidden" : "") + '>';
+      h += contactRow(sup);
+      if(!prods.length){
+        h += '<p class="empty">No products recorded for this supplier.</p>';
+      } else {
+        h += '<div class="scroll"><table><thead><tr>' +
+          '<th>Product</th><th class="n">Cost</th><th class="n">Sell</th><th class="n">Margin</th><th class="n">Cost set</th>' +
+          (readOnly?'':'<th></th>') + '</tr></thead><tbody>';
+        prods.forEach(function(p){
+          h += '<tr>' +
+            '<td class="prod">' + esc(p.name) + (p.pack ? '<small>' + esc(p.pack) + '</small>' : '') + '</td>' +
+            '<td class="n">' + priceInput(sup, p, "cost") + '</td>' +
+            '<td class="n">' + priceInput(sup, p, "sell") + '</td>' +
+            marginCell(p) +
+            '<td class="n dash">' + (p.costDate ? esc(p.costDate) : "—") + '</td>' +
+            (readOnly ? '' : '<td class="n"><button class="x" data-act="dropprod" data-sup="' + esc(sup) + '" data-id="' + esc(p.id) + '" aria-label="Remove ' + esc(p.name) + '">&times;</button></td>') +
+            '</tr>';
+        });
+        h += '</tbody></table></div>';
+      }
+      if(!readOnly && !searching){
+        h += '<div class="add">' +
+          '<input class="grow" placeholder="Product" data-newprod="' + esc(sup) + '" data-f="name">' +
+          '<input class="small" placeholder="Pack size" data-newprod="' + esc(sup) + '" data-f="pack">' +
+          '<input class="tiny" placeholder="Cost" type="number" step="0.01" min="0" data-newprod="' + esc(sup) + '" data-f="cost">' +
+          '<input class="tiny" placeholder="Sell" type="number" step="0.01" min="0" data-newprod="' + esc(sup) + '" data-f="sell">' +
+          '<button class="btn ghost" data-act="addprod" data-sup="' + esc(sup) + '">Add product</button>' +
+          '</div>';
+      }
+      h += '</div></section>';
+    });
+    if(searching && !sups){
+      h += '<p class="empty">Nothing matches &ldquo;' + esc(query) + '&rdquo;.</p>';
+    } else if(searching){
+      h += '<p class="hint" style="margin-top:20px">' + hits + (hits===1?" product":" products") +
+           " in " + sups + (sups===1?" supplier":" suppliers") + '.</p>';
+    }
+    if(!readOnly && !searching){
+      h += '<section class="block"><div class="block-head"><h2>Add a supplier</h2></div>' +
+        '<div class="add"><input class="grow" id="newsup" placeholder="Supplier name">' +
+        '<button class="btn" data-act="addsup">Add supplier</button></div></section>';
+    }
+    return h;
+  }
+
+  function renderHistory(){
+    if(!state.pastOrders.length){
+      return '<p class="empty">No orders in the history yet. When you mark an order as ordered, it lands here with the date.</p>';
+    }
+    var sorted = state.pastOrders.slice().sort(function(a,b){ return b.date.localeCompare(a.date); });
+    var h = '<section class="block"><div class="block-head"><h2>Past orders</h2>' +
+      '<span class="meta">' + sorted.length + (sorted.length===1?" order":" orders") + '</span></div>';
+    sorted.forEach(function(o){
+      var open = !!openHist[o.id];
+      h += '<div class="hist">' +
+        '<div class="hist-h" data-act="togglehist" data-id="' + esc(o.id) + '" role="button" tabindex="0">' +
+        '<h3>' + esc(o.supplier) + '</h3><span class="d">' + esc(o.date) +
+          (o.wanted ? " \u00b7 " + esc(o.method === "pickup" ? "pickup" : "delivery") + " " + esc(o.wanted) : "") +
+        '</span>' +
+        '<span class="n">' + o.items.length + (o.items.length===1?" line":" lines") + (open?" ▾":" ▸") + '</span></div>' +
+        '<div class="histbody"' + (open?"":" hidden") + '><ul>';
+      o.items.forEach(function(i){
+        h += '<li><b>' + esc(i.qty) + '</b><span>' + esc(unitLabel(i.unit)) + '</span><span>' + esc(i.name) +
+             (i.pack ? ' <span class="dash">' + esc(i.pack) + '</span>' : '') + '</span></li>';
+      });
+      h += '</ul><div class="rowactions">' +
+        '<button class="copy" data-act="copyhist" data-id="' + esc(o.id) + '">Copy order</button>' +
+        (readOnly ? '' : '<button class="copy" data-act="undohist" data-id="' + esc(o.id) + '">Undo — put back on next order</button>') +
+        '</div></div></div>';
+    });
+    return h + '</section>';
+  }
+
+  function render(){
+    var body = tab === "order" ? renderOrder() : tab === "suppliers" ? renderSuppliers() : renderHistory();
+    root.innerHTML =
+      '<div class="wrap"><header><div class="brand"><h1>Order book</h1>' +
+      '<span class="saved" id="saved">' + (readOnly ? "View only" : "Saved") + '</span></div>' +
+      '<nav role="tablist">' +
+        tabBtn("order","Next order", openLineCount()) +
+        tabBtn("suppliers","Suppliers", productCount()) +
+        tabBtn("history","History", state.pastOrders.length) +
+      '</nav></header>' +
+      body +
+      (readOnly ? '<div class="notice">You can read this order book but not change it. Ask the owner for edit access.</div>' : '') +
+      '<footer><p class="hint">Everything here is typed in by hand. Nothing is looked up or filled in automatically.</p>' +
+      '<button class="btn ghost" data-act="export">Export CSV</button></footer></div>';
+    restoreSearchFocus();
+  }
+
+  function restoreSearchFocus(){
+    if(!refocus) return;
+    refocus = false;
+    var si = document.getElementById("psearch");
+    if(!si) return;
+    si.focus();
+    try { si.setSelectionRange(si.value.length, si.value.length); } catch(e){}
+  }
+
+  function tabBtn(id,label,count){
+    return '<button role="tab" aria-selected="' + (tab===id) + '" data-act="tab" data-tab="' + id + '">' +
+      label + '<span class="count">' + count + '</span></button>';
+  }
+
+  function priceInput(sup, p, field){
+    var v = p[field];
+    return '<input class="pricebox" type="number" step="0.01" min="0" placeholder="—" ' +
+      'value="' + (v==null?"":esc(v)) + '" data-price="' + esc(sup) + '" data-id="' + esc(p.id) + '" data-f="' + field + '"' +
+      (readOnly ? " disabled" : "") + ' aria-label="' + field + ' for ' + esc(p.name) + '">';
+  }
+
+  /* ---------- actions ---------- */
+
+  /* Browser confirm/alert/prompt are blocked in this sandbox — they return
+     silently. Everything below is rendered in the page instead. */
+  function closeDialog(){
+    var d = document.getElementById("dlg");
+    if(d && d.parentNode) d.parentNode.removeChild(d);
+  }
+
+  function dialog(o){
+    closeDialog();
+    var wrap = document.createElement("div");
+    wrap.id = "dlg";
+    wrap.className = "dlg";
+    wrap.innerHTML =
+      '<div class="dlg-box" role="dialog" aria-modal="true">' +
+        '<h3>' + esc(o.title || "Confirm") + '</h3>' +
+        (o.body ? '<p>' + esc(o.body) + '</p>' : '') +
+        (o.input ? '<input id="dlg-in" placeholder="' + esc(o.input) + '" aria-label="' + esc(o.input) + '">' : '') +
+        (o.text ? '<textarea id="dlg-text" rows="9" readonly aria-label="Order text"></textarea>' : '') +
+        '<div class="dlg-btns">' +
+          (o.hideCancel ? '' : '<button class="btn ghost" id="dlg-no">' + esc(o.cancelLabel || "Cancel") + '</button>') +
+          '<button class="btn" id="dlg-yes">' + esc(o.confirmLabel || "OK") + '</button>' +
+        '</div></div>';
+    document.body.appendChild(wrap);
+
+    var inEl = document.getElementById("dlg-in");
+    var txEl = document.getElementById("dlg-text");
+    if(txEl) txEl.value = o.text;
+
+    function finish(fn, val){ closeDialog(); if(fn) fn(val); }
+    document.getElementById("dlg-yes").addEventListener("click", function(){
+      finish(o.onConfirm, inEl ? inEl.value : undefined);
+    });
+    var noBtn = document.getElementById("dlg-no");
+    if(noBtn) noBtn.addEventListener("click", function(){ finish(o.onCancel); });
+    wrap.addEventListener("click", function(e){ if(e.target === wrap) finish(o.onCancel); });
+    wrap.addEventListener("keydown", function(e){
+      if(e.key === "Escape"){ finish(o.onCancel); }
+      else if(e.key === "Enter" && inEl){ finish(o.onConfirm, inEl.value); }
+    });
+    if(inEl) inEl.focus();
+    else if(txEl){ txEl.focus(); txEl.select(); }
+    else document.getElementById("dlg-yes").focus();
+  }
+
+  function toast(msg){
+    var old = document.getElementById("toast");
+    if(old && old.parentNode) old.parentNode.removeChild(old);
+    var t = document.createElement("div");
+    t.id = "toast"; t.className = "toast"; t.setAttribute("role","status");
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(function(){ if(t.parentNode) t.parentNode.removeChild(t); }, 3200);
+  }
+
+  function norm(s){
+    return String(s==null?"":s).toUpperCase().replace(/[^A-Z0-9]+/g," ").trim();
+  }
+  function normPack(s){
+    return String(s==null?"":s).toUpperCase().replace(/,/g,".")
+      .replace(/[^A-Z0-9.]+/g," ").replace(/\s+/g," ").trim();
+  }
+  function words(s){
+    return norm(s).split(" ").filter(function(w){ return w.length > 2; });
+  }
+  function looksSame(a,b){
+    var A = words(a), B = words(b);
+    if(!A.length || !B.length) return false;
+    var hits = A.filter(function(w){ return B.indexOf(w) >= 0; }).length;
+    return hits / Math.min(A.length, B.length) >= 0.7;
+  }
+
+  /* Same item written differently is the SAME product; a different pack is a
+     different product. Calls back with the product to use, or null to create. */
+  function matchProduct(prods, name, pack, cb){
+    var exact = prods.filter(function(p){
+      return norm(p.name) === norm(name) && normPack(p.pack) === normPack(pack);
+    })[0];
+    if(exact){ cb(exact); return; }
+    var near = prods.filter(function(p){
+      return normPack(p.pack) === normPack(pack) && looksSame(p.name, name);
+    })[0];
+    if(!near){ cb(null); return; }
+    dialog({
+      title: "Is this the same product?",
+      body: near.name + " (" + (near.pack || "no pack size") + ") is already on file " +
+            "for this supplier at the same pack size.",
+      confirmLabel: "Same product",
+      cancelLabel: "Add separately",
+      onConfirm: function(){ cb(near); },
+      onCancel: function(){ cb(null); }
+    });
+  }
+
+  function addLine(){
+    var qty = document.getElementById("nq").value.trim();
+    var unit = document.getElementById("nu").value;
+    var sup = document.getElementById("ns").value;
+    var name = document.getElementById("nn").value.trim();
+    var pack = document.getElementById("np").value.trim();
+    if(!name){ toast("Enter a product name."); return; }
+    if(sup === "__new"){
+      dialog({
+        title: "New supplier",
+        input: "Supplier name",
+        confirmLabel: "Add",
+        onConfirm: function(val){
+          val = (val || "").trim();
+          if(val) commitLine(val, qty, unit, name, pack);
+        }
+      });
+      return;
+    }
+    if(!sup){ toast("Pick or name a supplier first."); return; }
+    commitLine(sup, qty, unit, name, pack);
+  }
+
+  function commitLine(sup, qty, unit, name, pack){
+    ensureSupplier(sup);
+    var prods = state.suppliers[sup].products;
+    matchProduct(prods, name, pack, function(match){
+      if(match){
+        name = match.name; pack = match.pack;
+      } else {
+        prods.push({id:uid(), name:name, pack:pack, cost:null, sell:null, costDate:null});
+      }
+      if(!state.toOrder[sup]) state.toOrder[sup] = [];
+      var onOrder = state.toOrder[sup].filter(function(l){
+        return norm(l.name) === norm(name) && normPack(l.pack) === normPack(pack);
+      })[0];
+      if(onOrder && onOrder.unit === unit){
+        onOrder.qty = Number(onOrder.qty) + (Number(qty) || 1);
+        toast("Added to the existing line — now " + onOrder.qty + " " + unitLabel(unit) + ".");
+      } else {
+        state.toOrder[sup].push({id:uid(), qty:Number(qty)||1, unit:unit, name:name, pack:pack});
+      }
+      render(); scheduleSave();
+    });
+  }
+
+  function markOrdered(sup){
+    var lines = state.toOrder[sup] || [];
+    if(!lines.length) return;
+    dialog({
+      title: "Mark as ordered",
+      body: "Move " + lines.length + " line" + (lines.length===1?"":"s") + " for " + sup +
+            " into History, dated " + today() + "? " + sup + "'s next order will be emptied.",
+      confirmLabel: "Yes, it's ordered",
+      onConfirm: function(){
+        var m = meta(sup);
+        state.pastOrders.push({id:uid(), supplier:sup, date:today(), items:lines,
+                               method:m.method, wanted:m.date});
+        delete state.toOrder[sup];
+        delete state.orderMeta[sup];
+        render(); scheduleSave();
+        toast(sup + " moved to History, dated " + today() + ".");
+      }
+    });
+  }
+
+  function exportCsv(){
+    var rows = [["Section","Supplier","Date","Qty","Unit","Product","Pack","Cost","Sell"]];
+    supplierNames().forEach(function(s){
+      ((state.suppliers[s]||{}).products||[]).forEach(function(p){
+        rows.push(["Catalogue",s,p.costDate||"",  "","",p.name,p.pack||"",p.cost==null?"":p.cost,p.sell==null?"":p.sell]);
+      });
+    });
+    Object.keys(state.toOrder).forEach(function(s){
+      state.toOrder[s].forEach(function(l){
+        rows.push(["Next order",s,"",l.qty,l.unit,l.name,l.pack||"","",""]);
+      });
+    });
+    state.pastOrders.forEach(function(o){
+      o.items.forEach(function(l){
+        rows.push(["Past order",o.supplier,o.date,l.qty,l.unit,l.name,l.pack||"","",""]);
+      });
+    });
+    var csv = rows.map(function(r){
+      return r.map(function(c){
+        c = String(c==null?"":c);
+        return /[",\n]/.test(c) ? '"' + c.replace(/"/g,'""') + '"' : c;
+      }).join(",");
+    }).join("\n");
+    claude.use("downloads").then(function(d){
+      if(!d){ toast("Downloads aren't available in this view."); return; }
+      return d.save({filename:"order-book-" + today() + ".csv", data:csv});
+    }).catch(function(err){
+      if(err && err.code === "declined") return;
+      toast("That file couldn't be saved here.");
+    });
+  }
+
+  /* ---------- events ---------- */
+
+  root.addEventListener("click", function(e){
+    var t = e.target.closest("[data-act]");
+    if(!t) return;
+    var act = t.getAttribute("data-act");
+    if(act === "tab"){
+      tab = t.getAttribute("data-tab"); ssSet("ob.tab", tab);
+      if(tab !== "suppliers") query = "";
+      render(); return;
+    }
+    if(act === "export"){ exportCsv(); return; }
+    if(act === "togglehist"){
+      var id = t.getAttribute("data-id");
+      openHist[id] = !openHist[id]; render(); return;
+    }
+    if(act === "fold"){
+      var fk = t.getAttribute("data-key");
+      if(opened[fk]) delete opened[fk]; else opened[fk] = 1;
+      ssSet("ob.opened", JSON.stringify(opened));
+      render(); return;
+    }
+    if(act === "copy"){ copyOrder(t.getAttribute("data-sup"), t); return; }
+    if(act === "clearsearch"){ query = ""; refocus = true; render(); return; }
+    if(act === "method" && !readOnly){
+      meta(t.getAttribute("data-sup")).method = t.getAttribute("data-v");
+      render(); scheduleSave(); return;
+    }
+    if(act === "copyhist"){
+      var co = state.pastOrders.filter(function(o){ return o.id === t.getAttribute("data-id"); })[0];
+      if(co) copyText(linesText(co.supplier, co.items,
+                   {method: co.method || "delivery", date: co.wanted || ""}), t);
+      return;
+    }
+    if(act === "undohist" && !readOnly){
+      var uid_ = t.getAttribute("data-id");
+      var ord = state.pastOrders.filter(function(o){ return o.id === uid_; })[0];
+      if(!ord) return;
+      var openNow = (state.toOrder[ord.supplier] || []).length;
+      dialog({
+        title: "Undo this order",
+        body: "Put " + ord.items.length + " line" + (ord.items.length===1?"":"s") + " from " +
+              ord.supplier + " (" + ord.date + ") back on the next order" +
+              (openNow ? ", merging with the " + openNow + " line" + (openNow===1?"":"s") +
+                         " already open for " + ord.supplier + "." : ".") +
+              " It will be removed from History.",
+        confirmLabel: "Put back on order",
+        onConfirm: function(){
+          if(!state.toOrder[ord.supplier]) state.toOrder[ord.supplier] = [];
+          var list = state.toOrder[ord.supplier];
+          ord.items.forEach(function(it){
+            var same = list.filter(function(l){
+              return norm(l.name) === norm(it.name) &&
+                     normPack(l.pack) === normPack(it.pack) && l.unit === it.unit;
+            })[0];
+            if(same) same.qty = Number(same.qty) + (Number(it.qty) || 1);
+            else list.push({id:uid(), qty:Number(it.qty)||1, unit:it.unit, name:it.name, pack:it.pack});
+          });
+          state.pastOrders = state.pastOrders.filter(function(o){ return o.id !== uid_; });
+          state.orderMeta[ord.supplier] = {method: ord.method || "delivery", date: ord.wanted || ""};
+          opened["ord:" + ord.supplier] = 1;
+          tab = "order"; ssSet("ob.tab", tab);
+          render(); scheduleSave();
+          toast(ord.supplier + " is back on the next order.");
+        }
+      });
+      return;
+    }
+    if(readOnly) return;
+    if(act === "addline"){ addLine(); return; }
+    if(act === "ordered"){ markOrdered(t.getAttribute("data-sup")); return; }
+    if(act === "dropline"){
+      var sup = t.getAttribute("data-sup"), lid = t.getAttribute("data-id");
+      state.toOrder[sup] = (state.toOrder[sup]||[]).filter(function(l){ return l.id !== lid; });
+      if(!state.toOrder[sup].length) delete state.toOrder[sup];
+      render(); scheduleSave(); return;
+    }
+    if(act === "addsup"){
+      var n = ensureSupplier(document.getElementById("newsup").value);
+      if(n){ render(); scheduleSave(); }
+      return;
+    }
+    if(act === "addprod"){
+      var s = t.getAttribute("data-sup");
+      var fields = {};
+      root.querySelectorAll('[data-newprod="' + s.replace(/"/g,'\\"') + '"]').forEach(function(el){
+        fields[el.getAttribute("data-f")] = el.value.trim();
+      });
+      if(!fields.name){ toast("Enter a product name."); return; }
+      ensureSupplier(s);
+      matchProduct(state.suppliers[s].products, fields.name, fields.pack || "", function(existing){
+        if(existing){
+          if(fields.cost !== "" && !isNaN(Number(fields.cost))){
+            existing.cost = Number(fields.cost); existing.costDate = today();
+          }
+          if(fields.sell !== "" && !isNaN(Number(fields.sell))) existing.sell = Number(fields.sell);
+          toast("Updated the existing entry for " + existing.name + ".");
+        } else {
+          state.suppliers[s].products.push({
+            id:uid(), name:fields.name, pack:fields.pack||"",
+            cost: fields.cost === "" ? null : Number(fields.cost),
+            sell: fields.sell === "" ? null : Number(fields.sell),
+            costDate: fields.cost === "" ? null : today()
+          });
+        }
+        render(); scheduleSave();
+      });
+      return;
+    }
+    if(act === "dropprod"){
+      var ds = t.getAttribute("data-sup"), pid = t.getAttribute("data-id");
+      var pr = state.suppliers[ds].products.filter(function(p){ return p.id === pid; })[0];
+      if(!pr) return;
+      dialog({
+        title: "Remove product",
+        body: "Remove " + pr.name + " from " + ds + "? This only affects the catalogue, not past orders.",
+        confirmLabel: "Remove",
+        onConfirm: function(){
+          state.suppliers[ds].products = state.suppliers[ds].products.filter(function(p){ return p.id !== pid; });
+          render(); scheduleSave();
+        }
+      });
+      return;
+    }
+  });
+
+  root.addEventListener("keydown", function(e){
+    if(e.key === "Enter"){
+      var t = e.target;
+      if(t.id === "nn" || t.id === "np" || t.id === "nq"){ addLine(); e.preventDefault(); }
+      else if(t.id === "newsup"){ var n = ensureSupplier(t.value); if(n){ render(); scheduleSave(); } e.preventDefault(); }
+      else if(t.hasAttribute && t.hasAttribute("data-newprod")){
+        var b = root.querySelector('[data-act="addprod"][data-sup="' + t.getAttribute("data-newprod").replace(/"/g,'\\"') + '"]');
+        if(b) b.click();
+        e.preventDefault();
+      }
+    }
+    if((e.key === "Enter" || e.key === " ") && e.target.getAttribute && e.target.getAttribute("data-act") === "togglehist"){
+      e.target.click(); e.preventDefault();
+    }
+  });
+
+  root.addEventListener("input", function(e){
+    if(e.target.id !== "psearch") return;
+    query = e.target.value;
+    refocus = true;
+    render();
+  });
+
+  root.addEventListener("change", function(e){
+    var el = e.target;
+    if(readOnly || !el.hasAttribute) return;
+
+    if(el.hasAttribute("data-when")){
+      meta(el.getAttribute("data-when")).date = el.value;
+      render(); scheduleSave();
+      return;
+    }
+
+    if(el.hasAttribute("data-sup-f")){
+      var cs = el.getAttribute("data-sup");
+      if(!state.suppliers[cs]) return;
+      state.suppliers[cs][el.getAttribute("data-sup-f")] = el.value.trim();
+      scheduleSave();
+      return;
+    }
+
+    if(el.hasAttribute("data-line")){
+      var lsup = el.getAttribute("data-line"), lid = el.getAttribute("data-id"), lf = el.getAttribute("data-f");
+      var line = (state.toOrder[lsup] || []).filter(function(x){ return x.id === lid; })[0];
+      if(!line) return;
+      if(lf === "qty"){
+        var q = el.value.trim();
+        if(q === "" || Number(q) < 0){ el.value = line.qty; return; }
+        line.qty = Number(q);
+      } else {
+        line.unit = el.value;
+      }
+      scheduleSave();
+      return;
+    }
+
+    if(!el.hasAttribute("data-price")) return;
+    var sup = el.getAttribute("data-price"), pid = el.getAttribute("data-id"), f = el.getAttribute("data-f");
+    var prod = (state.suppliers[sup].products||[]).filter(function(p){ return p.id === pid; })[0];
+    if(!prod) return;
+    var raw = el.value.trim();
+    var next = raw === "" ? null : Number(raw);
+    if(f === "cost" && next !== prod.cost) prod.costDate = next == null ? null : today();
+    prod[f] = next;
+    var row = el.closest("tr");
+    if(row){
+      var cells = row.querySelectorAll("td");
+      var tmp = document.createElement("tbody");
+      tmp.innerHTML = "<tr>" + marginCell(prod) + "</tr>";
+      cells[3].replaceWith(tmp.querySelector("td"));
+      cells[4].textContent = prod.costDate || "—";
+    }
+    scheduleSave();
+  });
+
+  render();
+
+  claude.use("artifact").then(function(a){
+    art = a;
+    if(!a){ readOnly = false; setStatus("Not saved — offline copy only"); }
+  }).catch(function(){ setStatus("Not saved — offline copy only"); });
+})();
+</script>
+</body>
+</html>
