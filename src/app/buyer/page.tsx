@@ -121,6 +121,8 @@ export default async function BuyerDashboard() {
                   primary: true,
                   variant: "highlight",
                 },
+                { label: "Suppliers", href: "/buyer/purchase-orders?tab=suppliers" },
+                { label: "History", href: "/buyer/purchase-orders?tab=history" },
               ]}
             />
           )}

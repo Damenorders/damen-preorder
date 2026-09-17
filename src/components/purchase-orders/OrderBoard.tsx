@@ -12,7 +12,6 @@ import {
   setLineQty,
   setOrderMethod,
   setOrderWantedFor,
-  setSupplierContact,
   undoOrderOrdered,
 } from "@/app/actions/purchase-orders";
 import {
@@ -184,7 +183,6 @@ export default function OrderBoard({
                   </button>
                   {isOpen && (
                     <div className="border-t border-neutral-100 px-4 pb-4 pt-3">
-                      <ContactRow order={order} run={run} />
                       <MetaRow order={order} run={run} />
                       <ul className="mt-3 divide-y divide-neutral-100 rounded-xl border border-neutral-200">
                         {order.lines.map((line) => (
@@ -402,54 +400,9 @@ function CopyButton({ onCopy }: { onCopy: (done: () => void) => void }) {
   );
 }
 
-function ContactRow({ order, run }: { order: OrderView; run: Run }) {
-  const [contact, setContact] = useState(order.contact);
-  const [email, setEmail] = useState(order.email);
-
-  // Follow the server when someone else edits the supplier.
-  const [last, setLast] = useState({ contact: order.contact, email: order.email });
-  if (last.contact !== order.contact || last.email !== order.email) {
-    setLast({ contact: order.contact, email: order.email });
-    setContact(order.contact);
-    setEmail(order.email);
-  }
-
-  const box = "h-10 min-w-0 flex-1 rounded-lg border border-neutral-300 px-2 text-base";
-  return (
-    <div className="flex flex-wrap items-center gap-2 text-sm">
-      <span className="text-neutral-500">Order to</span>
-      <input
-        value={contact}
-        placeholder="Contact name"
-        aria-label={`Contact at ${order.supplierName}`}
-        onChange={(e) => setContact(e.target.value)}
-        onBlur={() => {
-          if (contact.trim() !== order.contact) {
-            run(() => setSupplierContact(order.supplierId, "contact", contact));
-          }
-        }}
-        className={box}
-      />
-      <input
-        value={email}
-        type="email"
-        placeholder="Email"
-        aria-label={`Email for ${order.supplierName}`}
-        onChange={(e) => setEmail(e.target.value)}
-        onBlur={() => {
-          if (email.trim() !== order.email) {
-            run(() => setSupplierContact(order.supplierId, "email", email));
-          }
-        }}
-        className={box}
-      />
-    </div>
-  );
-}
-
 function MetaRow({ order, run }: { order: OrderView; run: Run }) {
   return (
-    <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
+    <div className="flex flex-wrap items-center gap-2 text-sm">
       <span className="inline-flex rounded-lg border border-neutral-300 p-0.5">
         {(["delivery", "pickup"] as const).map((m) => (
           <button
