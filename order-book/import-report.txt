@@ -1,0 +1,84 @@
+Order Book import — APPLIED — 2026-09-17T16:46:05.829Z
+
+CREATED (35)
+  + supplier "Mega Importing" (#69) contact="Marco" email="marco@megaimporting.com"
+  + supplier "L'Artisan Du Canape" (#70) contact="Youssef" email=""
+  + link Transhing :: ERAWAN - RICE STICKS MEDIUM [30 X 454G] -> RICESTICKM "ERAWAN - RICE STICKS MEDIUM /  30 X 454G", pack "30 X 454G", unit/cost/sell empty
+  + link Transhing :: YAMADA - NORI GOLD *HALF* SHEET BIG BOX [4 X 1000UN] -> NORIGHALF "YAMADA - NORI GOLD *HALF* SHEET BIG BOX / 4 X 1000UN", pack "4 X 1000UN", unit/cost/sell empty
+  + link Transhing :: BLACK ROASTED SESAME SEEDS FULL BOX [12 X 1KG] -> SESAMEBLK "BLACK ROASTED SESAME SEEDS FULL BOX (12 X 1KG)", pack "12 X 1KG", unit/cost/sell empty
+  + link Transhing :: HUY FONG - SAMBAL OELEK [3 X 3,5L] -> SAMOLEK "HUY FONG - SAMBAL OELEK / 3 X 3,5L", pack "3 X 3,5L", unit/cost/sell empty
+  + link Transhing :: HOISIN SAUCE [6 X 5LBS] -> SAUCEHOISIN65 "HOISIN SAUCE / 6 X 5LBS", pack "6 X 5LBS", unit/cost/sell empty
+  + link Transhing :: GOLDEN SWALLOW - DONGGUAN RICE VERMICELLI [50 X 400G] -> RICEGOLDENSW "GOLDEN SWALLOW - DONGGUAN RICE VERMICELLI (50 X 400G)", pack "50 X 400G", unit/cost/sell empty
+  + link Fra-Di :: STANISLAUS - 7/11 UNPEELED GROUND TOMATOES [6 X 2.84L] -> STAN711 "STANISLAUS - 7/11 UNPEELED GROUND TOMATOES / 6 X 2.84L", pack "6 X 2.84L", unit/cost/sell empty
+  + link Fra-Di :: STANISLAUS - VALOROSO / WHOLE PEELED PEAR TOMATOES [6 X 2.84L] -> STANVALO "STANISLAUS - VALOROSO / WHOLE PEELED PEAR TOMATOES / 6 X 2.84L", pack "6 X 2.84L", unit/cost/sell empty
+  + link Mega Importing :: ROSSO - WHOLE PEELED TOMATOES [6 X 100OZ] -> TOMROSWHL "ROSSO - WHOLE PEELED TOMATOES / 6 X 100OZ", pack "6 X 100OZ", unit/cost/sell empty
+  + link JFC :: SANGARIA RAMUNE MELON [18X200ML] -> RAM-011 "SANGARIA RAMUNE MELON (18X200ML)", pack "18X200ML", unit/cost/sell empty
+  + link JFC :: SANGARIA RAMUNE LYCHEE [18X200ML] -> RAM-012 "SANGARIA RAMUNE LYCHEE (18X200ML)", pack "18X200ML", unit/cost/sell empty
+  + link JFC :: SANGARIA RAMUNE ORIGINAL [18X200ML] -> RAM-010 "SANGARIA RAMUNE ORIGINAL (18X200ML)", pack "18X200ML", unit/cost/sell empty
+  + link JFC :: SOYA SAUCE GLUTEN FREE [18.9L] -> SAUCESOYKIKGF "SOYA SAUCE GLUTEN FREE / 18.9L", pack "18.9L", unit/cost/sell empty
+  + link JFC :: KIKKOMAN - MIRIN KOTTERIN [18.9L] -> MIRIN189 "KIKKOMAN - MIRIN KOTTERIN / 18.9L", pack "18.9L", unit/cost/sell empty
+  + link JFC :: VINEGAR SD-51 [15L] -> VNGSD51 "VINEGAR SD-51 / 15L", pack "15L", unit/cost/sell empty
+  + link JFC :: VINEGAR MD-43 [15L] -> VNGMD43 "VINEGAR MD-43 / 15L", pack "15L", unit/cost/sell empty
+  + link JFC :: VINEGAR FUJI SEASONING [15L] -> VNGFUKI "VINEGAR FUJI SEASONING / 15L", pack "15L", unit/cost/sell empty
+  + link JFC :: MARUKAN - SUSHI RICE VINEGAR [3.78L] -> VNGSUSHIRICESM "MARUKAN - SUSHI RICE VINEGAR (3.78L)", pack "3.78L", unit/cost/sell empty
+  + link JFC :: PANKO BREAD CRUMBS [9KG] -> PANKO9 "PANKO BREAD CRUMBS (9KG)", pack "9KG", unit/cost/sell empty
+  + link JFC :: ATSUYAKI TAMAGO [8 X 500G] -> TAMAGO "ATSUYAKI TAMAGO / 8 X 500G", pack "8 X 500G", unit/cost/sell empty
+  + link LordFord :: WAIWAI - RICE VERMICELLI [24 X 500G] -> RICEWAI "WAIWAI - RICE VERMICELLI / 24 X 500G", pack "24 X 500G", unit/cost/sell empty
+  + link LordFord :: S5 CLEAR PLASTIC BAGS [1000UN] -> BAGCLS5 "S5 CLEAR PLASTIC BAGS (1000UN)", pack "1000UN", unit/cost/sell empty
+  + link LordFord :: FOCO - COCONUT DRINK [24X350ML] -> FOCOCOCO "FOCO - COCONUT DRINK 24X350ML", pack "24X350ML", unit/cost/sell empty
+  + link LordFord :: FOCO - LYCHEE JUICE [24X350ML] -> FOCOLYCHEE "FOCO - LYCHEE JUICE 24X350ML", pack "24X350ML", unit/cost/sell empty
+  + link LordFord :: FOCO - MANGO NECTAR [24X350ML] -> FOCOMANGO "FOCO - MANGO NECTAR 24X350ML", pack "24X350ML", unit/cost/sell empty
+  + link LordFord :: DOLL SPRING ROLL PASTRY 6X6INCH [30X200G] -> SPRINGRPAST66 "DOLL SPRING ROLL PASTRY 6X6INCH (30X200G)", pack "30X200G", unit/cost/sell empty
+  + link LordFord :: DOLL SPRING ROLL PASTRY 8.5X8.5INCH [30X400G] -> SPRINGRPAST88 "DOLL SPRING ROLL PASTRY 8.5X8.5INCH (30X400G)", pack "30X400G", unit/cost/sell empty
+  + link LordFord :: FRIED GARLIC [24 X 454G] -> FRIEDGARL "FRIED GARLIC (24 X 454G)", pack "24 X 454G", unit/cost/sell empty
+  + link LordFord :: FRESH KIM CHI [10KG] -> KIMCHIFRESH "FRESH KIM CHI 10KG", pack "10KG", unit/cost/sell empty
+  + link LordFord :: ERAWAN - WHITE GLUTINOUS RICE FLOUR [30 X 400G] -> GLURICEFLOUR400 "ERAWAN - WHITE GLUTINOUS RICE FLOUR / 30 X 400G", pack "30 X 400G", unit/cost/sell empty
+  + link L'Artisan Du Canape :: MINI CONE 78MM [140 UNIT] -> MINICONE78MM "MINI CONE 78MM (140 UNIT)", pack "140 UNIT", unit/cost/sell empty
+  + link L'Artisan Du Canape :: MINI ROUND TARTELET SALTED 38MM [240 UNITS] -> TARTRONDE "MINI ROUND TARTELET SALTED 38MM (240 UNITS)", pack "240 UNITS", unit/cost/sell empty
+  + link L'Artisan Du Canape :: ROUND MINI PRESTIGE TART [245 UNIT] -> TARTPRESTIGE "ROUND MINI PRESTIGE TART - 245 UNIT", pack "245 UNIT", unit/cost/sell empty
+
+MATCHED TO EXISTING (7)
+  = supplier Wismettac -> existing "Wismettac" (#8), left unchanged
+  = supplier Transhing -> existing "Transhing" (#9), left unchanged
+  = supplier Fra-Di -> existing "Fra-Di" (#63), left unchanged
+  = supplier JFC -> existing "JFC International" (#32, as decided)
+  = supplier VIEDERA -> existing "Viedera" (#23), left unchanged
+  = supplier LordFord -> existing "LordFord" (#3), left unchanged
+  = product Transhing :: TS - SQUARE RICE PAPER 22CM [40 X 400G] -> PAPERSQUARERC22TS already linked to Transhing (pack "40 x 400g"), left unchanged
+
+SKIPPED (35)
+  - product Wismettac :: WHITE MARINATED GINGER SUSHI [25 LBS]: no catalogue code chosen in order-book/import-mapping.csv
+  - product Wismettac :: EDAMAME SKINLESS (SHELLED) [20 X 400 G]: no catalogue code chosen in order-book/import-mapping.csv
+  - product Wismettac :: SHIRAKIKU BROWN MEDIUM GRAIN RICE [15 LBS]: no catalogue code chosen in order-book/import-mapping.csv
+  - product Wismettac :: TEMPURA BATTER MIX FLOUR [40 LBS]: no catalogue code chosen in order-book/import-mapping.csv
+  - product Wismettac :: RED TOBIKO - 20 X 500 GR: no catalogue code chosen in order-book/import-mapping.csv
+  - product Wismettac :: ORANGE TOBIKO - 20 X 500GR: no catalogue code chosen in order-book/import-mapping.csv
+  - product Wismettac :: ORANGE MASAGO - 12 X 500GR: no catalogue code chosen in order-book/import-mapping.csv
+  - product Wismettac :: MASAGO RED 1 X 500GR: no catalogue code chosen in order-book/import-mapping.csv
+  - product Wismettac :: FROZEN PORK SHOULDER CHASHU (AV WT - 12LBS): no catalogue code chosen in order-book/import-mapping.csv
+  - product Wismettac :: GROUND TUNA [10 X 1 LB]: no catalogue code chosen in order-book/import-mapping.csv
+  - product Transhing :: NORI GOLD FULL SHEET BIG BOX [4000UN]: no catalogue code chosen in order-book/import-mapping.csv
+  - product Transhing :: WHITE ROASTED SESAME SEEDS FULL BOX [10 X 1KG]: no catalogue code chosen in order-book/import-mapping.csv
+  - product Transhing :: SQUID BRAND - FISH SAUCE [3 X 4500ML]: no catalogue code chosen in order-book/import-mapping.csv
+  - product Transhing :: OYSTER SAUCE PANDA [6 X 5LBS]: no catalogue code chosen in order-book/import-mapping.csv
+  - product Transhing :: GOBERGE - SURIMI IMITATION CRAB STICKS - 9 CM [20 X 500G]: no catalogue code chosen in order-book/import-mapping.csv
+  - product Transhing :: FRIED TEMPURA TENKTASU [6kg]: no catalogue code chosen in order-book/import-mapping.csv
+  - product VIEDERA :: SMALL NITRIL BLACK GLOVES: no catalogue code chosen in order-book/import-mapping.csv
+  - product VIEDERA :: MEDIUM NITRIL BLACK GLOVES: no catalogue code chosen in order-book/import-mapping.csv
+  - product VIEDERA :: LARGE NITRIL BLACK GLOVES: no catalogue code chosen in order-book/import-mapping.csv
+  - product VIEDERA :: XL NITRIL BLACK GLOVES: no catalogue code chosen in order-book/import-mapping.csv
+  - product VIEDERA :: SMALL VINYL CLEAR GLOVES: no catalogue code chosen in order-book/import-mapping.csv
+  - product VIEDERA :: MEDIUM VINYL CLEAR GLOVES: no catalogue code chosen in order-book/import-mapping.csv
+  - product VIEDERA :: LARGE VINYL CLEAR GLOVES: no catalogue code chosen in order-book/import-mapping.csv
+  - product VIEDERA :: XLARGE VINYL CLEAR GLOVES: no catalogue code chosen in order-book/import-mapping.csv
+  - product VIEDERA :: POLYETHYLENE GLOVES / SMALL: no catalogue code chosen in order-book/import-mapping.csv
+  - product VIEDERA :: POLYETHYLENE GLOVES / MEDIUM: no catalogue code chosen in order-book/import-mapping.csv
+  - product VIEDERA :: POLYETHYLENE GLOVES / LARGE: no catalogue code chosen in order-book/import-mapping.csv
+  - product VIEDERA :: POLYETHYLENE GLOVES / X-LARGE: no catalogue code chosen in order-book/import-mapping.csv
+  - product VIEDERA :: BLACK GARBAGE BAG 26X36: no catalogue code chosen in order-book/import-mapping.csv
+  - product VIEDERA :: BLACK GARBAGE BAGS 22X24: no catalogue code chosen in order-book/import-mapping.csv
+  - product VIEDERA :: BLACK GARBAGE BAGS 42X48: no catalogue code chosen in order-book/import-mapping.csv
+  - product VIEDERA :: EXTRA STRONG BLACK GARBAGE BAGS 35X50: no catalogue code chosen in order-book/import-mapping.csv
+  - open order lines: 2 (not imported, as decided)
+  - past orders: 8 with 46 lines (not imported, as decided)
+  - cost and sell: all empty in the file, left empty
