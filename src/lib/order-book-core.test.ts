@@ -104,7 +104,11 @@ test("#5 cancelled assignment leaves no line, no sourcing, no supplier", () => {
   const book: Book = { orders: [] };
   // Cancel = nothing is called. Invalid input is refused before anything is written.
   assert.equal(checkSourcingInput({ purchasePack: "", purchaseUnit: "case" }).ok, false);
-  assert.equal(checkSourcingInput({ purchasePack: "9KG", purchaseUnit: "" }).ok, false);
+  assert.equal(checkSourcingInput({ purchasePack: "9KG", purchaseUnit: "tonne" }).ok, false);
+  // The unit is optional; a blank one is stored as "none", never guessed.
+  assert.deepEqual(checkSourcingInput({ purchasePack: "9KG", purchaseUnit: "" }), {
+    ok: true, purchasePack: "9KG", purchaseUnit: null, supplierSku: "",
+  });
   assert.deepEqual(catalog, before);
   assert.deepEqual(book.orders, []);
   assert.equal(suppliers.length, 2);

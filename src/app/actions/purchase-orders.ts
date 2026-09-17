@@ -273,7 +273,12 @@ export async function addPurchaseLine(
       const { entry, sourcing } = resolution;
       // Typed without looking at the unit box: show where it goes and in what
       // unit before anything is added, rather than order 1 "each" of a pallet item.
-      if (!input.itemCode && !input.unitChosen && sourcing.purchaseUnit !== check.unit) {
+      if (
+        !input.itemCode &&
+        !input.unitChosen &&
+        sourcing.purchaseUnit !== null &&
+        sourcing.purchaseUnit !== check.unit
+      ) {
         return { status: "check-unit", product: byCode.get(entry.code)! };
       }
       const line = await db.transaction((tx) =>
@@ -973,7 +978,8 @@ export async function editSupplierProduct(
     if (check.kind === "blank") {
       return { ok: false as const, error: "A product needs a name, so that change was not applied." };
     }
-    if (!pack) {
+    // A pack that was on file can't be blanked; one that never was can stay blank.
+    if (!pack && current.pack) {
       return { ok: false as const, error: "A purchase pack is needed, so that change was not applied." };
     }
     if (check.kind === "clash") {

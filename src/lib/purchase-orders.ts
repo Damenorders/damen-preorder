@@ -80,13 +80,15 @@ export function hitToEntry(h: PurchaseHit): CatalogEntry {
   return {
     code: h.code,
     name: h.name,
+    // A supplier link is what makes a product "sourced"; its pack and unit
+    // may be blank (the unit is optional, and imported links may lack a pack).
     sourcing:
-      h.supplierId !== null && h.pack !== null && h.unit !== null
+      h.supplierId !== null
         ? {
             supplierId: h.supplierId,
             supplierName: h.supplierName ?? "",
             supplierSku: "",
-            purchasePack: h.pack,
+            purchasePack: h.pack ?? "",
             purchaseUnit: h.unit,
           }
         : null,

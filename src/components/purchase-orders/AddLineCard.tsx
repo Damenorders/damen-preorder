@@ -62,7 +62,9 @@ export function HitLabel({ hit }: { hit: PurchaseHit }) {
         {hit.supplierName ? (
           <>
             {" · "}
-            {hit.pack} · {hit.unit} · <b className="text-neutral-700">{hit.supplierName}</b>
+            {[hit.pack, hit.unit].filter(Boolean).join(" · ")}
+            {hit.pack || hit.unit ? " · " : ""}
+            <b className="text-neutral-700">{hit.supplierName}</b>
           </>
         ) : (
           <>
@@ -178,7 +180,7 @@ export default function AddLineCard() {
           setModal(null);
           pick(result.product);
           setNotice(
-            `Found it at ${result.product.supplierName}, bought in ${result.product.unit}. Check the quantity and unit, then press Add.`,
+            `Found it at ${result.product.supplierName}, usually bought in ${result.product.unit ?? "—"}. Check the quantity and unit, then press Add.`,
           );
           unitRef.current?.focus();
           break;
@@ -262,7 +264,9 @@ export default function AddLineCard() {
             <p className="mt-1 text-xs text-neutral-600">
               {picked.supplierName ? (
                 <>
-                  Goes to <b>{picked.supplierName}</b> · {picked.pack} · buys in {picked.unit}
+                  Goes to <b>{picked.supplierName}</b>
+                  {picked.pack ? ` · ${picked.pack}` : ""}
+                  {picked.unit ? ` · usually bought in ${picked.unit}` : ""}
                 </>
               ) : (
                 <span className="font-semibold text-amber-700">
@@ -383,7 +387,7 @@ export default function AddLineCard() {
           onCancel={() => setModal(null)}
           onAssigned={(result) => {
             const facts = [
-              `${result.line.name} is now bought from ${result.line.supplierName} in ${result.line.pack} (${result.line.unit}).`,
+              `${result.line.name} is now bought from ${result.line.supplierName} in ${result.line.pack}.`,
               result.matchedExisting
                 ? ` The supplier you typed is already on file as ${result.matchedExisting} — used that.`
                 : result.createdSupplier
@@ -549,8 +553,8 @@ function AssignSupplierDialog({
         }
       >
         <p>
-          While you were typing, {taken.name} was assigned to <b>{taken.supplierName}</b> (
-          {taken.pack}, {taken.unit}). Nothing you entered was saved.
+          While you were typing, {taken.name} was assigned to <b>{taken.supplierName}</b>
+          {taken.pack ? ` (${taken.pack})` : ""}. Nothing you entered was saved.
         </p>
       </Dialog>
     );
@@ -707,7 +711,7 @@ function AssignSupplierDialog({
 
         <div className="flex gap-2">
           <label className={`${label} flex-1`}>
-            Bought in
+            Bought in (optional)
             <select
               value={purchaseUnit}
               onChange={(e) => {
@@ -716,7 +720,7 @@ function AssignSupplierDialog({
               }}
               className={`${inputClass} mt-1 w-full`}
             >
-              <option value="">Choose…</option>
+              <option value="">—</option>
               {PURCHASE_UNITS.map((u) => (
                 <option key={u} value={u}>
                   {u}

@@ -96,7 +96,8 @@ export interface Sourcing {
   supplierName: string;
   supplierSku: string;
   purchasePack: string;
-  purchaseUnit: PurchaseUnit;
+  /** Optional: the buyer picks the unit on each order line. */
+  purchaseUnit: PurchaseUnit | null;
 }
 
 /** One sales-catalogue product, with its preferred sourcing when it has one. */
@@ -199,10 +200,14 @@ export function matchSupplierName<S extends SupplierRef>(
 }
 
 export type SourcingCheck =
-  | { ok: true; purchasePack: string; purchaseUnit: PurchaseUnit; supplierSku: string }
+  | { ok: true; purchasePack: string; purchaseUnit: PurchaseUnit | null; supplierSku: string }
   | { ok: false; field: "purchasePack" | "purchaseUnit"; message: string };
 
-/** Pack and unit are required and taken exactly as typed; SKU is optional. */
+/**
+ * The pack is required and taken exactly as typed. The unit is optional (the
+ * buyer picks one on every order line), but when given it must be a real one.
+ * SKU is optional.
+ */
 export function checkSourcingInput(input: {
   purchasePack?: string | null;
   purchaseUnit?: string | null;
@@ -216,17 +221,18 @@ export function checkSourcingInput(input: {
       message: "Enter the purchase pack as it is printed on the invoice, e.g. 6 X 2.84L.",
     };
   }
-  if (!isPurchaseUnit(input.purchaseUnit)) {
+  const unit = String(input.purchaseUnit ?? "").trim();
+  if (unit && !isPurchaseUnit(unit)) {
     return {
       ok: false,
       field: "purchaseUnit",
-      message: "Choose the unit you buy it in.",
+      message: "Choose pallet, case, box, bag or each — or leave the unit blank.",
     };
   }
   return {
     ok: true,
     purchasePack,
-    purchaseUnit: input.purchaseUnit,
+    purchaseUnit: isPurchaseUnit(unit) ? unit : null,
     supplierSku: String(input.supplierSku ?? "").trim(),
   };
 }
@@ -543,7 +549,7 @@ export interface SupplierProduct {
   code: string;
   name: string;
   pack: string;
-  unit: PurchaseUnit;
+  unit: PurchaseUnit | null;
   /** Per purchase pack. */
   cost: number | null;
   /** Per purchase pack. */

@@ -50,8 +50,9 @@ export const itemSourcing = pgTable(
       .notNull()
       .references(() => suppliers.id),
     supplierSku: text("supplier_sku").notNull().default(""),
-    purchasePack: text("purchase_pack").notNull(),
-    purchaseUnit: purchaseUnitEnum("purchase_unit").notNull(),
+    purchasePack: text("purchase_pack").notNull().default(""),
+    // Optional (0028): the buyer picks the unit on each order line anyway.
+    purchaseUnit: purchaseUnitEnum("purchase_unit"),
     preferred: boolean("preferred").notNull().default(true),
     assignedAt: timestamp("assigned_at", { withTimezone: true })
       .notNull()

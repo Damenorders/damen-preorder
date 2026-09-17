@@ -344,7 +344,7 @@ function ProductRow({
         <td className="py-2 align-top">
           {p.name}
           <span className="block text-xs text-neutral-500">
-            {p.pack} · {p.unit}
+            {[p.pack, p.unit].filter(Boolean).join(" · ") || "—"}
           </span>
           {marker}
         </td>
@@ -441,7 +441,7 @@ function ProductRow({
             aria-label={`Pack size of ${p.name}`}
             className={`${cell} min-w-0 flex-1 text-sm`}
           />
-          <span className="shrink-0 text-xs text-neutral-500">{p.unit}</span>
+          {p.unit && <span className="shrink-0 text-xs text-neutral-500">{p.unit}</span>}
         </span>
         {marker}
       </td>
@@ -705,7 +705,7 @@ function AddProductForm({
           aria-label="Bought in"
           className={`${cell} w-28`}
         >
-          <option value="">Unit…</option>
+          <option value="">Unit (optional)</option>
           {PURCHASE_UNITS.map((u) => (
             <option key={u} value={u}>
               {u}
