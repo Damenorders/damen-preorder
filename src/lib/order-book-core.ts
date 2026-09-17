@@ -325,6 +325,31 @@ export function mergeLine(lines: PoLine[], line: PoLine): PoLine[] {
   );
 }
 
+/**
+ * Changes one line's unit. Landing on a unit the same product already has on
+ * this order merges the two lines (quantities summed), so the identity rule —
+ * one line per product per unit — still holds.
+ */
+export function changeLineUnit(
+  lines: PoLine[],
+  lineId: string,
+  unit: PurchaseUnit,
+): { lines: PoLine[]; merged: boolean } {
+  const line = lines.find((l) => l.id === lineId);
+  if (!line || line.unit === unit) {
+    return { lines: lines.map((l) => ({ ...l })), merged: false };
+  }
+  const rest = lines.filter((l) => l.id !== lineId);
+  const merged = rest.some((l) => l.productId === line.productId && l.unit === unit);
+  if (!merged) {
+    return {
+      lines: lines.map((l) => (l.id === lineId ? { ...l, unit } : { ...l })),
+      merged: false,
+    };
+  }
+  return { lines: mergeLine(rest, { ...line, unit }), merged: true };
+}
+
 function cloneOrder(po: PurchaseOrder): PurchaseOrder {
   return { ...po, lines: po.lines.map((l) => ({ ...l })) };
 }

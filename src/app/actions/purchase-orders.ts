@@ -38,6 +38,7 @@ import {
   checkProductEdit,
   checkSourcingInput,
   isPurchaseMethod,
+  isPurchaseUnit,
   looksSimilar,
   matchSupplierName,
   matchSupplierProduct,
@@ -71,6 +72,7 @@ import type {
   AssignResult,
   CreateProductInput,
   CreateProductResult,
+  LineUnitResult,
   MarkOrderedResult,
   PlacedLine,
   PurchaseActionResult,
@@ -608,6 +610,73 @@ export async function removeOrderLine(
   await db.delete(purchaseOrderLines).where(lineOnOpenOrder(String(lineId)));
   await announce();
   return { ok: true };
+}
+
+/**
+ * Changes the unit on one open line. If the product already has a line at the
+ * new unit on that order, the two are joined (quantities summed) — the same
+ * one-line-per-product-per-unit rule as adding.
+ */
+export async function setLineUnit(
+  lineId: string,
+  unit: string,
+): Promise<LineUnitResult> {
+  await requireBuyer();
+  if (!isPurchaseUnit(unit)) {
+    return { ok: false, error: "Choose pallet, case, box, bag or each." };
+  }
+
+  const [target] = await db
+    .select({ supplierId: purchaseOrders.supplierId })
+    .from(purchaseOrderLines)
+    .innerJoin(purchaseOrders, eq(purchaseOrders.id, purchaseOrderLines.orderId))
+    .where(lineOnOpenOrder(String(lineId)));
+  if (!target) return { ok: false, error: "That line is no longer on an open order." };
+
+  const result = await db.transaction(async (tx): Promise<LineUnitResult> => {
+    await lockSupplierOrders(tx, target.supplierId);
+    const [line] = await tx
+      .select()
+      .from(purchaseOrderLines)
+      .where(lineOnOpenOrder(String(lineId)))
+      .for("update");
+    if (!line) return { ok: false, error: "That line is no longer on an open order." };
+    if (line.unit === unit) return { ok: true, merged: false, qty: Number(line.qty) };
+
+    const [same] = await tx
+      .select()
+      .from(purchaseOrderLines)
+      .where(
+        and(
+          eq(purchaseOrderLines.orderId, line.orderId),
+          eq(purchaseOrderLines.itemCode, line.itemCode),
+          eq(purchaseOrderLines.unit, unit),
+        ),
+      )
+      .for("update");
+
+    if (!same) {
+      await tx
+        .update(purchaseOrderLines)
+        .set({ unit, updatedAt: new Date() })
+        .where(eq(purchaseOrderLines.id, line.id));
+      return { ok: true, merged: false, qty: Number(line.qty) };
+    }
+
+    const [joined] = await tx
+      .update(purchaseOrderLines)
+      .set({
+        qty: sql`${purchaseOrderLines.qty} + ${line.qty}`,
+        updatedAt: new Date(),
+      })
+      .where(eq(purchaseOrderLines.id, same.id))
+      .returning({ qty: purchaseOrderLines.qty });
+    await tx.delete(purchaseOrderLines).where(eq(purchaseOrderLines.id, line.id));
+    return { ok: true, merged: true, qty: Number(joined.qty) };
+  });
+
+  if (result.ok) await announce();
+  return result;
 }
 
 /**

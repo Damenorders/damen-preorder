@@ -136,6 +136,16 @@ export interface OrderView {
 
 export type PurchaseActionResult = { ok: true } | { ok: false; error: string };
 
+export type LineUnitResult =
+  | {
+      ok: true;
+      /** The product already had a line at the new unit; the two were joined. */
+      merged: boolean;
+      /** Quantity of the line that now holds this product at the new unit. */
+      qty: number;
+    }
+  | { ok: false; error: string };
+
 export type MarkOrderedResult =
   | { ok: true; supplierName: string; date: string }
   | { ok: false; error: string };

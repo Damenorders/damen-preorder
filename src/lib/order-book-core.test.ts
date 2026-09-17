@@ -324,3 +324,29 @@ test("picking a product resolves by its own sourcing", () => {
   assert.equal(resolvePicked(catalog[0]).kind, "ready");
   assert.equal(resolvePicked(catalog[2]).kind, "needs-sourcing");
 });
+
+test("changing a line's unit keeps one line per product per unit", async () => {
+  const { changeLineUnit } = await import("./order-book-core");
+  const lines: PoLine[] = [
+    line("TOMGR711", 2, "case"),
+    line("TOMGR711", 1, "pallet"),
+    line("OTHER", 3, "case"),
+  ];
+  // To a free unit: just changes.
+  const moved = changeLineUnit(lines, lines[0].id, "box");
+  assert.equal(moved.merged, false);
+  assert.deepEqual(moved.lines.map((l) => `${l.productId}:${l.unit}:${l.qty}`), [
+    "TOMGR711:box:2", "TOMGR711:pallet:1", "OTHER:case:3",
+  ]);
+  // Onto a unit the product already has: merged, quantities summed.
+  const merged = changeLineUnit(lines, lines[0].id, "pallet");
+  assert.equal(merged.merged, true);
+  assert.deepEqual(merged.lines.map((l) => `${l.productId}:${l.unit}:${l.qty}`), [
+    "TOMGR711:pallet:3", "OTHER:case:3",
+  ]);
+  // Another product at that unit is not touched.
+  const other = changeLineUnit(lines, lines[2].id, "pallet");
+  assert.equal(other.merged, false);
+  // Input is never mutated.
+  assert.equal(lines[0].unit, "case");
+});

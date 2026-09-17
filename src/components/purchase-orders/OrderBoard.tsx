@@ -10,6 +10,7 @@ import {
   markOrderOrdered,
   removeOrderLine,
   setLineQty,
+  setLineUnit,
   setOrderMethod,
   setOrderWantedFor,
   undoOrderOrdered,
@@ -18,6 +19,7 @@ import {
   formatCopyOrder,
   formatLongDate,
   formatQty,
+  PURCHASE_UNITS,
 } from "@/lib/order-book-core";
 import type { OrderLineView, OrderView } from "@/lib/purchase-order-types";
 import Dialog, { buttonClass } from "./Dialog";
@@ -55,7 +57,6 @@ export default function OrderBoard({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-
 
   async function run(task: () => Promise<{ ok: boolean; error?: string }>) {
     setError(null);
@@ -186,7 +187,7 @@ export default function OrderBoard({
                       <MetaRow order={order} run={run} />
                       <ul className="mt-3 divide-y divide-neutral-100 rounded-xl border border-neutral-200">
                         {order.lines.map((line) => (
-                          <OpenLine key={line.id} line={line} run={run} />
+                          <OpenLine key={line.id} line={line} run={run} onNotice={setNotice} />
                         ))}
                       </ul>
                       <div className="mt-3 flex flex-wrap gap-2">
@@ -431,7 +432,15 @@ function MetaRow({ order, run }: { order: OrderView; run: Run }) {
   );
 }
 
-function OpenLine({ line, run }: { line: OrderLineView; run: Run }) {
+function OpenLine({
+  line,
+  run,
+  onNotice,
+}: {
+  line: OrderLineView;
+  run: Run;
+  onNotice: (message: string) => void;
+}) {
   const [text, setText] = useState(formatQty(line.qty));
   const [lastQty, setLastQty] = useState(line.qty);
   if (line.qty !== lastQty) {
@@ -456,7 +465,31 @@ function OpenLine({ line, run }: { line: OrderLineView; run: Run }) {
         }}
         className="h-10 w-16 shrink-0 rounded-lg border border-neutral-300 px-2 text-right text-base"
       />
-      <span className="w-12 shrink-0 text-sm text-neutral-500">{line.unit}</span>
+      <select
+        value={line.unit}
+        aria-label={`Unit for ${line.nameAtTime}`}
+        onChange={async (e) => {
+          const unit = e.target.value;
+          const joined: { qty: number | null } = { qty: null };
+          await run(async () => {
+            const result = await setLineUnit(line.id, unit);
+            if (result.ok && result.merged) joined.qty = result.qty;
+            return result;
+          });
+          if (joined.qty !== null) {
+            onNotice(
+              `${line.nameAtTime} already had a ${unit} line — joined them: now ${formatQty(joined.qty)} ${unit}.`,
+            );
+          }
+        }}
+        className="h-10 w-24 shrink-0 rounded-lg border border-neutral-300 bg-white px-1 text-base"
+      >
+        {PURCHASE_UNITS.map((u) => (
+          <option key={u} value={u}>
+            {u}
+          </option>
+        ))}
+      </select>
       <span className="min-w-0 flex-1 text-sm">
         {line.nameAtTime}
         {line.packAtTime && <span className="block text-xs text-neutral-500">{line.packAtTime}</span>}
