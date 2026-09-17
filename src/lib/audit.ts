@@ -19,7 +19,10 @@ export interface AuditEntry {
     | "application"
     | "supplier"
     | "pickup"
-    | "delivery";
+    | "delivery"
+    | "inventory_item"
+    | "item_sourcing"
+    | "purchase_order";
   recordId: string | number;
   oldValue?: unknown;
   newValue?: unknown;

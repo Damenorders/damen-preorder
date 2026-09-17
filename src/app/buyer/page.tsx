@@ -109,6 +109,21 @@ export default async function BuyerDashboard() {
               ]}
             />
           )}
+          {/* Purchase Orders are buyer/admin only — hidden from the Butcher role. */}
+          {!isButcher && (
+            <DashboardCard
+              title="Purchase Orders"
+              subtitle="Order by product; the supplier is found for you"
+              links={[
+                {
+                  label: "Add to an Order",
+                  href: "/buyer/purchase-orders",
+                  primary: true,
+                  variant: "highlight",
+                },
+              ]}
+            />
+          )}
           <PushNotificationsSettings />
         </div>
       </main>

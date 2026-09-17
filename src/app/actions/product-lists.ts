@@ -15,7 +15,10 @@ import {
   productListItems,
 } from "@/db/schema";
 import { requireRole } from "@/lib/auth";
-import { notifyProductListsChanged } from "@/lib/realtime-server";
+import {
+  notifyProductListsChanged,
+  notifyPurchaseOrdersChanged,
+} from "@/lib/realtime-server";
 import { getProductListItems } from "@/lib/product-lists";
 import { applyPriceRows, parsePriceFile } from "@/lib/price-import";
 // Types live in a separate module: a "use server" file may only export async
@@ -285,6 +288,9 @@ export async function importPrices(
   // Every list's printed price may have moved.
   revalidatePath("/buyer/product-lists");
   await notifyProductListsChanged();
+  // A reworded product also rewords its lines on open purchase orders.
+  revalidatePath("/buyer/purchase-orders");
+  await notifyPurchaseOrdersChanged();
 
   return {
     ok: true,

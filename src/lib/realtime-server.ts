@@ -53,3 +53,29 @@ export async function notifyProductListsChanged() {
     // Best-effort, exactly like the orders ping.
   }
 }
+
+// Purchase Orders get their own channel too: a buyer adding a line should
+// refresh the other buyers' order screens, and nothing else.
+export async function notifyPurchaseOrdersChanged() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) return;
+
+  try {
+    await fetch(`${url}/realtime/v1/api/broadcast`, {
+      method: "POST",
+      headers: {
+        apikey: key,
+        Authorization: `Bearer ${key}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        messages: [
+          { topic: "purchase-orders", event: "changed", payload: {} },
+        ],
+      }),
+    });
+  } catch {
+    // Best-effort, exactly like the orders ping.
+  }
+}

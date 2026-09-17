@@ -1,0 +1,773 @@
+"use server";
+
+// Purchase Orders — buyer/admin only (the same gate as the other catalogue
+// edits: price uploads and Product Lists). The buyer types a product from the
+// sales catalogue and the line lands on that product's supplier's open order.
+//
+// Concurrency: several buyers work this at once, so nothing here rewrites an
+// order wholesale. A line is one upsert that adds to the existing quantity; the
+// database allows one open order per supplier and one preferred supplier per
+// product; per-supplier advisory locks keep "open a new order" and "undo into
+// the open order" from racing each other.
+
+import { revalidatePath } from "next/cache";
+import { and, eq, sql } from "drizzle-orm";
+import { db } from "@/db";
+import {
+  inventoryItems,
+  itemSourcing,
+  purchaseOrderLines,
+  purchaseOrders,
+  suppliers,
+  type Supplier,
+  type User,
+} from "@/db/schema";
+import { requireRole } from "@/lib/auth";
+import { logAudit } from "@/lib/audit";
+import { insertSupplier } from "@/lib/suppliers";
+import { notifyPurchaseOrdersChanged } from "@/lib/realtime-server";
+import {
+  checkLineInput,
+  checkSourcingInput,
+  isPurchaseMethod,
+  looksSimilar,
+  matchSupplierName,
+  normalizeName,
+  resolvePicked,
+  resolveTyped,
+  type PurchaseUnit,
+} from "@/lib/order-book-core";
+import {
+  getPurchaseHit,
+  hitToEntry,
+  listCatalogSections,
+  listSupplierOptions,
+  resolutionCandidates,
+  searchPurchaseHits,
+} from "@/lib/purchase-orders";
+// Types live in a separate module: a "use server" file may only export async
+// functions, and re-exporting a type from one crashes on module evaluation.
+import type {
+  AddLineInput,
+  AddLineResult,
+  AssignInput,
+  AssignResult,
+  CreateProductInput,
+  CreateProductResult,
+  MarkOrderedResult,
+  PlacedLine,
+  PurchaseActionResult,
+  PurchaseHit,
+  SupplierOption,
+  UndoOrderResult,
+} from "@/lib/purchase-order-types";
+
+/** Every entry point sits behind this; admin passes automatically. */
+function requireBuyer() {
+  return requireRole("buyer");
+}
+
+async function announce() {
+  revalidatePath("/buyer/purchase-orders");
+  await notifyPurchaseOrdersChanged();
+}
+
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+/** Postgres error code, whether or not the driver error was wrapped. */
+function pgError(err: unknown): { code?: string; constraint?: string } {
+  const e = err as {
+    code?: string;
+    constraint_name?: string;
+    cause?: { code?: string; constraint_name?: string };
+  };
+  return {
+    code: e?.code ?? e?.cause?.code,
+    constraint: e?.constraint_name ?? e?.cause?.constraint_name,
+  };
+}
+
+/** Serialises order-shape changes for one supplier within a transaction. */
+async function lockSupplierOrders(tx: Tx, supplierId: number) {
+  await tx.execute(
+    sql`select pg_advisory_xact_lock(hashtext('purchase_orders'), ${supplierId})`,
+  );
+}
+
+/**
+ * Puts a line on the supplier's open order (opening one if there is none).
+ * Same product at the same unit adds to the existing line, in one statement,
+ * so two buyers adding at once end up with the sum.
+ */
+async function placeLine(
+  tx: Tx,
+  user: User,
+  p: {
+    supplierId: number;
+    supplierName: string;
+    itemCode: string;
+    qty: number;
+    unit: PurchaseUnit;
+    name: string;
+    pack: string;
+  },
+): Promise<PlacedLine> {
+  await lockSupplierOrders(tx, p.supplierId);
+  await tx
+    .insert(purchaseOrders)
+    .values({ supplierId: p.supplierId })
+    .onConflictDoNothing({
+      target: purchaseOrders.supplierId,
+      where: sql`status = 'open'`,
+    });
+  const [order] = await tx
+    .select({ id: purchaseOrders.id })
+    .from(purchaseOrders)
+    .where(
+      and(
+        eq(purchaseOrders.supplierId, p.supplierId),
+        eq(purchaseOrders.status, "open"),
+      ),
+    )
+    .for("update");
+
+  const [row] = await tx
+    .insert(purchaseOrderLines)
+    .values({
+      orderId: order.id,
+      itemCode: p.itemCode,
+      qty: String(p.qty),
+      unit: p.unit,
+      nameAtTime: p.name,
+      packAtTime: p.pack,
+      addedByUserId: user.id,
+      addedByName: user.name,
+    })
+    .onConflictDoUpdate({
+      target: [
+        purchaseOrderLines.orderId,
+        purchaseOrderLines.itemCode,
+        purchaseOrderLines.unit,
+      ],
+      set: {
+        qty: sql`purchase_order_lines.qty + excluded.qty`,
+        updatedAt: new Date(),
+      },
+    })
+    .returning({
+      qty: purchaseOrderLines.qty,
+      // xmax is non-zero only on the row an upsert updated.
+      merged: sql<boolean>`(xmax::text <> '0')`,
+    });
+
+  await tx
+    .update(purchaseOrders)
+    .set({ updatedAt: new Date() })
+    .where(eq(purchaseOrders.id, order.id));
+
+  return {
+    supplierName: p.supplierName,
+    name: p.name,
+    pack: p.pack,
+    unit: p.unit,
+    qty: Number(row.qty),
+    merged: Boolean(row.merged),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Lookups
+// ---------------------------------------------------------------------------
+
+export async function searchPurchaseCatalog(
+  query: string,
+): Promise<PurchaseHit[]> {
+  await requireBuyer();
+  if (!query || query.trim().length < 2) return [];
+  return searchPurchaseHits(query);
+}
+
+export async function listPurchaseSuppliers(): Promise<SupplierOption[]> {
+  await requireBuyer();
+  return listSupplierOptions();
+}
+
+export async function listPurchaseSections(): Promise<string[]> {
+  await requireBuyer();
+  return listCatalogSections();
+}
+
+// ---------------------------------------------------------------------------
+// The buyer card
+// ---------------------------------------------------------------------------
+
+export async function addPurchaseLine(
+  input: AddLineInput,
+): Promise<AddLineResult> {
+  const user = await requireBuyer();
+
+  const check = checkLineInput(input?.qty, input?.unit);
+  if (!check.ok) {
+    return { status: "ask", field: check.field, message: check.message };
+  }
+
+  const typed = String(input.typed ?? "").trim();
+  let hits: PurchaseHit[];
+  let resolution;
+  if (input.itemCode) {
+    const hit = await getPurchaseHit(input.itemCode);
+    if (!hit) {
+      return {
+        status: "error",
+        message: "That product is no longer in the catalogue. Search again.",
+      };
+    }
+    hits = [hit];
+    resolution = resolvePicked(hitToEntry(hit));
+  } else {
+    if (!typed) {
+      return { status: "ask", field: "product", message: "Type a product." };
+    }
+    hits = await resolutionCandidates(typed);
+    resolution = resolveTyped(typed, hits.map(hitToEntry));
+  }
+  const byCode = new Map(hits.map((h) => [h.code, h]));
+
+  switch (resolution.kind) {
+    case "needs-sourcing":
+      return { status: "needs-sourcing", product: byCode.get(resolution.entry.code)! };
+    case "choose":
+      return {
+        status: "choose",
+        typed,
+        products: resolution.entries.map((e) => byCode.get(e.code)!),
+      };
+    case "similar":
+      return {
+        status: "similar",
+        typed,
+        products: resolution.entries.map((e) => byCode.get(e.code)!),
+      };
+    case "none":
+      return { status: "none", typed };
+    case "ready": {
+      const { entry, sourcing } = resolution;
+      // Typed without looking at the unit box: show where it goes and in what
+      // unit before anything is added, rather than order 1 "each" of a pallet item.
+      if (!input.itemCode && !input.unitChosen && sourcing.purchaseUnit !== check.unit) {
+        return { status: "check-unit", product: byCode.get(entry.code)! };
+      }
+      const line = await db.transaction((tx) =>
+        placeLine(tx, user, {
+          supplierId: sourcing.supplierId,
+          supplierName: sourcing.supplierName,
+          itemCode: entry.code,
+          qty: check.qty,
+          unit: check.unit,
+          name: entry.name,
+          pack: sourcing.purchasePack,
+        }),
+      );
+      await announce();
+      return { status: "added", line };
+    }
+  }
+}
+
+/**
+ * Case (b): the product has no supplier yet. Records who we buy it from on the
+ * catalogue product itself, then adds the line — both or neither.
+ */
+export async function assignSupplierAndAdd(
+  input: AssignInput,
+): Promise<AssignResult> {
+  const user = await requireBuyer();
+
+  const line = checkLineInput(input?.qty, input?.unit);
+  if (!line.ok) return { status: "ask", field: line.field, message: line.message };
+  const sourcing = checkSourcingInput(input);
+  if (!sourcing.ok) {
+    return { status: "ask", field: sourcing.field, message: sourcing.message };
+  }
+
+  const hit = await getPurchaseHit(String(input.itemCode ?? ""));
+  if (!hit) {
+    return { status: "error", message: "That product is no longer in the catalogue." };
+  }
+  if (hit.supplierId !== null) return { status: "already-assigned", product: hit };
+
+  const typedName = input.newSupplier?.name?.trim() ?? "";
+  if (!input.supplierId && !typedName) {
+    return {
+      status: "ask",
+      field: "supplier",
+      message: "Choose the supplier, or add a new one.",
+    };
+  }
+
+  // A typed "new" supplier is checked against the list before anything is
+  // written, so a near miss can go back to the buyer.
+  if (!input.supplierId) {
+    const all = await db.select().from(suppliers);
+    const match = matchSupplierName(typedName, all);
+    if (match.kind === "similar" && !input.confirmNewSupplier) {
+      return {
+        status: "supplier-similar",
+        typed: typedName,
+        suppliers: match.suppliers.map((s) => ({
+          id: s.id,
+          name: s.name,
+          contact: s.contact,
+          email: s.email,
+        })),
+      };
+    }
+  }
+
+  try {
+    const result = await db.transaction(async (tx) => {
+      let supplier: Supplier | undefined;
+      let matchedExisting: string | null = null;
+      let createdSupplier = false;
+
+      if (input.supplierId) {
+        [supplier] = await tx
+          .select()
+          .from(suppliers)
+          .where(eq(suppliers.id, Number(input.supplierId)));
+        if (!supplier) return null;
+      } else {
+        // Re-match under a lock: two buyers adding the same new supplier at
+        // once must end up on one record.
+        await tx.execute(
+          sql`select pg_advisory_xact_lock(hashtext('suppliers'))`,
+        );
+        const all = await tx.select().from(suppliers);
+        const match = matchSupplierName(typedName, all);
+        const contact = input.newSupplier?.contact?.trim() ?? "";
+        const email = input.newSupplier?.email?.trim() ?? "";
+        if (match.kind === "existing") {
+          supplier = match.supplier;
+          if (supplier.name !== typedName) matchedExisting = supplier.name;
+          // Fill in contact details the record is missing; never overwrite.
+          const fill = {
+            ...(contact && !supplier.contact ? { contact } : {}),
+            ...(email && !supplier.email ? { email } : {}),
+          };
+          if (Object.keys(fill).length > 0) {
+            await tx
+              .update(suppliers)
+              .set({ ...fill, updatedAt: new Date() })
+              .where(eq(suppliers.id, supplier.id));
+          }
+        } else {
+          supplier = await insertSupplier(
+            tx,
+            { name: typedName, contact, email },
+            user,
+          );
+          createdSupplier = true;
+        }
+      }
+
+      await tx.insert(itemSourcing).values({
+        itemCode: hit.code,
+        supplierId: supplier.id,
+        supplierSku: sourcing.supplierSku,
+        purchasePack: sourcing.purchasePack,
+        purchaseUnit: sourcing.purchaseUnit,
+        preferred: true,
+        assignedBy: user.id,
+        assignedByName: user.name,
+      });
+      await logAudit(tx, user, [
+        {
+          action: "create",
+          recordType: "item_sourcing",
+          recordId: hit.code,
+          newValue: {
+            supplierId: supplier.id,
+            supplierName: supplier.name,
+            supplierSku: sourcing.supplierSku,
+            purchasePack: sourcing.purchasePack,
+            purchaseUnit: sourcing.purchaseUnit,
+          },
+        },
+      ]);
+
+      const placed = await placeLine(tx, user, {
+        supplierId: supplier.id,
+        supplierName: supplier.name,
+        itemCode: hit.code,
+        qty: line.qty,
+        unit: line.unit,
+        name: hit.name,
+        pack: sourcing.purchasePack,
+      });
+      return { matchedExisting, createdSupplier, line: placed };
+    });
+
+    if (!result) {
+      return { status: "error", message: "That supplier is no longer on file. Choose again." };
+    }
+    await announce();
+    return { status: "assigned", ...result };
+  } catch (err) {
+    const { code, constraint } = pgError(err);
+    if (
+      code === "23505" &&
+      (constraint === "item_sourcing_one_preferred" ||
+        constraint === "item_sourcing_item_supplier_unique")
+    ) {
+      // Someone assigned it a moment ago; nothing of ours was saved.
+      const fresh = await getPurchaseHit(hit.code);
+      if (fresh) return { status: "already-assigned", product: fresh };
+    }
+    throw err;
+  }
+}
+
+/**
+ * Case (e): a product the catalogue doesn't have. Everything is typed by the
+ * buyer; an exact duplicate is refused and a similar one is asked about.
+ */
+export async function createCatalogProduct(
+  input: CreateProductInput,
+): Promise<CreateProductResult> {
+  const user = await requireBuyer();
+
+  const code = String(input?.code ?? "").trim();
+  const description = String(input?.description ?? "").trim();
+  const section = String(input?.section ?? "").trim();
+  if (!code || /\s/.test(code) || code.length > 64) {
+    return {
+      status: "ask",
+      field: "code",
+      message: "Enter the product code (no spaces), e.g. TOMROSSO100.",
+    };
+  }
+  if (!normalizeName(description)) {
+    return { status: "ask", field: "description", message: "Enter the product description." };
+  }
+  if (!section) {
+    return { status: "ask", field: "section", message: "Enter the catalogue section." };
+  }
+
+  const [taken] = await db
+    .select({ code: inventoryItems.code })
+    .from(inventoryItems)
+    .where(sql`upper(${inventoryItems.code}) = ${code.toUpperCase()}`)
+    .limit(1);
+  if (taken) {
+    const product = await getPurchaseHit(taken.code);
+    if (product) return { status: "code-taken", product };
+  }
+
+  const candidates = await resolutionCandidates(description, { activeOnly: false });
+  const key = normalizeName(description);
+  const duplicates = candidates.filter((c) => normalizeName(c.name) === key);
+  if (duplicates.length > 0) return { status: "duplicate", products: duplicates };
+  if (!input.confirmSimilar) {
+    const similar = candidates
+      .filter((c) => looksSimilar(c.name, description))
+      .slice(0, 6);
+    if (similar.length > 0) return { status: "similar", products: similar };
+  }
+
+  try {
+    await db.transaction(async (tx) => {
+      await tx.insert(inventoryItems).values({ code, description, section });
+      await logAudit(tx, user, [
+        {
+          action: "create",
+          recordType: "inventory_item",
+          recordId: code,
+          newValue: { code, description, section, via: "purchase-orders" },
+        },
+      ]);
+    });
+  } catch (err) {
+    if (pgError(err).code === "23505") {
+      const product = await getPurchaseHit(code);
+      if (product) return { status: "code-taken", product };
+    }
+    throw err;
+  }
+
+  const product = await getPurchaseHit(code);
+  if (!product) return { status: "error", message: "The product could not be read back." };
+  await announce();
+  return { status: "created", product };
+}
+
+// ---------------------------------------------------------------------------
+// Open orders
+// ---------------------------------------------------------------------------
+
+const openOrder = (orderId: number) =>
+  and(eq(purchaseOrders.id, orderId), eq(purchaseOrders.status, "open"));
+
+export async function setOrderMethod(
+  orderId: number,
+  method: string,
+): Promise<PurchaseActionResult> {
+  await requireBuyer();
+  if (!isPurchaseMethod(method)) return { ok: false, error: "Choose delivery or pickup." };
+  const updated = await db
+    .update(purchaseOrders)
+    .set({ method, updatedAt: new Date() })
+    .where(openOrder(Number(orderId)))
+    .returning({ id: purchaseOrders.id });
+  if (updated.length === 0) return { ok: false, error: "That order is no longer open." };
+  await announce();
+  return { ok: true };
+}
+
+export async function setOrderWantedFor(
+  orderId: number,
+  wantedFor: string,
+): Promise<PurchaseActionResult> {
+  await requireBuyer();
+  const value = String(wantedFor ?? "").trim();
+  if (value && !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return { ok: false, error: "Pick a date, or clear it." };
+  }
+  const updated = await db
+    .update(purchaseOrders)
+    .set({ wantedFor: value || null, updatedAt: new Date() })
+    .where(openOrder(Number(orderId)))
+    .returning({ id: purchaseOrders.id });
+  if (updated.length === 0) return { ok: false, error: "That order is no longer open." };
+  await announce();
+  return { ok: true };
+}
+
+export async function setSupplierContact(
+  supplierId: number,
+  field: "contact" | "email",
+  value: string,
+): Promise<PurchaseActionResult> {
+  await requireBuyer();
+  if (field !== "contact" && field !== "email") {
+    return { ok: false, error: "Unknown field." };
+  }
+  const clean = String(value ?? "").trim().slice(0, 200);
+  await db
+    .update(suppliers)
+    .set({ [field]: clean, updatedAt: new Date() })
+    .where(eq(suppliers.id, Number(supplierId)));
+  await announce();
+  return { ok: true };
+}
+
+/** Only lines on an open order can change; history is never rewritten. */
+const lineOnOpenOrder = (lineId: string) =>
+  and(
+    eq(purchaseOrderLines.id, lineId),
+    sql`${purchaseOrderLines.orderId} in (select id from purchase_orders where status = 'open')`,
+  );
+
+export async function setLineQty(
+  lineId: string,
+  qty: string,
+): Promise<PurchaseActionResult> {
+  await requireBuyer();
+  const check = checkLineInput(qty, "each");
+  if (!check.ok) return { ok: false, error: check.message };
+  const updated = await db
+    .update(purchaseOrderLines)
+    .set({ qty: String(check.qty), updatedAt: new Date() })
+    .where(lineOnOpenOrder(String(lineId)))
+    .returning({ id: purchaseOrderLines.id });
+  if (updated.length === 0) return { ok: false, error: "That line is no longer on an open order." };
+  await announce();
+  return { ok: true };
+}
+
+export async function removeOrderLine(
+  lineId: string,
+): Promise<PurchaseActionResult> {
+  await requireBuyer();
+  await db.delete(purchaseOrderLines).where(lineOnOpenOrder(String(lineId)));
+  await announce();
+  return { ok: true };
+}
+
+/**
+ * Moves an open order into History. The buyer confirmed a line count; if a
+ * teammate changed the order since, nothing happens and they are told.
+ */
+export async function markOrderOrdered(
+  orderId: number,
+  expectedLines: number,
+): Promise<MarkOrderedResult> {
+  const user = await requireBuyer();
+
+  const result = await db.transaction(async (tx) => {
+    const [order] = await tx
+      .select({ id: purchaseOrders.id, supplierName: suppliers.name })
+      .from(purchaseOrders)
+      .innerJoin(suppliers, eq(suppliers.id, purchaseOrders.supplierId))
+      .where(openOrder(Number(orderId)))
+      .for("update", { of: purchaseOrders });
+    if (!order) return { ok: false as const, error: "That order is no longer open." };
+
+    const [{ n }] = await tx
+      .select({ n: sql<number>`count(*)::int` })
+      .from(purchaseOrderLines)
+      .where(eq(purchaseOrderLines.orderId, order.id));
+    if (n === 0) return { ok: false as const, error: "That order has no lines." };
+    if (n !== Number(expectedLines)) {
+      return {
+        ok: false as const,
+        error: `${order.supplierName}'s order changed while you were looking — it has ${n} line${n === 1 ? "" : "s"} now. Check it and try again.`,
+      };
+    }
+
+    const [done] = await tx
+      .update(purchaseOrders)
+      .set({
+        status: "ordered",
+        orderedOn: new Date(),
+        orderedByUserId: user.id,
+        orderedByName: user.name,
+        updatedAt: new Date(),
+      })
+      .where(eq(purchaseOrders.id, order.id))
+      .returning({
+        date: sql<string>`to_char(ordered_on at time zone 'America/Montreal', 'YYYY-MM-DD')`,
+      });
+    await logAudit(tx, user, [
+      {
+        action: "update:status",
+        recordType: "purchase_order",
+        recordId: order.id,
+        oldValue: { status: "open" },
+        newValue: { status: "ordered", lines: n },
+      },
+    ]);
+    return { ok: true as const, supplierName: order.supplierName, date: done.date };
+  });
+
+  if (result.ok) await announce();
+  return result;
+}
+
+/**
+ * Puts an ordered PO back on the supplier's next order and removes it from
+ * History. Lines merge into what is already open by the same identity rule;
+ * method and wanted-for date come back from the ordered record. The buyer was
+ * warned about `expectedOpenLines`; a different count stops and re-warns.
+ */
+export async function undoOrderOrdered(
+  orderId: number,
+  expectedOpenLines: number,
+): Promise<UndoOrderResult> {
+  const user = await requireBuyer();
+
+  const [target] = await db
+    .select({ supplierId: purchaseOrders.supplierId })
+    .from(purchaseOrders)
+    .where(eq(purchaseOrders.id, Number(orderId)));
+  if (!target) return { ok: false, error: "That order is no longer in History." };
+
+  const result = await db.transaction(async (tx): Promise<UndoOrderResult> => {
+    await lockSupplierOrders(tx, target.supplierId);
+
+    const [ordered] = await tx
+      .select({
+        id: purchaseOrders.id,
+        method: purchaseOrders.method,
+        wantedFor: purchaseOrders.wantedFor,
+        supplierName: suppliers.name,
+      })
+      .from(purchaseOrders)
+      .innerJoin(suppliers, eq(suppliers.id, purchaseOrders.supplierId))
+      .where(
+        and(
+          eq(purchaseOrders.id, Number(orderId)),
+          eq(purchaseOrders.status, "ordered"),
+        ),
+      )
+      .for("update", { of: purchaseOrders });
+    if (!ordered) return { ok: false, error: "That order is no longer in History." };
+
+    const [open] = await tx
+      .select({ id: purchaseOrders.id })
+      .from(purchaseOrders)
+      .where(
+        and(
+          eq(purchaseOrders.supplierId, target.supplierId),
+          eq(purchaseOrders.status, "open"),
+        ),
+      )
+      .for("update");
+
+    let openLines = 0;
+    if (open) {
+      [{ n: openLines }] = await tx
+        .select({ n: sql<number>`count(*)::int` })
+        .from(purchaseOrderLines)
+        .where(eq(purchaseOrderLines.orderId, open.id));
+    }
+    if (openLines !== Number(expectedOpenLines)) {
+      return {
+        ok: false,
+        openLines,
+        error:
+          openLines === 0
+            ? `${ordered.supplierName}'s next order changed while you were looking. Try again.`
+            : `${ordered.supplierName} now has ${openLines} open line${openLines === 1 ? "" : "s"}; the History lines would merge into them.`,
+      };
+    }
+
+    if (!open) {
+      await tx
+        .update(purchaseOrders)
+        .set({
+          status: "open",
+          orderedOn: null,
+          orderedByUserId: null,
+          orderedByName: "",
+          updatedAt: new Date(),
+        })
+        .where(eq(purchaseOrders.id, ordered.id));
+    } else {
+      await tx.execute(sql`
+        insert into purchase_order_lines
+          (order_id, item_code, qty, unit, name_at_time, pack_at_time,
+           added_by_user_id, added_by_name, created_at)
+        select ${open.id}, item_code, qty, unit, name_at_time, pack_at_time,
+               added_by_user_id, added_by_name, created_at
+          from purchase_order_lines
+         where order_id = ${ordered.id}
+        on conflict (order_id, item_code, unit)
+        do update set qty = purchase_order_lines.qty + excluded.qty,
+                      updated_at = now()
+      `);
+      await tx
+        .update(purchaseOrders)
+        .set({
+          method: ordered.method,
+          wantedFor: ordered.wantedFor,
+          updatedAt: new Date(),
+        })
+        .where(eq(purchaseOrders.id, open.id));
+      await tx.delete(purchaseOrders).where(eq(purchaseOrders.id, ordered.id));
+    }
+
+    await logAudit(tx, user, [
+      {
+        action: "update:undo_ordered",
+        recordType: "purchase_order",
+        recordId: ordered.id,
+        oldValue: { status: "ordered" },
+        newValue: { status: "open", mergedInto: open?.id ?? null },
+      },
+    ]);
+    return { ok: true, supplierName: ordered.supplierName };
+  });
+
+  if (result.ok) await announce();
+  return result;
+}

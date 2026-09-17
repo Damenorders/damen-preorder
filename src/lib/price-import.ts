@@ -5,6 +5,7 @@ import {
   inventoryPlacements,
   itemPrices,
   productListItems,
+  purchaseOrderLines,
 } from "@/db/schema";
 import { parseCsv } from "@/lib/csv";
 import { readXlsx } from "@/lib/xlsx-read";
@@ -173,6 +174,7 @@ export async function applyPriceRows(
   const codes = rows.map((r) => r.code);
   const placementsSynced = await syncPlacementDescriptions(codes);
   const listLinesSynced = await syncListLineDescriptions(codes);
+  await syncOpenPurchaseLineNames(codes);
 
   return {
     pricesSet: rows.length,
@@ -205,6 +207,32 @@ async function syncListLineDescriptions(codes: string[]): Promise<number> {
         ),
       )
       .returning({ id: productListItems.id });
+    synced += updated.length;
+  }
+  return synced;
+}
+
+/**
+ * A rename reaches the lines of OPEN purchase orders, so the next copied order
+ * uses the corrected wording. Ordered ones are history and keep the name they
+ * were ordered under.
+ */
+async function syncOpenPurchaseLineNames(codes: string[]): Promise<number> {
+  let synced = 0;
+  const CHUNK = 800;
+  for (let i = 0; i < codes.length; i += CHUNK) {
+    const current = sql`(select i.description from inventory_items i where i.code = ${purchaseOrderLines.itemCode})`;
+    const updated = await db
+      .update(purchaseOrderLines)
+      .set({ nameAtTime: current, updatedAt: new Date() })
+      .where(
+        and(
+          inArray(purchaseOrderLines.itemCode, codes.slice(i, i + CHUNK)),
+          sql`${purchaseOrderLines.orderId} in (select id from purchase_orders where status = 'open')`,
+          sql`${purchaseOrderLines.nameAtTime} is distinct from ${current}`,
+        ),
+      )
+      .returning({ id: purchaseOrderLines.id });
     synced += updated.length;
   }
   return synced;

@@ -10,6 +10,7 @@ import {
   jsonb,
   numeric,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 
 // ---------------------------------------------------------------------------
 // Enums
@@ -290,6 +291,11 @@ export const suppliers = pgTable("suppliers", {
   odooId: integer("odoo_id"),
   name: text("name").notNull(),
   address: text("address").notNull().default(""),
+  // Purchase Orders (0026): who to address the copied order to, and other
+  // spellings this supplier is known by.
+  contact: text("contact").notNull().default(""),
+  email: text("email").notNull().default(""),
+  aliases: text("aliases").array().notNull().default(sql`'{}'::text[]`),
   active: boolean("active").notNull().default(true),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
@@ -391,3 +397,5 @@ export type BuyerTableStatus = Order["buyerTableStatus"];
 export * from "./inventory-schema";
 
 export * from "./product-list-schema";
+
+export * from "./purchase-order-schema";
