@@ -98,6 +98,20 @@ export default async function AdminDashboard() {
               { label: "Upload Prices", href: "/buyer/product-lists/prices" },
             ]}
           />
+          <DashboardCard
+            title="Purchase Orders"
+            subtitle="Order by product; the supplier is found for you"
+            links={[
+              {
+                label: "Add to an Order",
+                href: "/buyer/purchase-orders",
+                primary: true,
+                variant: "highlight",
+              },
+              { label: "Suppliers", href: "/buyer/purchase-orders?tab=suppliers" },
+              { label: "History", href: "/buyer/purchase-orders?tab=history" },
+            ]}
+          />
           <PushNotificationsSettings />
         </div>
       </main>

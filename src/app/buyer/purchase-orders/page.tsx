@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requireRole } from "@/lib/auth";
+import { homePathFor, requireRole } from "@/lib/auth";
 import {
   getOpenOrders,
   getOrderHistory,
@@ -11,7 +11,7 @@ import AddLineCard from "@/components/purchase-orders/AddLineCard";
 import OrderBoard from "@/components/purchase-orders/OrderBoard";
 import SuppliersView from "@/components/purchase-orders/SuppliersView";
 
-// Purchase Orders — buyer/admin only (Butcher is sent home by requireRole).
+// Purchase Orders — buyer and admin (Butcher is sent home by requireRole).
 // Three tabs, as in the Order Book: Next order (the buyer card and each
 // supplier's open order), Suppliers (the sourcing catalogue) and History.
 // Live: a teammate's change shows up here without a reload.
@@ -50,7 +50,7 @@ export default async function PurchaseOrdersPage({
   return (
     <PageShell
       user={user}
-      backHref="/buyer"
+      backHref={homePathFor(user.role)}
       backLabel="Dashboard"
       title="Purchase Orders"
       subtitle="Order from our catalogue — each line goes to the product's supplier."
