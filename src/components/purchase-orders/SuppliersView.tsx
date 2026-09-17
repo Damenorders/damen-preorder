@@ -34,10 +34,11 @@ import { formatMoney } from "@/lib/money";
 import Dialog, { buttonClass } from "./Dialog";
 import { CreateProductDialog, HitLabel, inputClass } from "./AddLineCard";
 import { useFoldState } from "./foldState";
+import { gridButton, gridInput, td, th, zebra } from "./gridStyles";
 
 type Notify = (message: string, kind?: "ok" | "error") => void;
 
-const cell = "h-10 rounded-lg border border-neutral-300 px-2 text-base";
+const cell = "h-8 rounded-md border border-neutral-300 px-2 text-base sm:text-sm";
 
 export default function SuppliersView({
   suppliers,
@@ -164,32 +165,34 @@ function SupplierSection({
         type="button"
         onClick={onToggle}
         aria-expanded={expanded}
-        className="flex w-full items-center gap-2 px-4 py-3 text-left"
+        className="flex w-full items-center gap-2 px-3 py-2 text-left"
       >
         <span className="w-4 text-neutral-400">{expanded ? "▾" : "▸"}</span>
         <span className="flex-1 font-semibold">{supplier.name}</span>
         <span className="text-xs text-neutral-500">{row.countLabel}</span>
       </button>
       {expanded && (
-        <div className="border-t border-neutral-100 px-4 pb-4 pt-3">
+        <div className="border-t border-neutral-100 px-3 pb-3 pt-2">
           <ContactRow supplier={supplier} canEdit={canEdit} notify={notify} />
 
           {products.length === 0 ? (
-            <p className="mt-3 text-sm text-neutral-500">No products recorded for this supplier.</p>
+            <p className="mt-2 text-sm text-neutral-500">No products recorded for this supplier.</p>
           ) : (
-            <div className="mt-3 overflow-x-auto">
-              <table className="w-full min-w-[640px] text-sm">
-                <thead>
+            <div className="mt-2 overflow-x-auto rounded-lg border border-neutral-200">
+              <table className="w-full min-w-[720px] border-collapse text-sm">
+                <thead className="border-b border-neutral-200 bg-neutral-50">
                   <tr className="text-left text-xs text-neutral-500">
-                    <th className="pb-1 font-medium">Product</th>
-                    <th className="pb-1 text-right font-medium">Cost</th>
-                    <th className="pb-1 text-right font-medium">Sell</th>
-                    <th className="pb-1 text-right font-medium">Margin</th>
-                    <th className="pb-1 text-right font-medium">Cost set</th>
-                    {canEdit && <th />}
+                    <th className={th}>Product</th>
+                    <th className={th}>Pack</th>
+                    <th className={th}>Unit</th>
+                    <th className={`${th} text-right`}>Cost</th>
+                    <th className={`${th} text-right`}>Sell</th>
+                    <th className={`${th} text-right`}>Margin</th>
+                    <th className={`${th} text-right`}>Cost set</th>
+                    {canEdit && <th className={th} />}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-neutral-100">
+                <tbody>
                   {products.map((p) => (
                     <ProductRow
                       key={p.sourcingId}
@@ -318,11 +321,11 @@ function ProductRow({
 
   const margin = computeMargin(p.cost, p.sell);
   const marginCell = (
-    <td className="py-2 text-right align-top">
+    <td className={`${td} whitespace-nowrap text-right`}>
       {margin ? (
         <span className={margin.thin ? "font-semibold text-red-700" : "text-neutral-800"}>
           {margin.pct}%
-          <span className="block text-xs text-neutral-500">{formatMoney(margin.diff)}</span>
+          <span className="ml-1 text-xs font-normal text-neutral-500">{formatMoney(margin.diff)}</span>
         </span>
       ) : (
         <span className="text-neutral-400">—</span>
@@ -330,26 +333,30 @@ function ProductRow({
     </td>
   );
   const costSetCell = (
-    <td className="py-2 text-right align-top text-xs text-neutral-500">{p.costSetOn ?? "—"}</td>
+    <td className={`${td} whitespace-nowrap text-right text-xs text-neutral-500`}>
+      {p.costSetOn ?? "—"}
+    </td>
   );
   const marker = !p.preferred && (
-    <span className="block text-xs text-amber-700">
-      Another supplier is the Buyer card&apos;s choice for this product
+    <span
+      className="ml-1 rounded bg-amber-100 px-1 text-[10px] font-semibold uppercase text-amber-800"
+      title="Another supplier is the Buyer card's choice for this product"
+    >
+      alt
     </span>
   );
 
   if (!canEdit) {
     return (
-      <tr>
-        <td className="py-2 align-top">
+      <tr className={zebra}>
+        <td className={td}>
           {p.name}
-          <span className="block text-xs text-neutral-500">
-            {[p.pack, p.unit].filter(Boolean).join(" · ") || "—"}
-          </span>
           {marker}
         </td>
-        <td className="py-2 text-right align-top">{formatMoney(p.cost)}</td>
-        <td className="py-2 text-right align-top">{formatMoney(p.sell)}</td>
+        <td className={`${td} text-neutral-600`}>{p.pack || "—"}</td>
+        <td className={`${td} text-neutral-600`}>{p.unit ?? "—"}</td>
+        <td className={`${td} text-right`}>{formatMoney(p.cost)}</td>
+        <td className={`${td} text-right`}>{formatMoney(p.sell)}</td>
         {marginCell}
         {costSetCell}
       </tr>
@@ -421,31 +428,34 @@ function ProductRow({
   };
 
   return (
-    <tr>
-      <td className="py-2 pr-2 align-top">
-        <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          onBlur={commitEdit}
-          onKeyDown={blurOnEnter}
-          aria-label={`Name of ${p.name}`}
-          className={`${cell} w-full font-medium`}
-        />
-        <span className="mt-1 flex items-center gap-2">
+    <tr className={zebra}>
+      <td className={`${td} w-[45%]`}>
+        <span className="flex items-center">
           <input
-            value={pack}
-            onChange={(e) => setPack(e.target.value)}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
             onBlur={commitEdit}
             onKeyDown={blurOnEnter}
-            placeholder="pack size"
-            aria-label={`Pack size of ${p.name}`}
-            className={`${cell} min-w-0 flex-1 text-sm`}
+            aria-label={`Name of ${p.name}`}
+            title={p.name}
+            className={`${gridInput} min-w-0 flex-1 font-medium`}
           />
-          {p.unit && <span className="shrink-0 text-xs text-neutral-500">{p.unit}</span>}
+          {marker}
         </span>
-        {marker}
       </td>
-      <td className="py-2 pl-1 text-right align-top">
+      <td className={td}>
+        <input
+          value={pack}
+          onChange={(e) => setPack(e.target.value)}
+          onBlur={commitEdit}
+          onKeyDown={blurOnEnter}
+          placeholder="—"
+          aria-label={`Pack size of ${p.name}`}
+          className={`${gridInput} w-28`}
+        />
+      </td>
+      <td className={`${td} text-neutral-600`}>{p.unit ?? "—"}</td>
+      <td className={`${td} text-right`}>
         <input
           value={cost}
           onChange={(e) => setCost(e.target.value)}
@@ -454,10 +464,10 @@ function ProductRow({
           inputMode="decimal"
           placeholder="—"
           aria-label={`Cost for ${p.name}`}
-          className={`${cell} w-24 text-right`}
+          className={`${gridInput} w-20 text-right`}
         />
       </td>
-      <td className="py-2 pl-1 text-right align-top">
+      <td className={`${td} text-right`}>
         <input
           value={sell}
           onChange={(e) => setSell(e.target.value)}
@@ -466,17 +476,17 @@ function ProductRow({
           inputMode="decimal"
           placeholder="—"
           aria-label={`Sell for ${p.name}`}
-          className={`${cell} w-24 text-right`}
+          className={`${gridInput} w-20 text-right`}
         />
       </td>
       {marginCell}
       {costSetCell}
-      <td className="py-2 pl-1 text-right align-top">
+      <td className={`${td} text-right`}>
         <button
           type="button"
           aria-label={`Remove ${p.name}`}
           onClick={() => setRemoving({ others: null, promote: "" })}
-          className="h-10 w-10 rounded-lg text-lg text-neutral-400 active:bg-neutral-100"
+          className={gridButton}
         >
           ×
         </button>

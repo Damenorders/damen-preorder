@@ -24,6 +24,7 @@ import {
 import type { OrderLineView, OrderView } from "@/lib/purchase-order-types";
 import Dialog, { buttonClass } from "./Dialog";
 import { useFoldState } from "./foldState";
+import { gridButton, gridInput, gridSelect, zebra } from "./gridStyles";
 
 /** Today in Montreal, YYYY-MM-DD — the date Mark as ordered will stamp. */
 function todayMontreal(): string {
@@ -171,7 +172,7 @@ export default function OrderBoard({
                     type="button"
                     onClick={() => toggle(key)}
                     aria-expanded={isOpen}
-                    className="flex w-full items-center gap-2 px-4 py-3 text-left"
+                    className="flex w-full items-center gap-2 px-3 py-2 text-left"
                   >
                     <span className="w-4 text-neutral-400">{isOpen ? "▾" : "▸"}</span>
                     <span className="flex-1 font-semibold">{order.supplierName}</span>
@@ -183,9 +184,9 @@ export default function OrderBoard({
                     </span>
                   </button>
                   {isOpen && (
-                    <div className="border-t border-neutral-100 px-4 pb-4 pt-3">
+                    <div className="border-t border-neutral-100 px-3 pb-3 pt-2">
                       <MetaRow order={order} run={run} />
-                      <ul className="mt-3 divide-y divide-neutral-100 rounded-xl border border-neutral-200">
+                      <ul className="mt-2 overflow-hidden rounded-lg border border-neutral-200 text-sm">
                         {order.lines.map((line) => (
                           <OpenLine key={line.id} line={line} run={run} onNotice={setNotice} />
                         ))}
@@ -244,9 +245,9 @@ export default function OrderBoard({
                   </button>
                   {isOpen && (
                     <div className="border-t border-neutral-100 px-3 pb-3 pt-2">
-                      <ul className="text-sm">
+                      <ul className="overflow-hidden rounded-lg border border-neutral-200 text-sm">
                         {order.lines.map((l) => (
-                          <li key={l.id} className="flex gap-2 py-0.5">
+                          <li key={l.id} className={`flex gap-2 px-2 py-0.5 ${zebra}`}>
                             <b className="w-12 shrink-0 text-right">{formatQty(l.qty)}</b>
                             <span className="w-14 shrink-0 text-neutral-500">{l.unit}</span>
                             <span className="min-w-0">
@@ -449,7 +450,7 @@ function OpenLine({
   }
 
   return (
-    <li className="flex items-center gap-2 px-2 py-2">
+    <li className={`flex items-center gap-1.5 px-1.5 py-0.5 ${zebra}`}>
       <input
         value={text}
         inputMode="decimal"
@@ -463,7 +464,7 @@ function OpenLine({
           const ok = await run(() => setLineQty(line.id, text));
           if (!ok) setText(formatQty(line.qty));
         }}
-        className="h-10 w-16 shrink-0 rounded-lg border border-neutral-300 px-2 text-right text-base"
+        className={`${gridInput} w-14 shrink-0 text-right font-semibold`}
       />
       <select
         value={line.unit}
@@ -482,7 +483,7 @@ function OpenLine({
             );
           }
         }}
-        className="h-10 w-24 shrink-0 rounded-lg border border-neutral-300 bg-white px-1 text-base"
+        className={`${gridSelect} w-20 shrink-0`}
       >
         {PURCHASE_UNITS.map((u) => (
           <option key={u} value={u}>
@@ -490,15 +491,15 @@ function OpenLine({
           </option>
         ))}
       </select>
-      <span className="min-w-0 flex-1 text-sm">
+      <span className="min-w-0 flex-1 truncate" title={line.nameAtTime}>
         {line.nameAtTime}
-        {line.packAtTime && <span className="block text-xs text-neutral-500">{line.packAtTime}</span>}
+        {line.packAtTime && <span className="ml-1.5 text-xs text-neutral-500">{line.packAtTime}</span>}
       </span>
       <button
         type="button"
         aria-label={`Remove ${line.nameAtTime}`}
         onClick={() => run(() => removeOrderLine(line.id))}
-        className="h-10 w-10 shrink-0 rounded-lg text-lg text-neutral-400 active:bg-neutral-100"
+        className={gridButton}
       >
         ×
       </button>
