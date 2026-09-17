@@ -11,11 +11,12 @@
 // the open order" from racing each other.
 
 import { revalidatePath } from "next/cache";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, ne, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   inventoryItems,
   itemSourcing,
+  itemSourcingCostHistory,
   purchaseOrderLines,
   purchaseOrders,
   suppliers,
@@ -25,20 +26,30 @@ import {
 import { requireRole } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { insertSupplier } from "@/lib/suppliers";
-import { notifyPurchaseOrdersChanged } from "@/lib/realtime-server";
 import {
+  notifyProductListsChanged,
+  notifyPurchaseOrdersChanged,
+} from "@/lib/realtime-server";
+import { syncCatalogWording } from "@/lib/price-import";
+import {
+  applyCostChange,
   checkLineInput,
+  checkPrice,
+  checkProductEdit,
   checkSourcingInput,
   isPurchaseMethod,
   looksSimilar,
   matchSupplierName,
+  matchSupplierProduct,
   normalizeName,
   resolvePicked,
   resolveTyped,
   type PurchaseUnit,
 } from "@/lib/order-book-core";
 import {
+  catalogueNamesMatching,
   getPurchaseHit,
+  getSupplierProducts,
   hitToEntry,
   listCatalogSections,
   listSupplierOptions,
@@ -48,6 +59,12 @@ import {
 // Types live in a separate module: a "use server" file may only export async
 // functions, and re-exporting a type from one crashes on module evaluation.
 import type {
+  AddSupplierProductInput,
+  AddSupplierProductResult,
+  AddSupplierResult,
+  PriceEditResult,
+  RemoveSupplierProductResult,
+  SupplierEditResult,
   AddLineInput,
   AddLineResult,
   AssignInput,
@@ -766,6 +783,477 @@ export async function undoOrderOrdered(
       },
     ]);
     return { ok: true, supplierName: ordered.supplierName };
+  });
+
+  if (result.ok) await announce();
+  return result;
+}
+
+// ---------------------------------------------------------------------------
+// Suppliers view (SUPPLIERS-TAB-SPEC.md) — where sourcing data is maintained
+// ---------------------------------------------------------------------------
+
+/** YYYY-MM-DD in Montreal, the date stamped as "cost set". */
+function todayMontreal(): string {
+  return new Date().toLocaleDateString("en-CA", { timeZone: "America/Montreal" });
+}
+
+/** Serialises supplier links for one catalogue product within a transaction. */
+async function lockItemSourcing(tx: Tx, itemCode: string) {
+  await tx.execute(
+    sql`select pg_advisory_xact_lock(hashtext('item_sourcing'), hashtext(${itemCode}))`,
+  );
+}
+
+async function sourcingRow(tx: Tx, sourcingId: string) {
+  const [row] = await tx
+    .select()
+    .from(itemSourcing)
+    .where(eq(itemSourcing.id, sourcingId))
+    .for("update");
+  return row;
+}
+
+const numericOrNull = (value: number | null) =>
+  value === null ? null : String(value);
+
+/** Cost or sell for one product from one supplier. A cost change is recorded. */
+export async function setSourcingPrice(
+  sourcingId: string,
+  field: "cost" | "sell",
+  text: string,
+): Promise<PriceEditResult> {
+  const user = await requireBuyer();
+  if (field !== "cost" && field !== "sell") return { ok: false, error: "Unknown field." };
+  const price = checkPrice(text);
+  if (!price.ok) return { ok: false, error: price.message };
+
+  const result = await db.transaction(async (tx): Promise<PriceEditResult> => {
+    const row = await sourcingRow(tx, String(sourcingId));
+    if (!row) return { ok: false, error: "That product is no longer on this supplier." };
+
+    if (field === "sell") {
+      const current = row.sell === null ? null : Number(row.sell);
+      if (current !== price.value) {
+        await tx
+          .update(itemSourcing)
+          .set({ sell: numericOrNull(price.value), updatedAt: new Date() })
+          .where(eq(itemSourcing.id, row.id));
+      }
+      return { ok: true, costSetOn: row.costSetOn };
+    }
+
+    const current = row.cost === null ? null : Number(row.cost);
+    const change = applyCostChange(
+      { cost: current, costSetOn: row.costSetOn },
+      price.value,
+      todayMontreal(),
+    );
+    if (change.changed) {
+      await tx
+        .update(itemSourcing)
+        .set({
+          cost: numericOrNull(change.cost),
+          costSetOn: change.costSetOn,
+          updatedAt: new Date(),
+        })
+        .where(eq(itemSourcing.id, row.id));
+      await tx.insert(itemSourcingCostHistory).values({
+        sourcingId: row.id,
+        itemCode: row.itemCode,
+        supplierId: row.supplierId,
+        oldCost: numericOrNull(current),
+        newCost: numericOrNull(change.cost),
+        changedBy: user.id,
+        changedByName: user.name,
+      });
+    }
+    return { ok: true, costSetOn: change.costSetOn };
+  });
+
+  if (result.ok) await announce();
+  return result;
+}
+
+/**
+ * Renames the catalogue product or changes the purchase pack on one supplier
+ * row. Refused when it would land on another product. The new wording reaches
+ * open order lines (and pallet cards and Product Lists); history keeps its own.
+ */
+export async function editSupplierProduct(
+  sourcingId: string,
+  next: { name: string; pack: string },
+): Promise<SupplierEditResult> {
+  const user = await requireBuyer();
+  const name = String(next?.name ?? "").trim();
+  const pack = String(next?.pack ?? "").trim();
+
+  const result = await db.transaction(async (tx) => {
+    const row = await sourcingRow(tx, String(sourcingId));
+    if (!row) return { ok: false as const, error: "That product is no longer on this supplier." };
+    const siblings = await getSupplierProducts(row.supplierId, tx);
+    const current = siblings.find((x) => x.sourcingId === row.id);
+    if (!current) return { ok: false as const, error: "That product is no longer in the catalogue." };
+
+    const check = checkProductEdit(
+      current,
+      { name, pack },
+      siblings,
+      await catalogueNamesMatching(name, tx),
+    );
+    if (check.kind === "blank") {
+      return { ok: false as const, error: "A product needs a name, so that change was not applied." };
+    }
+    if (!pack) {
+      return { ok: false as const, error: "A purchase pack is needed, so that change was not applied." };
+    }
+    if (check.kind === "clash") {
+      return {
+        ok: false as const,
+        error: `That is already another product: ${check.name}${check.pack ? ` (${check.pack})` : ""}. Two entries for the same item at the same pack is what the matching rule prevents, so this change was not applied.`,
+      };
+    }
+
+    const renamed = name !== current.name;
+    const repacked = pack !== current.pack;
+    let openLinesUpdated = 0;
+
+    if (renamed) {
+      await tx
+        .update(inventoryItems)
+        .set({ description: name, updatedAt: new Date() })
+        .where(eq(inventoryItems.code, row.itemCode));
+      await logAudit(tx, user, [
+        {
+          action: "update:description",
+          recordType: "inventory_item",
+          recordId: row.itemCode,
+          oldValue: { description: current.name },
+          newValue: { description: name, via: "suppliers-view" },
+        },
+      ]);
+    }
+    if (repacked) {
+      await tx
+        .update(itemSourcing)
+        .set({ purchasePack: pack, updatedAt: new Date() })
+        .where(eq(itemSourcing.id, row.id));
+      // Only this supplier's open order buys it in this pack.
+      const moved = await tx
+        .update(purchaseOrderLines)
+        .set({ packAtTime: pack, updatedAt: new Date() })
+        .where(
+          and(
+            eq(purchaseOrderLines.itemCode, row.itemCode),
+            sql`${purchaseOrderLines.orderId} in (select id from purchase_orders where status = 'open' and supplier_id = ${row.supplierId})`,
+          ),
+        )
+        .returning({ id: purchaseOrderLines.id });
+      openLinesUpdated += moved.length;
+      await logAudit(tx, user, [
+        {
+          action: "update:purchase_pack",
+          recordType: "item_sourcing",
+          recordId: row.itemCode,
+          oldValue: { supplierId: row.supplierId, purchasePack: current.pack },
+          newValue: { supplierId: row.supplierId, purchasePack: pack },
+        },
+      ]);
+    }
+    return {
+      ok: true as const,
+      code: row.itemCode,
+      renamed,
+      inPriceFile: !!current.inPriceFile,
+      openLinesUpdated,
+    };
+  });
+
+  if (!result.ok) return result;
+
+  let { openLinesUpdated } = result;
+  if (result.renamed) {
+    const synced = await syncCatalogWording([result.code]);
+    openLinesUpdated += synced.openOrderLinesSynced;
+    revalidatePath("/buyer/product-lists");
+    await notifyProductListsChanged();
+  }
+  await announce();
+  return {
+    ok: true,
+    openLinesUpdated,
+    note:
+      result.renamed && result.inPriceFile
+        ? "This product is in the uploaded price file, so the next price upload will put the file's wording back."
+        : null,
+  };
+}
+
+/**
+ * Adds a product to a supplier, following the Order Book's matchProduct: the
+ * same product at the same pack is updated rather than duplicated, a similar
+ * one at the same pack is asked about, a different pack is a new product.
+ */
+export async function addSupplierProduct(
+  input: AddSupplierProductInput,
+): Promise<AddSupplierProductResult> {
+  const user = await requireBuyer();
+
+  const cost = checkPrice(input?.cost);
+  if (!cost.ok) return { status: "ask", field: "cost", message: `Cost: ${cost.message}` };
+  const sell = checkPrice(input?.sell);
+  if (!sell.ok) return { status: "ask", field: "sell", message: `Sell: ${sell.message}` };
+
+  const supplierId = Number(input?.supplierId);
+  const [supplier] = await db
+    .select({ id: suppliers.id })
+    .from(suppliers)
+    .where(eq(suppliers.id, supplierId));
+  if (!supplier) return { status: "error", message: "That supplier is no longer on file." };
+
+  // Which catalogue product is this?
+  let product: PurchaseHit;
+  if (input.itemCode) {
+    const hit = await getPurchaseHit(input.itemCode);
+    if (!hit) return { status: "error", message: "That product is no longer in the catalogue." };
+    product = hit;
+  } else {
+    const typed = String(input.typed ?? "").trim();
+    if (!typed) return { status: "ask", field: "product", message: "Type the product." };
+    const hits = await resolutionCandidates(typed);
+    const resolution = resolveTyped(typed, hits.map(hitToEntry));
+    const byCode = new Map(hits.map((h) => [h.code, h]));
+    if (resolution.kind === "none") return { status: "none", typed };
+    if (resolution.kind === "choose") {
+      return { status: "choose", products: resolution.entries.map((e) => byCode.get(e.code)!) };
+    }
+    if (resolution.kind === "similar") {
+      return {
+        status: "similar-catalogue",
+        products: resolution.entries.map((e) => byCode.get(e.code)!),
+      };
+    }
+    product = byCode.get(resolution.entry.code)!;
+  }
+
+  const sourcing = checkSourcingInput({
+    purchasePack: input?.pack,
+    purchaseUnit: input?.unit,
+  });
+  if (!sourcing.ok) return { status: "ask", field: sourcing.field, message: sourcing.message };
+
+  const today = todayMontreal();
+  const result = await db.transaction(async (tx): Promise<AddSupplierProductResult> => {
+    await lockItemSourcing(tx, product.code);
+    const rows = await getSupplierProducts(supplierId, tx);
+
+    // "Update cost and sell if supplied": a blank box leaves the price alone.
+    const updatePrices = async (target: (typeof rows)[number]) => {
+      const set: Partial<typeof itemSourcing.$inferInsert> = {};
+      if (sell.value !== null && sell.value !== target.sell) set.sell = String(sell.value);
+      if (cost.value !== null && cost.value !== target.cost) {
+        set.cost = String(cost.value);
+        set.costSetOn = today;
+        await tx.insert(itemSourcingCostHistory).values({
+          sourcingId: target.sourcingId,
+          itemCode: target.code,
+          supplierId,
+          oldCost: numericOrNull(target.cost),
+          newCost: String(cost.value),
+          changedBy: user.id,
+          changedByName: user.name,
+        });
+      }
+      if (Object.keys(set).length > 0) {
+        await tx
+          .update(itemSourcing)
+          .set({ ...set, updatedAt: new Date() })
+          .where(eq(itemSourcing.id, target.sourcingId));
+      }
+      return { status: "updated" as const, name: target.name, pack: target.pack };
+    };
+
+    const decision = input.decision ?? null;
+    if (decision?.kind === "same") {
+      const target = rows.find((r) => r.sourcingId === decision.sourcingId);
+      if (!target) return { status: "error", message: "That product is no longer on this supplier." };
+      return updatePrices(target);
+    }
+
+    const match = matchSupplierProduct(rows, {
+      code: product.code,
+      name: product.name,
+      pack: sourcing.purchasePack,
+    });
+    if (match.kind === "exact") return updatePrices(match.product);
+    if (match.kind === "pack-conflict") return { status: "pack-conflict", existing: match.product };
+    if (match.kind === "similar" && decision?.kind !== "separate") {
+      return { status: "similar", existing: match.product };
+    }
+
+    // The first supplier a product gets is the one the Buyer card uses.
+    const [{ n: preferredLinks }] = await tx
+      .select({ n: sql<number>`count(*)::int` })
+      .from(itemSourcing)
+      .where(and(eq(itemSourcing.itemCode, product.code), eq(itemSourcing.preferred, true)));
+    const preferred = preferredLinks === 0;
+
+    const [created] = await tx
+      .insert(itemSourcing)
+      .values({
+        itemCode: product.code,
+        supplierId,
+        purchasePack: sourcing.purchasePack,
+        purchaseUnit: sourcing.purchaseUnit,
+        preferred,
+        cost: numericOrNull(cost.value),
+        sell: numericOrNull(sell.value),
+        costSetOn: cost.value === null ? null : today,
+        assignedBy: user.id,
+        assignedByName: user.name,
+      })
+      .returning({ id: itemSourcing.id });
+    if (cost.value !== null) {
+      await tx.insert(itemSourcingCostHistory).values({
+        sourcingId: created.id,
+        itemCode: product.code,
+        supplierId,
+        oldCost: null,
+        newCost: String(cost.value),
+        changedBy: user.id,
+        changedByName: user.name,
+      });
+    }
+    await logAudit(tx, user, [
+      {
+        action: "create",
+        recordType: "item_sourcing",
+        recordId: product.code,
+        newValue: {
+          supplierId,
+          purchasePack: sourcing.purchasePack,
+          purchaseUnit: sourcing.purchaseUnit,
+          preferred,
+          via: "suppliers-view",
+        },
+      },
+    ]);
+    return { status: "added", name: product.name, pack: sourcing.purchasePack, preferred };
+  });
+
+  if (result.status === "added" || result.status === "updated") await announce();
+  return result;
+}
+
+/** Name only; "fra di" finds "Fra-Di" instead of creating a second record. */
+export async function addSupplierByName(
+  name: string,
+  confirmNew = false,
+): Promise<AddSupplierResult> {
+  const user = await requireBuyer();
+  const typed = String(name ?? "").trim();
+  if (!typed) return { status: "ask", field: "supplier", message: "Type the supplier's name." };
+
+  const option = (s: Supplier): SupplierOption => ({
+    id: s.id,
+    name: s.name,
+    contact: s.contact,
+    email: s.email,
+  });
+
+  const result = await db.transaction(async (tx): Promise<AddSupplierResult> => {
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext('suppliers'))`);
+    const all = await tx.select().from(suppliers);
+    const match = matchSupplierName(typed, all);
+    if (match.kind === "empty") {
+      return { status: "ask", field: "supplier", message: "Type the supplier's name." };
+    }
+    if (match.kind === "existing") {
+      if (!match.supplier.active) {
+        await tx
+          .update(suppliers)
+          .set({ active: true, updatedAt: new Date() })
+          .where(eq(suppliers.id, match.supplier.id));
+      }
+      return { status: "existing", supplier: option(match.supplier) };
+    }
+    if (match.kind === "similar" && !confirmNew) {
+      return { status: "similar", typed, suppliers: match.suppliers.map(option) };
+    }
+    const created = await insertSupplier(tx, { name: typed }, user);
+    return { status: "created", supplier: option(created) };
+  });
+
+  if (result.status === "created" || result.status === "existing") await announce();
+  return result;
+}
+
+/**
+ * Takes a product off a supplier. The catalogue product stays, and past
+ * orders are untouched. When it was the supplier the Buyer card uses and other
+ * suppliers remain, the buyer says which one takes over — never a guess.
+ */
+export async function removeSupplierProduct(
+  sourcingId: string,
+  promoteSourcingId: string | null = null,
+): Promise<RemoveSupplierProductResult> {
+  const user = await requireBuyer();
+
+  const [target] = await db
+    .select({ itemCode: itemSourcing.itemCode })
+    .from(itemSourcing)
+    .where(eq(itemSourcing.id, String(sourcingId)));
+  if (!target) return { ok: false, error: "That product is no longer on this supplier." };
+
+  const result = await db.transaction(async (tx): Promise<RemoveSupplierProductResult> => {
+    await lockItemSourcing(tx, target.itemCode);
+    const row = await sourcingRow(tx, String(sourcingId));
+    if (!row) return { ok: false, error: "That product is no longer on this supplier." };
+
+    if (row.preferred) {
+      const others = await tx
+        .select({
+          sourcingId: itemSourcing.id,
+          supplierName: suppliers.name,
+          pack: itemSourcing.purchasePack,
+        })
+        .from(itemSourcing)
+        .innerJoin(suppliers, eq(suppliers.id, itemSourcing.supplierId))
+        .where(and(eq(itemSourcing.itemCode, row.itemCode), ne(itemSourcing.id, row.id)));
+      if (others.length > 0 && !others.some((o) => o.sourcingId === promoteSourcingId)) {
+        return {
+          ok: false,
+          error:
+            "Other suppliers carry this product. Choose which one the Buyer card should use from now on.",
+          choosePreferred: others,
+        };
+      }
+    }
+
+    await tx.delete(itemSourcing).where(eq(itemSourcing.id, row.id));
+    if (row.preferred && promoteSourcingId) {
+      await tx
+        .update(itemSourcing)
+        .set({ preferred: true, updatedAt: new Date() })
+        .where(eq(itemSourcing.id, promoteSourcingId));
+    }
+    await logAudit(tx, user, [
+      {
+        action: "delete",
+        recordType: "item_sourcing",
+        recordId: row.itemCode,
+        oldValue: {
+          supplierId: row.supplierId,
+          purchasePack: row.purchasePack,
+          purchaseUnit: row.purchaseUnit,
+          cost: row.cost,
+          sell: row.sell,
+          preferred: row.preferred,
+        },
+        newValue: { promotedSourcingId: promoteSourcingId },
+      },
+    ]);
+    return { ok: true };
   });
 
   if (result.ok) await announce();

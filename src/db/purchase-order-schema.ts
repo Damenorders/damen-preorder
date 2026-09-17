@@ -58,6 +58,13 @@ export const itemSourcing = pgTable(
       .defaultNow(),
     assignedBy: uuid("assigned_by").references(() => users.id),
     assignedByName: text("assigned_by_name").notNull().default(""),
+    // 0027 — per purchase pack; margin is always derived, never stored.
+    cost: numeric("cost", { precision: 12, scale: 4 }),
+    sell: numeric("sell", { precision: 12, scale: 4 }),
+    costSetOn: date("cost_set_on"),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (t) => [
     unique("item_sourcing_item_supplier_unique").on(t.itemCode, t.supplierId),
@@ -122,6 +129,35 @@ export const purchaseOrderLines = pgTable(
     unique("purchase_order_lines_merge").on(t.orderId, t.itemCode, t.unit),
     index("purchase_order_lines_order_idx").on(t.orderId, t.createdAt),
     index("purchase_order_lines_item_idx").on(t.itemCode),
+  ],
+);
+
+/** One row per cost change; kept when the supplier link is removed. */
+export const itemSourcingCostHistory = pgTable(
+  "item_sourcing_cost_history",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    sourcingId: uuid("sourcing_id").references(() => itemSourcing.id, {
+      onDelete: "set null",
+    }),
+    itemCode: text("item_code").notNull(),
+    supplierId: integer("supplier_id")
+      .notNull()
+      .references(() => suppliers.id),
+    oldCost: numeric("old_cost", { precision: 12, scale: 4 }),
+    newCost: numeric("new_cost", { precision: 12, scale: 4 }),
+    changedBy: uuid("changed_by").references(() => users.id),
+    changedByName: text("changed_by_name").notNull().default(""),
+    changedAt: timestamp("changed_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("item_sourcing_cost_history_item_idx").on(
+      t.itemCode,
+      t.supplierId,
+      t.changedAt,
+    ),
   ],
 );
 

@@ -3,6 +3,7 @@ import { and, asc, desc, eq, inArray, or, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db";
 import {
   inventoryItems,
+  itemPrices,
   itemSourcing,
   purchaseOrderLines,
   purchaseOrders,
@@ -12,6 +13,8 @@ import {
   normalizeName,
   queryWords,
   type CatalogEntry,
+  type SupplierBlock,
+  type SupplierProduct,
 } from "@/lib/order-book-core";
 import type {
   OrderView,
@@ -242,4 +245,83 @@ export async function getOpenOrders(): Promise<OrderView[]> {
 /** History, newest first. */
 export async function getOrderHistory(limit = 100): Promise<OrderView[]> {
   return loadOrders(eq(purchaseOrders.status, "ordered"), limit);
+}
+
+// ---------------------------------------------------------------------------
+// Suppliers view
+// ---------------------------------------------------------------------------
+
+type Reader = Pick<typeof db, "select">;
+
+/** Every product bought from the given suppliers (or all of them). */
+export async function getSupplierProducts(
+  supplierId?: number,
+  executor: Reader = db,
+): Promise<Array<SupplierProduct & { supplierId: number }>> {
+  const rows = await executor
+    .select({
+      sourcingId: itemSourcing.id,
+      supplierId: itemSourcing.supplierId,
+      code: itemSourcing.itemCode,
+      name: inventoryItems.description,
+      pack: itemSourcing.purchasePack,
+      unit: itemSourcing.purchaseUnit,
+      cost: itemSourcing.cost,
+      sell: itemSourcing.sell,
+      costSetOn: itemSourcing.costSetOn,
+      preferred: itemSourcing.preferred,
+      priced: itemPrices.itemCode,
+    })
+    .from(itemSourcing)
+    .innerJoin(inventoryItems, eq(inventoryItems.code, itemSourcing.itemCode))
+    .leftJoin(itemPrices, eq(itemPrices.itemCode, itemSourcing.itemCode))
+    .where(
+      supplierId === undefined
+        ? undefined
+        : eq(itemSourcing.supplierId, supplierId),
+    )
+    .orderBy(asc(inventoryItems.description), asc(itemSourcing.purchasePack));
+
+  // numeric columns arrive as strings.
+  return rows.map(({ priced, cost, sell, ...r }) => ({
+    ...r,
+    cost: cost === null ? null : Number(cost),
+    sell: sell === null ? null : Number(sell),
+    inPriceFile: priced !== null,
+  }));
+}
+
+/** The Suppliers tab: every active supplier with what we buy from it. */
+export async function getSupplierBlocks(): Promise<SupplierBlock[]> {
+  const [list, products] = await Promise.all([
+    db
+      .select({
+        id: suppliers.id,
+        name: suppliers.name,
+        contact: suppliers.contact,
+        email: suppliers.email,
+      })
+      .from(suppliers)
+      .where(eq(suppliers.active, true))
+      .orderBy(sql`lower(${suppliers.name})`),
+    getSupplierProducts(),
+  ]);
+  return list.map((s) => ({
+    ...s,
+    products: products.filter((p) => p.supplierId === s.id),
+  }));
+}
+
+/** Other catalogue products whose name normalises to the given one. */
+export async function catalogueNamesMatching(
+  name: string,
+  executor: Reader = db,
+): Promise<Array<{ code: string; name: string }>> {
+  const key = normalizeName(name);
+  if (!key) return [];
+  return executor
+    .select({ code: inventoryItems.code, name: inventoryItems.description })
+    .from(inventoryItems)
+    .where(sql`${normalizedSql(inventoryItems.description)} = ${key}`)
+    .limit(10);
 }

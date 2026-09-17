@@ -30,7 +30,7 @@ import type {
 } from "@/lib/purchase-order-types";
 import Dialog, { buttonClass } from "./Dialog";
 
-const inputClass =
+export const inputClass =
   "h-11 rounded-xl border border-neutral-300 bg-white px-3 text-base";
 
 type Modal =
@@ -53,7 +53,7 @@ function placedMessage(line: PlacedLine): string {
 }
 
 /** Product, pack and supplier — what the buyer checks before committing. */
-function HitLabel({ hit }: { hit: PurchaseHit }) {
+export function HitLabel({ hit }: { hit: PurchaseHit }) {
   return (
     <span className="block min-w-0">
       <span className="block text-sm font-medium text-neutral-900">{hit.name}</span>
@@ -846,7 +846,7 @@ function SupplierSearch({
 // Create a catalogue product (spec §5 e)
 // ---------------------------------------------------------------------------
 
-function CreateProductDialog({
+export function CreateProductDialog({
   typed,
   onCancel,
   onUse,

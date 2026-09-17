@@ -5,7 +5,7 @@
 // a small server action on one row, and a teammate's change arrives over the
 // purchase-orders live channel.
 
-import { useMemo, useState, useSyncExternalStore } from "react";
+import { useState } from "react";
 import {
   markOrderOrdered,
   removeOrderLine,
@@ -22,45 +22,7 @@ import {
 } from "@/lib/order-book-core";
 import type { OrderLineView, OrderView } from "@/lib/purchase-order-types";
 import Dialog, { buttonClass } from "./Dialog";
-
-const OPENED_KEY = "po.opened";
-
-// Which sections are unfolded, kept for the browser tab. Storage can throw on
-// a restricted origin; a fold state is never worth a blank page, so every
-// access is guarded and an in-memory copy carries on without it.
-let openedMemory = "{}";
-const openedListeners = new Set<() => void>();
-
-function readOpenedRaw(): string {
-  try {
-    return sessionStorage.getItem(OPENED_KEY) ?? openedMemory;
-  } catch {
-    return openedMemory;
-  }
-}
-function writeOpened(value: Record<string, boolean>) {
-  openedMemory = JSON.stringify(value);
-  try {
-    sessionStorage.setItem(OPENED_KEY, openedMemory);
-  } catch {
-    // Folding still works for this page view.
-  }
-  openedListeners.forEach((fn) => fn());
-}
-function subscribeOpened(fn: () => void) {
-  openedListeners.add(fn);
-  return () => {
-    openedListeners.delete(fn);
-  };
-}
-function parseOpened(raw: string): Record<string, boolean> {
-  try {
-    const value = JSON.parse(raw);
-    return value && typeof value === "object" ? value : {};
-  } catch {
-    return {};
-  }
-}
+import { useFoldState } from "./foldState";
 
 /** Today in Montreal, YYYY-MM-DD — the date Mark as ordered will stamp. */
 function todayMontreal(): string {
@@ -78,26 +40,23 @@ type Pending =
   | null;
 
 export default function OrderBoard({
+  view,
   open,
   history,
 }: {
+  /** The Next order tab or the History tab. */
+  view: "order" | "history";
   open: OrderView[];
   history: OrderView[];
 }) {
-  // Server render and hydration both see everything folded.
-  const openedRaw = useSyncExternalStore(subscribeOpened, readOpenedRaw, () => "{}");
-  const opened = useMemo(() => parseOpened(openedRaw), [openedRaw]);
+  // Its own fold state: folding here never folds the Suppliers tab.
+  const folds = useFoldState("po.orders.opened");
+  const { opened, toggle } = folds;
   const [pending, setPending] = useState<Pending>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
-  function toggle(key: string) {
-    const next = { ...opened };
-    if (next[key]) delete next[key];
-    else next[key] = true;
-    writeOpened(next);
-  }
 
   async function run(task: () => Promise<{ ok: boolean; error?: string }>) {
     setError(null);
@@ -159,7 +118,7 @@ export default function OrderBoard({
       if (result.ok) {
         setPending(null);
         setNotice(`${result.supplierName} is back on the next order.`);
-        writeOpened({ ...opened, [`ord:${order.supplierId}`]: true });
+        folds.open(`ord:${order.supplierId}`);
       } else if (result.openLines !== undefined) {
         // The open order changed under us: warn again with the real count.
         setPending({ kind: "undo", order, openLines: result.openLines, note: result.error });
@@ -194,6 +153,7 @@ export default function OrderBoard({
         </div>
       )}
 
+      {view === "order" && (
       <section>
         <h2 className="text-base font-semibold">Next orders</h2>
         {open.length === 0 ? (
@@ -251,7 +211,9 @@ export default function OrderBoard({
           </div>
         )}
       </section>
+      )}
 
+      {view === "history" && (
       <section>
         <h2 className="text-base font-semibold">History</h2>
         {history.length === 0 ? (
@@ -321,6 +283,7 @@ export default function OrderBoard({
           </div>
         )}
       </section>
+      )}
 
       <p className="text-xs text-neutral-500">
         Everything here is typed in by hand. Nothing is looked up or filled in automatically.

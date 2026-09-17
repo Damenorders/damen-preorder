@@ -2,7 +2,11 @@
 // module (a type re-exported from one crashes on module evaluation) and free of
 // server imports so client components can use them.
 
-import type { PurchaseMethod, PurchaseUnit } from "@/lib/order-book-core";
+import type {
+  PurchaseMethod,
+  PurchaseUnit,
+  SupplierProduct,
+} from "@/lib/order-book-core";
 
 /** A catalogue product as the buyer sees it before committing. */
 export interface PurchaseHit {
@@ -45,7 +49,7 @@ export interface PlacedLine {
 
 export type Ask = {
   status: "ask";
-  field: "qty" | "unit" | "product" | "purchasePack" | "purchaseUnit" | "supplier" | "code" | "description" | "section";
+  field: "qty" | "unit" | "product" | "purchasePack" | "purchaseUnit" | "supplier" | "code" | "description" | "section" | "cost" | "sell";
   message: string;
 };
 
@@ -139,3 +143,64 @@ export type MarkOrderedResult =
 export type UndoOrderResult =
   | { ok: true; supplierName: string }
   | { ok: false; error: string; openLines?: number };
+
+// ---------------------------------------------------------------------------
+// Suppliers view
+// ---------------------------------------------------------------------------
+
+export type SupplierEditResult =
+  | {
+      ok: true;
+      /** Open purchase order lines that took the new wording or pack. */
+      openLinesUpdated: number;
+      /** Set when the price file will put its own wording back. */
+      note: string | null;
+    }
+  | { ok: false; error: string };
+
+export type PriceEditResult =
+  | { ok: true; costSetOn: string | null }
+  | { ok: false; error: string };
+
+export interface AddSupplierProductInput {
+  supplierId: number;
+  /** A catalogue product picked from the search… */
+  itemCode: string | null;
+  /** …or the text typed, resolved against the catalogue. */
+  typed: string;
+  pack: string;
+  unit: string;
+  cost: string;
+  sell: string;
+  /** The answer to a "same product?" question. */
+  decision?: { kind: "same"; sourcingId: string } | { kind: "separate" } | null;
+}
+
+export type AddSupplierProductResult =
+  | { status: "added"; name: string; pack: string; preferred: boolean }
+  | { status: "updated"; name: string; pack: string }
+  | Ask
+  | { status: "similar"; existing: SupplierProduct }
+  | { status: "pack-conflict"; existing: SupplierProduct }
+  | { status: "choose"; products: PurchaseHit[] }
+  | { status: "similar-catalogue"; products: PurchaseHit[] }
+  | { status: "none"; typed: string }
+  | { status: "error"; message: string };
+
+export type AddSupplierResult =
+  | { status: "created"; supplier: SupplierOption }
+  | { status: "existing"; supplier: SupplierOption }
+  | { status: "similar"; typed: string; suppliers: SupplierOption[] }
+  | Ask;
+
+export interface OtherSupplierLink {
+  sourcingId: string;
+  supplierName: string;
+  pack: string;
+}
+
+export type RemoveSupplierProductResult =
+  | { ok: true }
+  | { ok: false; error: string }
+  /** It was the Buyer card's supplier and others remain: say which takes over. */
+  | { ok: false; error: string; choosePreferred: OtherSupplierLink[] };

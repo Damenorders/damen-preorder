@@ -507,3 +507,219 @@ export function formatCopyOrder(order: {
     "\n\nPlease Confirm\nThank you\n"
   );
 }
+
+// ---------------------------------------------------------------------------
+// Suppliers view (SUPPLIERS-TAB-SPEC.md)
+// ---------------------------------------------------------------------------
+
+/** One product we buy from one supplier: a catalogue item plus its sourcing. */
+export interface SupplierProduct {
+  sourcingId: string;
+  code: string;
+  name: string;
+  pack: string;
+  unit: PurchaseUnit;
+  /** Per purchase pack. */
+  cost: number | null;
+  /** Per purchase pack. */
+  sell: number | null;
+  /** YYYY-MM-DD the cost last changed. */
+  costSetOn: string | null;
+  /** The supplier the Buyer card uses for this product. */
+  preferred: boolean;
+  /** The uploaded price file covers this product, so it leads on wording. */
+  inPriceFile?: boolean;
+}
+
+export interface SupplierBlock {
+  id: number;
+  name: string;
+  contact: string;
+  email: string;
+  products: SupplierProduct[];
+}
+
+export type PriceCheck =
+  | { ok: true; value: number | null }
+  | { ok: false; message: string };
+
+/** A cost or sell box: blank is allowed (null); otherwise a number >= 0. */
+export function checkPrice(text: string | null | undefined): PriceCheck {
+  const raw = String(text ?? "").trim().replace(/^\$/, "").replace(/,/g, "");
+  if (!raw) return { ok: true, value: null };
+  if (!/^\d+(\.\d{1,4})?$/.test(raw)) {
+    return { ok: false, message: "Enter a price like 48 or 48.50, or leave it blank." };
+  }
+  return { ok: true, value: Number(raw) };
+}
+
+export interface Margin {
+  /** Whole percent. */
+  pct: number;
+  /** sell − cost, in dollars. */
+  diff: number;
+  /** Under 15%: shown in the warning colour. */
+  thin: boolean;
+}
+
+/** (sell − cost) / sell × 100. Never stored; null unless both are present. */
+export function computeMargin(
+  cost: number | null | undefined,
+  sell: number | null | undefined,
+): Margin | null {
+  if (cost == null || sell == null || !sell) return null;
+  const exact = ((sell - cost) / sell) * 100;
+  return {
+    pct: Math.round(exact),
+    diff: Math.round((sell - cost) * 100) / 100,
+    thin: exact < 15,
+  };
+}
+
+/**
+ * What a cost edit does to the "cost set" date: a real change stamps today,
+ * clearing the cost clears the date, and the same value changes nothing.
+ */
+export function applyCostChange(
+  current: { cost: number | null; costSetOn: string | null },
+  next: number | null,
+  today: string,
+): { changed: boolean; cost: number | null; costSetOn: string | null } {
+  if (next === current.cost) return { changed: false, ...current };
+  return { changed: true, cost: next, costSetOn: next === null ? null : today };
+}
+
+export type SupplierProductMatch<P extends SupplierProduct = SupplierProduct> =
+  | { kind: "exact"; product: P }
+  | { kind: "pack-conflict"; product: P }
+  | { kind: "similar"; product: P }
+  | { kind: "new" };
+
+/**
+ * An incoming product for one supplier, as the Order Book's matchProduct:
+ * the same item at the same pack is reused (never duplicated), a similar name
+ * at the same pack is asked about, a different pack is a new product. Our
+ * catalogue adds one case: the same catalogue item at a different pack cannot
+ * be a second row for this supplier, so it is refused rather than guessed.
+ */
+export function matchSupplierProduct<P extends SupplierProduct>(
+  products: P[],
+  incoming: { code: string; name: string; pack: string },
+): SupplierProductMatch<P> {
+  const n = normalizeName(incoming.name);
+  const p = normalizePack(incoming.pack);
+
+  const exact = products.find(
+    (x) =>
+      (x.code === incoming.code || normalizeName(x.name) === n) &&
+      normalizePack(x.pack) === p,
+  );
+  if (exact) return { kind: "exact", product: exact };
+
+  const sameItem = products.find((x) => x.code === incoming.code);
+  if (sameItem) return { kind: "pack-conflict", product: sameItem };
+
+  const similar = products.find(
+    (x) => normalizePack(x.pack) === p && looksSimilar(x.name, incoming.name),
+  );
+  if (similar) return { kind: "similar", product: similar };
+
+  return { kind: "new" };
+}
+
+export type EditCheck =
+  | { kind: "blank" }
+  | { kind: "cosmetic" }
+  | { kind: "clash"; name: string; pack: string }
+  | { kind: "ok" };
+
+/**
+ * A rename or pack edit on one supplier row. Refused when it would land on
+ * another product — anywhere in the catalogue for a name (names are shared),
+ * and within the supplier for name + pack.
+ */
+export function checkProductEdit(
+  row: SupplierProduct,
+  next: { name: string; pack: string },
+  supplierProducts: SupplierProduct[],
+  catalogueNamesElsewhere: Array<{ code: string; name: string }>,
+): EditCheck {
+  const name = next.name.trim();
+  if (normalizeName(name) === "") return { kind: "blank" };
+  const pack = next.pack.trim();
+
+  if (
+    normalizeName(name) === normalizeName(row.name) &&
+    normalizePack(pack) === normalizePack(row.pack)
+  ) {
+    return { kind: "cosmetic" };
+  }
+
+  const rowClash = supplierProducts.find(
+    (x) =>
+      x.sourcingId !== row.sourcingId &&
+      normalizeName(x.name) === normalizeName(name) &&
+      normalizePack(x.pack) === normalizePack(pack),
+  );
+  if (rowClash) return { kind: "clash", name: rowClash.name, pack: rowClash.pack };
+
+  if (normalizeName(name) !== normalizeName(row.name)) {
+    const nameClash = catalogueNamesElsewhere.find(
+      (x) => x.code !== row.code && normalizeName(x.name) === normalizeName(name),
+    );
+    if (nameClash) return { kind: "clash", name: nameClash.name, pack: "" };
+  }
+  return { kind: "ok" };
+}
+
+export interface SupplierView {
+  supplier: SupplierBlock;
+  /** The rows to show: all of them, or the matches while searching. */
+  products: SupplierProduct[];
+  expanded: boolean;
+  /** "3 of 12 match" while searching, "12 products" otherwise. */
+  countLabel: string;
+}
+
+/**
+ * What the Suppliers tab shows. Searching looks across every supplier at once
+ * (product name, pack and supplier name, all terms, any order), hides
+ * suppliers with no match and opens the ones that match.
+ */
+export function viewSuppliers(
+  suppliers: SupplierBlock[],
+  query: string,
+  opened: Record<string, boolean>,
+): {
+  searching: boolean;
+  rows: SupplierView[];
+  hits: number;
+  total: string;
+} {
+  const searching = queryWords(query).length > 0;
+  const rows: SupplierView[] = [];
+  let hits = 0;
+  for (const supplier of suppliers) {
+    const all = supplier.products;
+    const products = searching
+      ? all.filter((p) => matchesQuery(query, [supplier.name, p.name, p.pack]))
+      : all;
+    if (searching && products.length === 0) continue;
+    hits += products.length;
+    rows.push({
+      supplier,
+      products,
+      expanded: searching || !!opened[`sup:${supplier.id}`],
+      countLabel: searching
+        ? `${products.length} of ${all.length} match`
+        : `${all.length} product${all.length === 1 ? "" : "s"}`,
+    });
+  }
+  const total = `${hits} product${hits === 1 ? "" : "s"} in ${rows.length} supplier${rows.length === 1 ? "" : "s"}`;
+  return { searching, rows, hits, total };
+}
+
+/** Add forms show only to editors, and never while a search is active. */
+export function showAddForms(canEdit: boolean, searching: boolean): boolean {
+  return canEdit && !searching;
+}

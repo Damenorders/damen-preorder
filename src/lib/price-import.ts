@@ -171,10 +171,9 @@ export async function applyPriceRows(
     });
   }
 
-  const codes = rows.map((r) => r.code);
-  const placementsSynced = await syncPlacementDescriptions(codes);
-  const listLinesSynced = await syncListLineDescriptions(codes);
-  await syncOpenPurchaseLineNames(codes);
+  const { placementsSynced, listLinesSynced } = await syncCatalogWording(
+    rows.map((r) => r.code),
+  );
 
   return {
     pricesSet: rows.length,
@@ -183,6 +182,23 @@ export async function applyPriceRows(
     placementsSynced,
     listLinesSynced,
   };
+}
+
+/**
+ * After a product's catalogue description changes, pushes the new wording to
+ * every copy of it: warehouse pallet cards, Product List lines and the lines of
+ * open purchase orders. Ordered purchase orders are history and keep theirs.
+ * Used by the price upload and by a rename in the Suppliers view.
+ */
+export async function syncCatalogWording(codes: string[]): Promise<{
+  placementsSynced: number;
+  listLinesSynced: number;
+  openOrderLinesSynced: number;
+}> {
+  const placementsSynced = await syncPlacementDescriptions(codes);
+  const listLinesSynced = await syncListLineDescriptions(codes);
+  const openOrderLinesSynced = await syncOpenPurchaseLineNames(codes);
+  return { placementsSynced, listLinesSynced, openOrderLinesSynced };
 }
 
 /**
