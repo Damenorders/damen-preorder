@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  clientSku,
   desiredFromFloorBlob,
   desiredFromRackBlob,
   normalise,
@@ -156,4 +157,35 @@ test("planSync swaps quantities correctly on a two-item slot", () => {
   assert.equal(plan.inserts[0].itemCode, "V");
   assert.deepEqual(plan.updates, [{ id: existing[0].id, quantity: 3, description: "Apples" }]);
   assert.deepEqual(plan.deleteIds, [existing[1].id]); // W removed
+});
+
+test("a freehand item (no SKU) reads back with a BLANK sku, not its stand-in code", () => {
+  const [stored] = normalise([{ sku: "", description: "Rice paper round 30cm" }]);
+  assert.equal(stored.code, "Rice paper round 30cm"); // what the DB holds
+  assert.equal(clientSku(stored.code, stored.description, false), "");
+});
+
+test("a long freehand description still reads back blank (stand-in is truncated)", () => {
+  const desc = "X".repeat(80);
+  const [stored] = normalise([{ description: desc }]);
+  assert.equal(clientSku(stored.code, desc, false), "");
+});
+
+test("a real SKU always reads back as itself", () => {
+  assert.equal(clientSku("TS100", "TS - SQUARE RICE PAPER 22CM", true), "TS100");
+  // typed by hand, not in the catalog — still the code the user wrote
+  assert.equal(clientSku("ZZ-9", "Mystery box", false), "ZZ-9");
+  // a live catalog item whose code happens to equal its name is never blanked
+  assert.equal(clientSku("SALT", "SALT", true), "SALT");
+});
+
+test("saving a freehand item again after reload is a no-op (no duplicate row)", () => {
+  const desc = "Unlisted pallet wrap";
+  const existing = [row("15-A-1", desc, 4, { description: desc })];
+  const reloadedSku = clientSku(desc, desc, false); // "" — what the phone now holds
+  const { desired, locations } = desiredFromRackBlob({
+    "15": { "A-1": [{ sku: reloadedSku, description: desc, quantity: 4 }] },
+  });
+  const plan = planSync(existing, "rack", desired, locations);
+  assert.deepEqual(plan, { inserts: [], updates: [], deleteIds: [], audits: [] });
 });

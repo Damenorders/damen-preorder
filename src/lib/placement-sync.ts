@@ -60,6 +60,26 @@ export interface SyncPlan {
   audits: AuditDraft[];
 }
 
+/**
+ * The stand-in item code a freehand item (typed description, no SKU) is stored
+ * under — placements need a code, and a product not yet in the catalog has none.
+ */
+export function freehandCode(description: string) {
+  return description.slice(0, 64);
+}
+
+/**
+ * The SKU to hand back to the rack-locator for a stored placement. A freehand
+ * item goes back with a BLANK sku, never its stand-in code: the counting
+ * workflow is "write what isn't in the catalog, export, filter blank SKU, add
+ * those to Odoo" — returning the stand-in filled the SKU with the description
+ * after the first save, so those rows no longer showed up as blank. Sending the
+ * blank back on the next save maps to the same stand-in, so the row is stable.
+ */
+export function clientSku(itemCode: string, description: string, isCatalogItem: boolean) {
+  return !isCatalogItem && itemCode === freehandCode(description) ? "" : itemCode;
+}
+
 export function normalise(items: ClientItem[] | undefined) {
   const out: { code: string; description: string; quantity: number }[] = [];
   for (const it of items ?? []) {
@@ -69,7 +89,7 @@ export function normalise(items: ClientItem[] | undefined) {
     // Items typed freehand (not in the catalog) are keyed by their description
     // so they still get a stable row; the catalog code wins when present.
     out.push({
-      code: code || description.slice(0, 64),
+      code: code || freehandCode(description),
       description,
       quantity: Number.isFinite(it.quantity) ? Number(it.quantity) : 1,
     });

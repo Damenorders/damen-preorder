@@ -1,5 +1,5 @@
 import "server-only";
-import { asc, desc, eq } from "drizzle-orm";
+import { asc, desc, eq, getTableColumns } from "drizzle-orm";
 import { db } from "@/db";
 import {
   inventoryAudit,
@@ -8,6 +8,7 @@ import {
   type InventoryItem,
   type WarehouseUnit,
 } from "@/db/schema";
+import { clientSku } from "@/lib/placement-sync";
 
 /** The shape the rack-locator client expects: {c: code, d: description, s: section}. */
 export interface CatalogEntry {
@@ -35,15 +36,21 @@ export async function getItem(code: string): Promise<InventoryItem | undefined> 
   });
 }
 
+/** A unit's placements, each flagged with whether its code is a live catalog item. */
+function placementsWithCatalogFlag(unit: WarehouseUnit) {
+  return db
+    .select({ ...getTableColumns(inventoryPlacements), catalogActive: inventoryItems.active })
+    .from(inventoryPlacements)
+    .leftJoin(inventoryItems, eq(inventoryItems.code, inventoryPlacements.itemCode))
+    .where(eq(inventoryPlacements.unit, unit));
+}
+
 /**
  * Rebuilds the rack-locator's `<unit>-rack-data` blob from the database:
  *   { [rackId]: { "B-3": [{ sku, description, quantity }, ...] } }
  */
 export async function getRackData(unit: WarehouseUnit) {
-  const rows = await db
-    .select()
-    .from(inventoryPlacements)
-    .where(eq(inventoryPlacements.unit, unit));
+  const rows = await placementsWithCatalogFlag(unit);
 
   const out: Record<
     string,
@@ -56,7 +63,7 @@ export async function getRackData(unit: WarehouseUnit) {
     out[rack] ??= {};
     out[rack][code] ??= [];
     out[rack][code].push({
-      sku: r.itemCode,
+      sku: clientSku(r.itemCode, r.description, !!r.catalogActive),
       description: r.description,
       quantity: r.quantity,
     });
@@ -66,10 +73,7 @@ export async function getRackData(unit: WarehouseUnit) {
 
 /** Rebuilds the `<unit>-floor-data` blob: { [floorId]: [{ sku, description, quantity }] }. */
 export async function getFloorData(unit: WarehouseUnit) {
-  const rows = await db
-    .select()
-    .from(inventoryPlacements)
-    .where(eq(inventoryPlacements.unit, unit));
+  const rows = await placementsWithCatalogFlag(unit);
 
   const out: Record<
     string,
@@ -79,7 +83,7 @@ export async function getFloorData(unit: WarehouseUnit) {
     if (!r.floorId) continue;
     out[r.floorId] ??= [];
     out[r.floorId].push({
-      sku: r.itemCode,
+      sku: clientSku(r.itemCode, r.description, !!r.catalogActive),
       description: r.description,
       quantity: r.quantity,
     });
