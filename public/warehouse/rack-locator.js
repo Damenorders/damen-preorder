@@ -338,48 +338,68 @@
   const CATALOG_BY_DESC = {};
   CATALOG.forEach(it => {
     CATALOG_BY_CODE[it.c.toUpperCase()] = it;
-    CATALOG_BY_DESC[it.d.toUpperCase()] = it;
+    // A description shared by two codes is ambiguous: typing it must not
+    // silently pick one of them, so it resolves to nothing and the user picks
+    // the right code from the suggestion list instead.
+    const dk = it.d.toUpperCase();
+    CATALOG_BY_DESC[dk] = dk in CATALOG_BY_DESC ? null : it;
   });
   function catalogByCode(code) { return CATALOG_BY_CODE[String(code || '').trim().toUpperCase()] || null; }
   function catalogByDesc(desc) { return CATALOG_BY_DESC[String(desc || '').trim().toUpperCase()] || null; }
-  let catalogDatalistCache = null;
-  function catalogDatalists() {
-    if (catalogDatalistCache) return catalogDatalistCache;
-    const codes = CATALOG.map(it => '<option value="' + esc(it.c) + '">' + esc(it.d) + '</option>').join('');
-    const descs = CATALOG.map(it => '<option value="' + esc(it.d) + '">' + esc(it.c) + '</option>').join('');
-    catalogDatalistCache = '<datalist id="rl-cat-codes">' + codes + '</datalist>' +
-                           '<datalist id="rl-cat-descs">' + descs + '</datalist>';
-    return catalogDatalistCache;
+
+  // Search text folded the same way on both sides: case, accents and
+  // punctuation ignored, and digits split from letters, so "22cm", "22 CM" and
+  // "22-cm" all read the same.
+  function normText(s) {
+    return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+      .replace(/(\d)([a-z])/g, '$1 $2').replace(/([a-z])(\d)/g, '$1 $2')
+      .replace(/[^a-z0-9]+/g, ' ').trim();
   }
+  const CATALOG_SEARCH = CATALOG.map(it => {
+    const c = normText(it.c), d = normText(it.d);
+    return { it, c, d, hay: ' ' + c + ' ' + d };
+  });
 
   /* ---------------- CATALOG AUTOCOMPLETE (phone-friendly dropdown) ----------------
      Native <datalist> dropdowns barely work on phones, so any input marked with
      class="rl-cat-input" (data-editor="rack"|"floor", data-index="i") gets its own
      floating suggestion list. Typing a code OR description filters the catalog and
      tapping a match fills in both fields on the matching item. */
-  let acEl = null, acInput = null, acMatches = [], acActive = -1;
-  let acDownOpt = null, acDownX = 0, acDownY = 0, acDragged = false;
+  let acEl = null, acInput = null, acMatches = [], acActive = -1, acQuery = '';
 
+  // Every word typed must appear somewhere in the code or description, in any
+  // order — "rice 22" finds "TS - SQUARE RICE PAPER 22CM". The old test needed
+  // the typed text as one unbroken run, so a second word in a different order
+  // emptied the list and it vanished mid-typing. Ranked: whole query at the
+  // start of the code/description, then every word starting a word, then the rest.
   function catalogMatches(q, limit) {
-    q = String(q || '').trim().toLowerCase();
-    if (!q) return [];
-    limit = limit || 40;
-    const starts = [], contains = [];
-    for (const it of CATALOG) {
-      const c = it.c.toLowerCase(), d = it.d.toLowerCase();
-      if (c.startsWith(q) || d.startsWith(q)) starts.push(it);
-      else if (c.indexOf(q) >= 0 || d.indexOf(q) >= 0) contains.push(it);
-      if (starts.length >= limit) break;
+    const qn = normText(q);
+    if (!qn) return [];
+    limit = limit || 50;
+    const words = qn.split(' ');
+    const ranks = [[], [], []];
+    for (const e of CATALOG_SEARCH) {
+      if (!words.every(w => e.hay.indexOf(w) >= 0)) continue;
+      if (e.c.startsWith(qn) || e.d.startsWith(qn)) ranks[0].push(e.it);
+      else if (words.every(w => e.hay.indexOf(' ' + w) >= 0)) ranks[1].push(e.it);
+      else ranks[2].push(e.it);
+      if (ranks[0].length >= limit) break;
     }
-    return starts.concat(contains).slice(0, limit);
+    return ranks[0].concat(ranks[1], ranks[2]).slice(0, limit);
   }
 
   function acHide() {
     if (acEl) acEl.style.display = 'none';
     // Pull the in-flow list out of the table so it leaves no gap when closed.
+    // The list itself stays inside its holder row. Pulling it out of the row
+    // when the row was already detached (closing a list that never opened —
+    // field focused but still empty) left the row empty for good, and from
+    // then on the dropdown never appeared again until the page was reloaded.
     if (acHostRow && acHostRow.parentElement) acHostRow.parentElement.removeChild(acHostRow);
-    else if (acEl && acEl.parentElement && acEl.parentElement !== document.body) acEl.parentElement.removeChild(acEl);
-    acInput = null; acMatches = []; acActive = -1;
+    if (acEl && acEl.parentElement && (!acHostRow || acEl.parentElement !== acHostRow.firstChild)) {
+      acEl.parentElement.removeChild(acEl);
+    }
+    acInput = null; acMatches = []; acActive = -1; acQuery = '';
   }
   const AC_MARGIN = 8;   // keep the field this clear of the visible top/bottom edge
 
@@ -427,6 +447,7 @@
         td.appendChild(acEl);
         acHostRow.appendChild(td);
       }
+      if (acEl.parentElement !== acHostRow.firstChild) acHostRow.firstChild.appendChild(acEl);
       acHostRow.firstChild.colSpan = row.children.length || 3;
       if (acHostRow.previousElementSibling !== row || !acHostRow.parentElement) {
         row.parentElement.insertBefore(acHostRow, row.nextSibling);
@@ -464,27 +485,43 @@
     if (sc) sc.scrollTop += delta; else window.scrollBy(0, delta);
   }
 
+  // Cap the list at the space left between its top edge and the keyboard. A
+  // 44vh cap is measured against the full screen, so with the keyboard up the
+  // last options sat behind it where no amount of list scrolling could reach.
+  function acFit() {
+    if (!acEl || !acEl.isConnected || acEl.style.display === 'none') return;
+    const v = acViewport();
+    const top = acEl.getBoundingClientRect().top;
+    const cap = window.innerWidth <= 760 ? Math.round(window.innerHeight * 0.44) : 320;
+    const avail = Math.floor(v.bottom - top - AC_MARGIN);
+    acEl.style.maxHeight = Math.max(150, Math.min(cap, avail)) + 'px';
+  }
+
   function acShow() {
     if (!acEl || !acInput) return;
-    // No matches (e.g. the field was just cleared): hide the box but keep it
-    // mounted and the field focused. Ripping the row out on every empty↔match
-    // flip churns the DOM under the focused input, which drops the on-screen
-    // keyboard on mobile — so typing a new name looked like it did nothing.
-    // Just toggling display keeps the field live so re-typing pops the list
-    // straight back up. A real dismiss (blur/outside tap/pick) still tears down.
-    if (!acMatches.length) { acEl.style.display = 'none'; return; }
-    acEl.innerHTML = acMatches.map((it, i) =>
-      '<div class="rl-ac-opt' + (i === acActive ? ' active' : '') + '" data-i="' + i + '">' +
-        '<span class="rl-ac-desc">' + esc(it.d) + '</span>' +
-        '<span class="rl-ac-code">' + esc(it.c) + '</span>' +
-      '</div>').join('');
+    // Empty field: hide the box but keep it mounted and the field focused.
+    // Ripping the row out on every empty↔match flip churns the DOM under the
+    // focused input, which drops the on-screen keyboard on mobile.
+    if (!acQuery) { acEl.style.display = 'none'; return; }
+    // Text but no match: say so instead of vanishing, so the list only ever
+    // goes away when a product is picked or the field is left.
+    acEl.innerHTML = acMatches.length
+      ? acMatches.map((it, i) =>
+          '<div class="rl-ac-opt' + (i === acActive ? ' active' : '') + '" data-i="' + i + '">' +
+            '<span class="rl-ac-desc">' + esc(it.d) + '</span>' +
+            '<span class="rl-ac-code">' + esc(it.c) + '</span>' +
+          '</div>').join('')
+      : '<div class="rl-ac-empty">No catalog product matches “' + esc(acQuery) + '”</div>';
     acMount();
     acEl.style.display = 'block';
     if (acActive >= 0) {
       const active = acEl.querySelector('.rl-ac-opt.active');
       if (active && active.scrollIntoView) active.scrollIntoView({ block: 'nearest' });
+    } else {
+      acEl.scrollTop = 0;
     }
     acEnsureVisible();
+    acFit();
   }
   function acChoose(i) {
     const it = acMatches[i];
@@ -498,6 +535,8 @@
     if (list && list[idx]) {
       list[idx].sku = it.c; list[idx].description = it.d;
       patchItemRow(editor, idx, list[idx]);
+      // Next thing to do after picking a product is count it.
+      focusQty(editor, idx);
     } else {
       render();
     }
@@ -551,6 +590,7 @@
         ".rl-ac-opt:active { background: #F6D9D3; }" +
         ".rl-ac-desc { font-family: 'Inter', sans-serif; font-size: 14px; color: #1E1E1C; line-height: 1.25; }" +
         ".rl-ac-code { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #8E2A20; font-weight: 700; }" +
+        ".rl-ac-empty { padding: 12px 13px; font-family: 'Inter', sans-serif; font-size: 13px; color: #8A877C; }" +
         "@media (max-width: 760px) {" +
         " .rl-ac { max-height: 44vh; border-radius: 12px; border-width: 2px; }" +
         " .rl-ac-opt { padding: 13px 14px; min-height: 48px; justify-content: center; }" +
@@ -566,36 +606,27 @@
     acEl.style.display = 'none';
 
     const refresh = (t) => {
-      acInput = t; acMatches = catalogMatches(t.value, 40); acActive = -1;
+      acInput = t; acQuery = t.value.trim(); acMatches = catalogMatches(t.value, 50); acActive = -1;
       acShow();
     };
     document.addEventListener('input', (e) => { if (isCatInput(e.target)) refresh(e.target); });
     document.addEventListener('focusin', (e) => {
-      if (!isCatInput(e.target)) return;
-      refresh(e.target);
+      if (isCatInput(e.target)) { refresh(e.target); return; }
+      // Moving into any other field (quantity, a move selector…) closes it.
+      if (acInput && !acEl.contains(e.target)) acHide();
     });
 
-    // Distinguish a tap (select) from a drag (scroll the list): remember the
-    // option the touch started on, watch for movement, and only select on lift
-    // if the finger stayed put. This lets the list scroll on phones.
-    acEl.addEventListener('pointerdown', (e) => {
-      acDownOpt = e.target.closest ? e.target.closest('.rl-ac-opt') : null;
-      acDownX = e.clientX; acDownY = e.clientY; acDragged = false;
+    // Pick on `click`. A click only fires for a tap, never for a finger that
+    // scrolled the list, so it tells a pick from a scroll by itself. Picking on
+    // pointerup (the old way) removed the list before the browser's own click
+    // arrived, and that click then landed on whatever slid under the finger —
+    // the next row's ✕, "+ Add item", or Save.
+    acEl.addEventListener('click', (e) => {
+      const opt = e.target.closest ? e.target.closest('.rl-ac-opt') : null;
+      if (opt) acChoose(parseInt(opt.getAttribute('data-i'), 10));
     });
-    acEl.addEventListener('pointermove', (e) => {
-      if (!acDownOpt) return;
-      if (Math.abs(e.clientX - acDownX) > 8 || Math.abs(e.clientY - acDownY) > 8) acDragged = true;
-    });
-    acEl.addEventListener('pointerup', (e) => {
-      const opt = acDownOpt;
-      acDownOpt = null;
-      if (opt && !acDragged) {
-        e.preventDefault();
-        acChoose(parseInt(opt.getAttribute('data-i'), 10));
-      }
-      acDragged = false;
-    });
-    acEl.addEventListener('pointercancel', () => { acDownOpt = null; acDragged = false; });
+    // Keep focus (and the phone keyboard) in the field while a suggestion is tapped.
+    acEl.addEventListener('mousedown', (e) => { e.preventDefault(); });
 
     document.addEventListener('keydown', (e) => {
       if (!acInput || !acEl || acEl.style.display === 'none' || !acMatches.length) return;
@@ -605,19 +636,28 @@
       else if (e.key === 'Escape') { acHide(); }
     });
 
-    // Dismiss on outside tap; keep open when interacting with the box or a
-    // catalog input. Keyed off acInput (not the box's visibility) so it still
-    // tears down cleanly when the box is only hidden because the field is empty.
-    document.addEventListener('pointerdown', (e) => {
+    // The list stays up until a product is picked or the user moves on. Touching
+    // the pallet to scroll it — or the keyboard closing — used to dismiss it
+    // (any pointerdown outside the list counted), so reaching the lower
+    // suggestions made them disappear. Now only tapping another control closes
+    // it; moving into another field is handled by focusin above.
+    document.addEventListener('click', (e) => {
       if (!acInput) return;
-      if (acEl.contains(e.target) || e.target === acInput || isCatInput(e.target)) return;
-      acHide();
+      if (acEl.contains(e.target) || isCatInput(e.target)) return;
+      if (e.target.closest && e.target.closest('button, a, select, [onclick]')) acHide();
     }, true);
     // The list lives in the document flow, so it moves with the page when the
     // user scrolls — nothing to reposition. We only react to the keyboard
     // appearing/resizing (visualViewport) to keep the focused field, and the
-    // list beneath it, from ending up hidden behind the keyboard.
-    const keepInView = () => { if (acInput && acInput.isConnected && acEl && acEl.style.display !== 'none') acEnsureVisible(); };
+    // list beneath it, from ending up hidden behind the keyboard — including a
+    // field just focused by "+ Add product", before anything has been typed.
+    const keepInView = () => {
+      if (!acInput || !acInput.isConnected) return;
+      const listOpen = acEl && acEl.style.display !== 'none';
+      if (!listOpen && document.activeElement !== acInput) return;
+      acEnsureVisible();
+      acFit();
+    };
     window.addEventListener('resize', keepInView);
     if (window.visualViewport) {
       window.visualViewport.addEventListener('resize', keepInView);
@@ -766,7 +806,7 @@
     }
   }
   async function saveData() {
-    await persist(storageKey('rack-data'), JSON.stringify(state.data), 'Pallet update');
+    return persist(storageKey('rack-data'), JSON.stringify(state.data), 'Pallet update');
   }
 
   // Targeted save: writes ONLY the one slot/floor that changed, so a save can
@@ -859,7 +899,7 @@
     await persist((wh.storagePrefix || '') + 'rack-data', JSON.stringify(whCache[whId].data), 'Pallet update');
   }
   async function saveFloorData() {
-    await persist(storageKey('floor-data'), JSON.stringify(state.floorData), 'Floor update');
+    return persist(storageKey('floor-data'), JSON.stringify(state.floorData), 'Floor update');
   }
 
   // Before saving an edit, pull the freshest shared copy of this unit so we only
@@ -966,11 +1006,64 @@
     return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   }
 
+  // In-page yes/no dialog, in place of window.confirm(). confirm() silently
+  // returns false inside a sandboxed iframe or app webview — no dialog, the
+  // action simply never happens, and the button looks dead. Mounted on the host
+  // element, outside #rl-root, so a render() underneath can't destroy it.
+  // Resolves true only for the confirm button; Cancel and Escape resolve false.
+  function askConfirm(message, okLabel, danger) {
+    return new Promise(resolve => {
+      const wrap = document.createElement('div');
+      wrap.className = 'rl-overlay';
+      wrap.style.zIndex = '60';
+      wrap.innerHTML =
+        '<div class="rl-modal" role="alertdialog" aria-modal="true" style="width:min(400px, 92vw);">' +
+          '<div style="font-family:\'Inter\',sans-serif; font-size:15px; line-height:1.45; color:#1E1E1C;">' + esc(message) + '</div>' +
+          '<div class="rl-modalbtns">' +
+            '<button class="rl-btn" data-answer="no">Cancel</button>' +
+            '<button class="rl-btn ' + (danger ? 'rl-danger' : 'rl-primary') + '" data-answer="yes">' + esc(okLabel) + '</button>' +
+          '</div>' +
+        '</div>';
+      const onKey = (e) => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); done(false); } };
+      function done(answer) {
+        document.removeEventListener('keydown', onKey, true);
+        wrap.remove();
+        resolve(answer);
+      }
+      wrap.addEventListener('click', (e) => {
+        const b = e.target.closest && e.target.closest('button[data-answer]');
+        if (b) done(b.getAttribute('data-answer') === 'yes');
+      });
+      document.addEventListener('keydown', onKey, true);
+      hostEl.appendChild(wrap);
+      // Cancel holds focus, so a stray Enter never confirms a destructive action.
+      wrap.querySelector('[data-answer="no"]').focus();
+    });
+  }
+
+  async function onceAtATime(ed, run) {
+    if (!ed || ed.busy || ed.saving) return;
+    ed.busy = true;
+    try { await run(); } finally { ed.busy = false; }
+  }
+
+  // The flash banner is patched in place, never via render(). A full render
+  // here (and again when it timed out 2.4s later) rebuilt an open pallet editor
+  // mid-typing: the field lost focus, the keyboard dropped, the suggestion list
+  // vanished and any text not yet committed was thrown away.
+  function paintFlash() {
+    let el = root.querySelector(':scope > .rl-flash');
+    if (!state.flash) { if (el) el.remove(); return; }
+    if (!el) { el = document.createElement('div'); el.className = 'rl-flash'; root.appendChild(el); }
+    el.textContent = state.flash;
+  }
   function showFlash(msg) {
     state.flash = msg;
-    render();
+    paintFlash();
     clearTimeout(flashTimer);
-    flashTimer = setTimeout(() => { state.flash = null; render(); }, 2400);
+    // Warnings (sync failures) stay up long enough to actually read.
+    const ms = /^⚠/.test(msg) ? 6000 : 2400;
+    flashTimer = setTimeout(() => { state.flash = null; paintFlash(); }, ms);
   }
 
   // Strips the internal depth suffix (a/b/c) from a position or full location string for
@@ -1662,10 +1755,12 @@
                    class="rl-cat-input" data-editor="rack" data-index="${i}"
                    onchange="RL.pickItemField(${i}, 'sku', this.value)"
                    style="width:100%; border:none; background:transparent; font-family:'JetBrains Mono',monospace; font-size:11px; color:#8A877C; padding:2px 0 0; outline:none;">
-            ${item.sku && !catalogByCode(item.sku) ? `<div class="rl-notincat">Not in the item catalog</div>` : ''}
+            ${notInCatalog(item) ? `<div class="rl-notincat">Not in the item catalog</div>` : ''}
           </td>
           <td class="rl-qtycol" style="border:1px solid #1E1E1C; border-top:none; border-left:none; padding:2px 8px; text-align:center; vertical-align:middle;">
-            <input type="number" min="1" value="${item.quantity != null ? item.quantity : 1}" onchange="RL.setItemQty(${i}, this)"
+            <input type="number" min="1" inputmode="numeric" value="${item.quantity != null ? item.quantity : 1}"
+                   class="rl-qty-input" data-editor="rack" data-index="${i}"
+                   onfocus="RL.selectQty(this)" onchange="RL.setItemQty(${i}, this)"
                    style="width:100%; border:none; background:transparent; font-family:'Inter',sans-serif; font-size:28px; font-weight:500; color:#1E1E1C; text-align:center; padding:0; outline:none;">
           </td>
           <td class="rl-actcol" style="border:none; padding:0 0 0 4px; vertical-align:middle; white-space:nowrap;">
@@ -1738,7 +1833,7 @@
 
           <div class="rl-modalbtns">
             <button class="rl-btn" onclick="RL.closeEditor()">Cancel</button>
-            <button class="rl-btn rl-primary" onclick="RL.submitEditor()">Save</button>
+            <button class="rl-btn rl-primary" onclick="RL.submitEditor()"${e.saving ? ' disabled' : ''}>${e.saving ? 'Saving…' : 'Save'}</button>
           </div>
         </div>
       </div>`;
@@ -1793,10 +1888,12 @@
                    class="rl-cat-input" data-editor="floor" data-index="${i}"
                    onchange="RL.pickFloorItemField(${i}, 'sku', this.value)"
                    style="width:100%; border:none; background:transparent; font-family:'JetBrains Mono',monospace; font-size:11px; color:#8A877C; padding:2px 0 0; outline:none;">
-            ${item.sku && !catalogByCode(item.sku) ? `<div class="rl-notincat">Not in the item catalog</div>` : ''}
+            ${notInCatalog(item) ? `<div class="rl-notincat">Not in the item catalog</div>` : ''}
           </td>
           <td class="rl-qtycol" style="border:1px solid #1E1E1C; border-top:none; border-left:none; padding:2px 8px; text-align:center; vertical-align:middle;">
-            <input type="number" min="1" value="${item.quantity != null ? item.quantity : 1}" onchange="RL.setFloorItemQty(${i}, this)"
+            <input type="number" min="1" inputmode="numeric" value="${item.quantity != null ? item.quantity : 1}"
+                   class="rl-qty-input" data-editor="floor" data-index="${i}"
+                   onfocus="RL.selectQty(this)" onchange="RL.setFloorItemQty(${i}, this)"
                    style="width:100%; border:none; background:transparent; font-family:'Inter',sans-serif; font-size:28px; font-weight:500; color:#1E1E1C; text-align:center; padding:0; outline:none;">
           </td>
           <td class="rl-actcol" style="border:none; padding:0 0 0 4px; vertical-align:middle; white-space:nowrap;">
@@ -1834,7 +1931,7 @@
 
           <div class="rl-modalbtns">
             <button class="rl-btn" onclick="RL.closeFloorEditor()">Cancel</button>
-            <button class="rl-btn rl-primary" onclick="RL.submitFloorEditor()">Save</button>
+            <button class="rl-btn rl-primary" onclick="RL.submitFloorEditor()"${e.saving ? ' disabled' : ''}>${e.saving ? 'Saving…' : 'Save'}</button>
           </div>
         </div>
       </div>`;
@@ -2123,7 +2220,7 @@
     const cell = desc.parentElement;
     if (!cell) return;
     const warn = cell.querySelector('.rl-notincat');
-    const needWarn = !!(it.sku && !catalogByCode(it.sku));
+    const needWarn = notInCatalog(it);
     if (needWarn && !warn) {
       const d = document.createElement('div');
       d.className = 'rl-notincat';
@@ -2132,6 +2229,79 @@
     } else if (!needWarn && warn) {
       cell.removeChild(warn);
     }
+  }
+
+  // Flags a row that will be saved as something other than a catalog product:
+  // an unknown code, or text typed without picking a suggestion. The server
+  // files free text under a made-up item code, so a half-typed "rice pa" left
+  // in the box becomes a product of its own — worth seeing before Save.
+  function notInCatalog(it) {
+    const sku = String(it.sku || '').trim();
+    if (sku) return !catalogByCode(sku);
+    const desc = String(it.description || '').trim();
+    return !!desc && !catalogByDesc(desc);
+  }
+
+  // One edit to a row's code or description, shared by the change handlers and
+  // commitEditorInputs().
+  function applyItemField(it, field, value) {
+    value = String(value == null ? '' : value);
+    it[field] = value;
+    let cat = null;
+    if (field === 'sku') {
+      // Clearing the item code clears its description too.
+      if (!value.trim()) it.description = '';
+      cat = catalogByCode(value);
+    } else {
+      const v = value.trim();
+      const cur = catalogByCode(it.sku);
+      if (cur && cur.d.toUpperCase() === v.toUpperCase()) {
+        cat = cur; // same product — never re-resolve to another code with that name
+      } else {
+        cat = catalogByDesc(v) || catalogByCode(v);
+        // The description now names something else, so the old catalog code no
+        // longer belongs to it. Keeping it would save one product's code under
+        // another product's name.
+        if (!cat && v && cur) it.sku = '';
+      }
+    }
+    if (cat) { it.sku = cat.c; it.description = cat.d; }
+  }
+
+  // Pull whatever is typed in an open editor into its state before anything
+  // rebuilds or saves it. A value only reaches state on `change`, which fires on
+  // blur — and tapping a button does not reliably blur the field on a phone, so
+  // "type 12 → tap Save / + Add item" could save or redraw the old value.
+  function commitEditorInputs() {
+    [['rack', state.editing], ['floor', state.floorEditing]].forEach(([editor, ed]) => {
+      if (!ed) return;
+      ed.items.forEach((it, i) => {
+        const sel = '[data-editor="' + editor + '"][data-index="' + i + '"]';
+        const cat = root.querySelectorAll('.rl-cat-input' + sel);
+        if (cat.length >= 2) {
+          if (cat[0].value !== (it.description || '')) applyItemField(it, 'description', cat[0].value);
+          if (cat[1].value !== (it.sku || '')) applyItemField(it, 'sku', cat[1].value);
+        }
+        const q = root.querySelector('.rl-qty-input' + sel);
+        if (q) it.quantity = Math.max(1, parseInt(q.value, 10) || 1);
+      });
+    });
+  }
+
+  function focusItemField(editor, i) {
+    const el = root.querySelector('.rl-cat-input[data-editor="' + editor + '"][data-index="' + i + '"]');
+    if (el) el.focus();
+  }
+  function focusQty(editor, i) {
+    const el = root.querySelector('.rl-qty-input[data-editor="' + editor + '"][data-index="' + i + '"]');
+    if (!el) return;
+    el.focus();
+    try { el.select(); } catch (e) {}
+  }
+  function markSaving(ed, on) {
+    ed.saving = on;
+    const btn = root.querySelector('.rl-modalbtns .rl-primary');
+    if (btn) { btn.disabled = on; btn.textContent = on ? 'Saving…' : 'Save'; }
   }
 
   /* ---------------- MAIN RENDER ---------------- */
@@ -2154,11 +2324,29 @@
     }
   }
 
+  // The editor object that the overlay currently on screen was drawn for.
+  let renderedEditor = null;
   function render() {
     if (!state.ready) return;
     // Re-measure before painting: an overlay sized off a stale value sits
     // slightly wrong, and a missed resize event is cheap to recover from here.
     syncViewportVars();
+    // A redraw of the SAME open editor (add/remove a row, open a mover) keeps
+    // its scroll position. It used to snap back to the top, so on a full pallet
+    // "+ Add item" put the new row out of sight at the bottom.
+    const openEd = state.editing || state.floorEditing || null;
+    const prevOverlay = root.querySelector('.rl-overlay');
+    const keepScroll = openEd && openEd === renderedEditor && prevOverlay ? prevOverlay.scrollTop : null;
+    // The rebuild replaces the field the suggestion list belongs to.
+    if (acInput) acHide();
+    renderScreen();
+    renderedEditor = openEd;
+    if (keepScroll != null) {
+      const ov = root.querySelector('.rl-overlay');
+      if (ov) ov.scrollTop = keepScroll;
+    }
+  }
+  function renderScreen() {
 
     if (state.screen === 'find' || state.screen === 'catalog' || state.screen === 'audit') {
       const titles = { find: 'Find an item', catalog: 'Item catalog', audit: 'Activity log' };
@@ -2270,7 +2458,6 @@
       <div class="rl-wrap">${body}</div>
       ${renderModal()}
       ${renderFloorModal()}
-      ${catalogDatalists()}
       ${state.flash ? `<div class="rl-flash">${esc(state.flash)}</div>` : ''}
     `;
   }
@@ -2446,12 +2633,29 @@
     },
     closeFloorEditor() { state.floorEditing = null; render(); },
     addFloorItem() {
-      state.floorEditing.items.push({ sku: '', description: '', quantity: 1 });
-      render();
+      commitEditorInputs();
+      const items = state.floorEditing.items;
+      const last = items[items.length - 1];
+      // A blank row is already waiting at the bottom: go to it, don't stack another.
+      if (!last || last.sku.trim() || last.description.trim()) {
+        if (items.length >= MAX_ITEMS) return;
+        items.push({ sku: '', description: '', quantity: 1 });
+        render();
+      }
+      // Straight into the new row with the keyboard up — no second tap.
+      focusItemField('floor', items.length - 1);
     },
     removeFloorItem(i) {
+      commitEditorInputs();
       state.floorEditing.items.splice(i, 1);
       render();
+    },
+    // Select the count on focus so typing replaces it: tapping "1" and typing
+    // 12 gave 112. Deferred because a tap's own mouseup clears a selection made
+    // during focus on iOS.
+    selectQty(el) {
+      try { el.select(); } catch (e) {}
+      setTimeout(() => { if (document.activeElement === el) { try { el.select(); } catch (e) {} } }, 0);
     },
     setFloorItemQty(i, el) {
       const it = state.floorEditing.items[i];
@@ -2462,24 +2666,50 @@
     },
     async submitFloorEditor() {
       const e = state.floorEditing;
+      // A second tap while the first save is still in flight would write and
+      // log the same change twice.
+      if (!e || e.saving || e.busy) return;
+      commitEditorInputs();
+      if (acInput) acHide();
+      markSaving(e, true);
       const cleaned = e.items.filter(it => it.sku.trim() || it.description.trim())
         .map(it => ({ sku: it.sku.trim(), description: it.description.trim(), quantity: it.quantity || 1 }));
       // Refresh everyone else's items first, then change only this floor area.
       await mergeFloorDataFromServer();
-      logItemDiff(CURRENT_WH.floorLabel(e.floorId), CURRENT_WH.name, floorItems(e.floorId), cleaned);
+      const before = floorItems(e.floorId);
       setFloorItems(e.floorId, cleaned);
-      await saveFloor(e.floorId);
-      state.floorEditing = null;
+      const ok = await saveFloor(e.floorId);
+      if (!ok) {
+        // Didn't reach the server: put the area back and keep the editor open
+        // with everything still typed in, so Save can simply be tapped again.
+        // Closing it here showed the count as saved on this phone only, and the
+        // next live refresh quietly removed it.
+        setFloorItems(e.floorId, before);
+        e.saving = false;
+        render();
+        return;
+      }
+      logItemDiff(CURRENT_WH.floorLabel(e.floorId), CURRENT_WH.name, before, cleaned);
+      if (state.floorEditing === e) state.floorEditing = null;
       state.placing = null;
       render();
     },
 
     addItem() {
-      if (state.editing.items.length >= MAX_ITEMS) return;
-      state.editing.items.push({ sku: '', description: '', quantity: 1 });
-      render();
+      commitEditorInputs();
+      const items = state.editing.items;
+      const last = items[items.length - 1];
+      // A blank row is already waiting at the bottom: go to it, don't stack another.
+      if (!last || last.sku.trim() || last.description.trim()) {
+        if (items.length >= MAX_ITEMS) return;
+        items.push({ sku: '', description: '', quantity: 1 });
+        render();
+      }
+      // Straight into the new row with the keyboard up — no second tap.
+      focusItemField('rack', items.length - 1);
     },
     removeItem(i) {
+      commitEditorInputs();
       state.editing.items.splice(i, 1);
       render();
     },
@@ -2497,37 +2727,45 @@
     },
     async submitEditor() {
       const e = state.editing;
+      // A second tap while the first save is still in flight would write and
+      // log the same change twice.
+      if (!e || e.saving || e.busy) return;
+      commitEditorInputs();
+      if (acInput) acHide();
+      markSaving(e, true);
       const cleaned = e.items.filter(it => it.sku.trim() || it.description.trim())
         .map(it => ({ sku: it.sku.trim(), description: it.description.trim(), quantity: it.quantity || 1 }));
       // Refresh everyone else's items first, then change only this slot.
       await mergeRackDataFromServer();
       const code = e.level + '-' + e.pos;
       const before = cellItems(e.rowId, code);
-      logItemDiff(fullLoc(e.rowId, e.level, e.pos), CURRENT_WH.name, before, cleaned);
       setCellItems(e.rowId, code, cleaned);
-      await saveCell(e.rowId, code);
-      state.editing = null;
+      const ok = await saveCell(e.rowId, code);
+      if (!ok) {
+        // Didn't reach the server: put the slot back and keep the editor open
+        // with everything still typed in, so Save can simply be tapped again.
+        // Closing it here showed the count as saved on this phone only, and the
+        // next live refresh quietly removed it.
+        setCellItems(e.rowId, code, before);
+        e.saving = false;
+        render();
+        return;
+      }
+      logItemDiff(fullLoc(e.rowId, e.level, e.pos), CURRENT_WH.name, before, cleaned);
+      if (state.editing === e) state.editing = null;
       state.placing = null;
       render();
     },
     pickItemField(i, field, value) {
-      const it = state.editing.items[i];
+      const it = state.editing && state.editing.items[i];
       if (!it) return;
-      it[field] = value;
-      // Clearing the item code clears its description too.
-      if (field === 'sku' && !String(value).trim()) it.description = '';
-      let cat = field === 'sku' ? catalogByCode(value) : (catalogByDesc(value) || catalogByCode(value));
-      if (cat) { it.sku = cat.c; it.description = cat.d; }
+      applyItemField(it, field, value);
       patchItemRow('rack', i, it);
     },
     pickFloorItemField(i, field, value) {
-      const it = state.floorEditing.items[i];
+      const it = state.floorEditing && state.floorEditing.items[i];
       if (!it) return;
-      it[field] = value;
-      // Clearing the item code clears its description too.
-      if (field === 'sku' && !String(value).trim()) it.description = '';
-      let cat = field === 'sku' ? catalogByCode(value) : (catalogByDesc(value) || catalogByCode(value));
-      if (cat) { it.sku = cat.c; it.description = cat.d; }
+      applyItemField(it, field, value);
       patchItemRow('floor', i, it);
     },
 
@@ -2559,8 +2797,16 @@
       RL.openFloorEditor(floorId);
     },
 
-    toggleMove() { state.editing.showMove = !state.editing.showMove; render(); },
+    // One move at a time per editor. A second tap while the first move is still
+    // saving found the pallet already sitting at the target and offered to swap
+    // it straight back.
+    confirmMove() { return onceAtATime(state.editing, () => RL.confirmMoveNow()); },
+    confirmItemMove() { return onceAtATime(state.editing, () => RL.confirmItemMoveNow()); },
+    confirmFloorItemMove() { return onceAtATime(state.floorEditing, () => RL.confirmFloorItemMoveNow()); },
+
+    toggleMove() { commitEditorInputs(); state.editing.showMove = !state.editing.showMove; render(); },
     setMoveField(field, value) {
+      commitEditorInputs();
       state.editing.moveTarget[field] = value;
       if (field === 'whId') {
         const targetRows = (whCache[value] && whCache[value].rows) || [];
@@ -2574,16 +2820,17 @@
       }
       render();
     },
-    async confirmMove() {
+    async confirmMoveNow() {
+      commitEditorInputs();
       const e = state.editing;
       const src = { whId: state.warehouseId, rowId: e.rowId, code: e.level + '-' + e.pos };
       const tgt = { whId: e.moveTarget.whId, rowId: e.moveTarget.rowId, code: e.moveTarget.level + '-' + e.moveTarget.pos };
-      if (src.whId === tgt.whId && src.rowId === tgt.rowId && src.code === tgt.code) { alert('Pick a different location to move to.'); return; }
+      if (src.whId === tgt.whId && src.rowId === tgt.rowId && src.code === tgt.code) { showFlash('Pick a different location to move to.'); return; }
 
       const targetWh = WAREHOUSES[tgt.whId];
       const targetLayout = targetWh.layout[tgt.rowId];
       if (!targetLayout || !targetLayout.exists.has(tgt.code)) {
-        alert(tgt.rowId + '-' + tgt.code + ' does not exist in ' + targetWh.name + '.');
+        showFlash(tgt.rowId + '-' + tgt.code + ' does not exist in ' + targetWh.name + '.');
         return;
       }
 
@@ -2593,7 +2840,11 @@
       const targetCache = whCache[tgt.whId];
       const targetItems = (targetCache.data[tgt.rowId] && targetCache.data[tgt.rowId][tgt.code]) || [];
 
-      if (targetItems.length && !confirm('That location already has ' + targetItems.length + " item(s) in " + targetWh.name + ". Swap the two pallets' contents?")) return;
+      if (targetItems.length && !(await askConfirm(
+        tgt.rowId + '-' + tgt.code + ' already has ' + targetItems.length + ' item(s) in ' + targetWh.name + ". Swap the two pallets' contents?",
+        'Swap pallets'))) return;
+      // The editor may have been closed or replaced while the dialog was open.
+      if (state.editing !== e) return;
 
       // write the moved pallet into the target warehouse's data
       if (!targetCache.data[tgt.rowId]) targetCache.data[tgt.rowId] = {};
@@ -2626,6 +2877,7 @@
     },
 
     toggleItemMove(i) {
+      commitEditorInputs();
       const e = state.editing;
       if (e.itemMoveIndex === i) {
         e.itemMoveIndex = null;
@@ -2636,6 +2888,7 @@
       render();
     },
     setItemMoveField(field, value) {
+      commitEditorInputs();
       const e = state.editing;
       e.itemMoveTarget[field] = value;
       if (field === 'whId') {
@@ -2650,25 +2903,26 @@
       }
       render();
     },
-    async confirmItemMove() {
+    async confirmItemMoveNow() {
+      commitEditorInputs();
       const e = state.editing;
       const i = e.itemMoveIndex;
       if (i == null || !e.items[i]) return;
       const item = { sku: (e.items[i].sku || '').trim(), description: (e.items[i].description || '').trim(), quantity: e.items[i].quantity || 1 };
-      if (!item.sku && !item.description) { alert('This item is empty — nothing to move.'); return; }
+      if (!item.sku && !item.description) { showFlash('This item is empty — nothing to move.'); return; }
 
       const t = e.itemMoveTarget;
       const srcCode = e.level + '-' + e.pos;
       const tgtCode = t.level + '-' + t.pos;
       if (t.whId === state.warehouseId && t.rowId === e.rowId && tgtCode === srcCode) {
-        alert('Pick a different pallet to move this item to.');
+        showFlash('Pick a different pallet to move this item to.');
         return;
       }
 
       const targetWh = WAREHOUSES[t.whId];
       const targetLayout = targetWh.layout[t.rowId];
       if (!targetLayout || !targetLayout.exists.has(tgtCode)) {
-        alert(t.rowId + '-' + tgtCode + ' does not exist in ' + targetWh.name + '.');
+        showFlash(t.rowId + '-' + tgtCode + ' does not exist in ' + targetWh.name + '.');
         return;
       }
 
@@ -2676,7 +2930,7 @@
       if (!targetCache.data[t.rowId]) targetCache.data[t.rowId] = {};
       const existingTarget = targetCache.data[t.rowId][tgtCode] || [];
       if (existingTarget.length >= MAX_ITEMS) {
-        alert('That pallet already has the maximum of ' + MAX_ITEMS + ' items.');
+        showFlash('That pallet already has the maximum of ' + MAX_ITEMS + ' items.');
         return;
       }
 
@@ -2700,6 +2954,8 @@
       await saveCellFor(state.warehouseId, e.rowId, srcCode);
 
       e.itemMoveIndex = null;
+      // The flash no longer redraws the screen, so redraw the editor here.
+      render();
       const dt = depthInfo(t.rowId, t.rowId + '-' + tgtCode);
       const displayTgt = dt.clean + (dt.tag && dt.tag !== 'Front' ? dt.suffix : '');
       showFlash('Moved item to ' + displayTgt + (t.whId !== state.warehouseId ? ' in ' + targetWh.name : '') + '.');
@@ -2714,6 +2970,7 @@
     },
 
     toggleFloorItemMove(i) {
+      commitEditorInputs();
       const e = state.floorEditing;
       if (e.itemMoveIndex === i) {
         e.itemMoveIndex = null;
@@ -2725,6 +2982,7 @@
       render();
     },
     setFloorItemMoveField(field, value) {
+      commitEditorInputs();
       const e = state.floorEditing;
       e.itemMoveTarget[field] = value;
       if (field === 'whId') {
@@ -2739,19 +2997,20 @@
       }
       render();
     },
-    async confirmFloorItemMove() {
+    async confirmFloorItemMoveNow() {
+      commitEditorInputs();
       const e = state.floorEditing;
       const i = e.itemMoveIndex;
       if (i == null || !e.items[i]) return;
       const item = { sku: (e.items[i].sku || '').trim(), description: (e.items[i].description || '').trim(), quantity: e.items[i].quantity || 1 };
-      if (!item.sku && !item.description) { alert('This item is empty — nothing to move.'); return; }
+      if (!item.sku && !item.description) { showFlash('This item is empty — nothing to move.'); return; }
 
       const t = e.itemMoveTarget;
       const tgtCode = t.level + '-' + t.pos;
       const targetWh = WAREHOUSES[t.whId];
       const targetLayout = targetWh.layout[t.rowId];
       if (!targetLayout || !targetLayout.exists.has(tgtCode)) {
-        alert(t.rowId + '-' + tgtCode + ' does not exist in ' + targetWh.name + '.');
+        showFlash(t.rowId + '-' + tgtCode + ' does not exist in ' + targetWh.name + '.');
         return;
       }
 
@@ -2759,7 +3018,7 @@
       if (!targetCache.data[t.rowId]) targetCache.data[t.rowId] = {};
       const existingTarget = targetCache.data[t.rowId][tgtCode] || [];
       if (existingTarget.length >= MAX_ITEMS) {
-        alert('That pallet already has the maximum of ' + MAX_ITEMS + ' items.');
+        showFlash('That pallet already has the maximum of ' + MAX_ITEMS + ' items.');
         return;
       }
 
@@ -2781,6 +3040,8 @@
       await saveFloor(e.floorId);
 
       e.itemMoveIndex = null;
+      // The flash no longer redraws the screen, so redraw the editor here.
+      render();
       const dt = depthInfo(t.rowId, t.rowId + '-' + tgtCode);
       const displayTgt = dt.clean + (dt.tag && dt.tag !== 'Front' ? dt.suffix : '');
       showFlash('Moved item to ' + displayTgt + (t.whId !== state.warehouseId ? ' in ' + targetWh.name : '') + '.');
@@ -2873,8 +3134,12 @@
       document.body.appendChild(a); a.click(); document.body.removeChild(a);
       URL.revokeObjectURL(url);
     },
-    resetAll() {
-      if (!confirm('This clears all saved pallet data for ' + CURRENT_WH.name + ', including floor storage. Rack layout is kept. Continue?')) return;
+    async resetAll() {
+      const whId = state.warehouseId;
+      if (!(await askConfirm('This clears all saved pallet data for ' + CURRENT_WH.name + ', including floor storage. Rack layout is kept. Continue?',
+        'Clear all data', true))) return;
+      // Never clear a different warehouse than the one the question named.
+      if (state.warehouseId !== whId) return;
       logAudit('cleared', { wh: CURRENT_WH.name, desc: 'All pallet data for ' + CURRENT_WH.name });
       state.data = {};
       state.floorData = {};
