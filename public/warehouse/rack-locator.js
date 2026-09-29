@@ -1,6 +1,6 @@
 // Rack Locator app — self-registering custom element, ported from the original standalone HTML widget.
 (function() {
-  const CSS_TEXT = "\n  @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;600;700;800&display=swap');\n\n  * { box-sizing: border-box; }\n\n  #rl-root {\n    font-family: 'Inter', sans-serif;\n    color: #2B2B28;\n    background: #F3F1EC;\n    background-image: linear-gradient(#E4E1D8 1px, transparent 1px), linear-gradient(90deg, #E4E1D8 1px, transparent 1px);\n    background-size: 24px 24px;\n    min-height: 100vh;\n    padding: 28px 20px 60px;\n  }\n\n  #rl-root h1 {\n    font-family: 'Barlow Condensed', sans-serif;\n    font-weight: 700;\n    font-size: 30px;\n    letter-spacing: 0.5px;\n    text-transform: uppercase;\n    margin: 0;\n    color: #1E1E1C;\n  }\n\n  .rl-eyebrow {\n    font-family: 'JetBrains Mono', monospace;\n    font-size: 11px;\n    letter-spacing: 1.5px;\n    text-transform: uppercase;\n    color: #B33A2E;\n    font-weight: 600;\n    margin: 0 0 4px;\n  }\n\n  .rl-top {\n    display: flex;\n    justify-content: space-between;\n    align-items: flex-end;\n    flex-wrap: wrap;\n    gap: 16px;\n    margin-bottom: 22px;\n    max-width: 1180px;\n    margin-left: auto;\n    margin-right: auto;\n  }\n\n  .rl-navbtns { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }\n  .rl-backbtn {\n    display: inline-flex; align-items: center; gap: 6px;\n    font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600;\n    color: #6B6A62; background: #FFF; border: 1px solid #DAD6C9; border-radius: 6px;\n    padding: 8px 14px; cursor: pointer;\n  }\n  .rl-backbtn:hover { border-color: #B33A2E; color: #B33A2E; }\n\n  .rl-viewtoggle {\n    display: flex;\n    background: #E8E5DC;\n    border-radius: 8px;\n    padding: 3px;\n    gap: 2px;\n  }\n  .rl-viewtoggle button {\n    border: none;\n    background: transparent;\n    padding: 8px 16px;\n    font-family: 'Inter', sans-serif;\n    font-size: 13px;\n    font-weight: 600;\n    color: #6B6A62;\n    border-radius: 6px;\n    cursor: pointer;\n  }\n  .rl-viewtoggle button.active {\n    background: #FFFFFF;\n    color: #1E1E1C;\n    box-shadow: 0 1px 2px rgba(0,0,0,0.08);\n  }\n\n  .rl-wrap { max-width: 1180px; margin: 0 auto; }\n\n  /* --- OVERVIEW / BLUEPRINT --- */\n  .rl-warehouse {\n    background: #FFFFFF; border: 1px solid #E4E1D8; border-radius: 12px;\n    padding: 30px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);\n  }\n  .rl-blueprintbody { width: 100%; }\n  .rl-blueprint-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }\n  .rl-blueprint-scroll .rl-blueprintbody { min-width: 720px; }\n  .rl-mainrow { display: flex; align-items: stretch; gap: 4px; width: 100%; }\n  .rl-pairgroup { display: flex; align-items: stretch; flex: 2 1 0; min-width: 0; gap: 4px; }\n  .rl-pairgroup.rl-thinpair { flex: 0 0 auto; }\n  .rl-rackblock.rl-thin { flex: 0 0 80px; }\n\n  .rl-rackrun { transition: filter 0.15s ease, transform 0.15s ease; }\n  .rl-rackrun:hover { filter: brightness(1.08) saturate(1.12); transform: translateY(-6px) scale(1.035); }\n  .rl-rackrun:active { transform: translateY(-2px) scale(1.015); transition: transform 0.05s ease; }\n\n  .rl-rackblock {\n    flex: 1 1 0; min-width: 0; min-height: 300px; cursor: pointer;\n    border: 3px solid #C0392B; border-radius: 10px;\n    background: linear-gradient(180deg, #FBFAF7 0%, #F3EFE6 100%);\n    padding: 14px 6px; text-align: center;\n    display: flex; flex-direction: column; align-items: center; justify-content: center;\n    transition: transform 0.08s ease, box-shadow 0.08s ease;\n  }\n  .rl-rackblock:hover { transform: translateY(-2px); box-shadow: 0 6px 14px -8px rgba(179,58,46,0.5); }\n  .rl-pairgroup .rl-rackblock:first-child { border-radius: 10px 0 0 10px; }\n  .rl-pairgroup .rl-rackblock:last-child { border-radius: 0 10px 10px 0; }\n  .rl-rackblock .rl-rackname {\n    font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 19px;\n    text-transform: uppercase; letter-spacing: 0.4px; color: #1E1E1C;\n  }\n  .rl-rackblock .rl-rackstat {\n    font-family: 'JetBrains Mono', monospace; font-size: 12.5px; color: #8A877C; margin-top: 7px;\n  }\n  .rl-rackblock .rl-rackticks {\n    display: flex; gap: 3px; justify-content: center; margin-top: 10px; flex-wrap: wrap; max-width: 110px;\n  }\n  .rl-rackticks span { width: 6px; height: 11px; border-radius: 1px; background: #E4E1D8; }\n  .rl-rackticks span.on { background: #6B9E78; }\n\n  .rl-pairbrace {\n    width: 8px; align-self: stretch; flex-shrink: 0;\n    background:\n      repeating-linear-gradient(45deg, #C0392B 0 3px, transparent 3px 11px),\n      repeating-linear-gradient(-45deg, #C0392B 0 3px, transparent 3px 11px);\n    opacity: 0.55;\n  }\n  .rl-pairbrace-h {\n    height: 10px; flex-shrink: 0;\n    background:\n      repeating-linear-gradient(45deg, #C0392B 0 3px, transparent 3px 11px),\n      repeating-linear-gradient(-45deg, #C0392B 0 3px, transparent 3px 11px);\n    opacity: 0.55;\n  }\n\n  .rl-vaisle {\n    flex: 0.55 1 0; min-width: 0;\n    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;\n  }\n  .rl-vaisle-clickable { cursor: pointer; border-radius: 8px; transition: background 0.08s ease; }\n  .rl-vaisle-clickable:hover { background: #FBEAE7; }\n  .rl-vaisle-clickable:hover .rl-vaisleline { border-color: #C0392B; }\n  .rl-vaisle-clickable .rl-vaislelabel { color: #B33A2E; font-weight: 700; }\n  .rl-vaisleline { flex: 1; width: 0; border-left: 3px dashed #C7C2B2; }\n  .rl-vaislelabel {\n    writing-mode: vertical-rl;\n    font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 600;\n    color: #A6A398; text-transform: uppercase; letter-spacing: 1.5px; white-space: nowrap;\n  }\n\n  .rl-capgroup { display: flex; flex-direction: column; gap: 10px; flex: 0.9 1 0; min-width: 0; }\n  .rl-rackblock-cap {\n    width: 100%; min-height: 72px; flex-direction: row; justify-content: space-between; align-items: center;\n    padding: 10px 18px; gap: 16px;\n  }\n  .rl-rackblock-cap .rl-rackstat { margin-top: 0; }\n  .rl-rackblock-cap .rl-rackticks { margin-top: 0; max-width: 130px; }\n\n  .rl-rackblock-small { min-height: 84px; padding: 10px 8px; flex: 0 0 auto; }\n  .rl-rackblock-short { min-height: 70px; }\n  .rl-rackblock-tall { min-height: 420px; }\n  .rl-emptycross {\n    border-radius: 8px; border: 2px dashed #C7C2B2;\n    background:\n      repeating-linear-gradient(45deg, #C0392B 0 2px, transparent 2px 16px),\n      repeating-linear-gradient(-45deg, #C0392B 0 2px, transparent 2px 16px);\n    opacity: 0.4;\n  }\n  .rl-rackblock-small .rl-rackticks { display: none; }\n\n  .rl-rackblock-corner .rl-rackname { font-size: 11px; white-space: normal; word-break: break-word; line-height: 1.15; text-align: center; }\n  .rl-rackblock-corner .rl-rackstat { font-size: 11px; font-weight: 700; white-space: nowrap; margin-top: 3px; line-height: 1.2; }\n  .rl-rackblock-corner .rl-rackticks { display: none; }\n  .rl-rackblock-fit .rl-rackticks { display: none; }\n  .rl-rackblock-fit .rl-rackname { white-space: normal; text-align: center; line-height: 1.1; }\n  .rl-rackblock-fit .rl-rackstat { white-space: nowrap; }\n\n  .rl-wall { flex: 0 0 14px; display: flex; align-items: stretch; justify-content: center; }\n  .rl-wallline {\n    width: 8px; align-self: stretch; border-radius: 2px;\n    background: repeating-linear-gradient(45deg, #3B3A35 0 4px, #55534C 4px 8px);\n  }\n\n  .rl-cornerwrap { display: flex; flex: 1 1 0; min-width: 0; align-items: stretch; }\n  .rl-cornerspacer { flex: 0.75 0 0; }\n\n  .rl-haisle { display: flex; align-items: center; gap: 16px; padding: 26px 0 22px; width: 100%; }\n  .rl-haisleline { flex: 1; height: 0; border-top: 3px dashed #C0392B; }\n  .rl-haiselabel {\n    font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 600;\n    color: #B33A2E; text-transform: uppercase; letter-spacing: 1.5px; white-space: nowrap;\n  }\n  .rl-bottomrow { display: flex; width: 100%; }\n  .rl-bottomspacer { flex: 1.9 0 0; }\n  .rl-bottomtrailer { flex: 5.1 0 0; }\n  .rl-bottomrow .rl-rackblock-cap { flex: 2 1 0; min-width: 0; }\n\n  /* --- LOADING DOCK MARKERS --- */\n  .rl-dock {\n    flex: 0 0 140px; align-self: flex-end; height: 50%;\n    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;\n  }\n  .rl-dock-panel {\n    width: 100%; flex: 1; min-height: 34px; border-radius: 10px;\n    background: repeating-linear-gradient(45deg, #C0392B 0 3px, #FBFAF7 3px 14px);\n    border: 3px solid #C0392B;\n    box-shadow: 0 6px 14px -8px rgba(179,58,46,0.5);\n  }\n  .rl-docklabel {\n    font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 700;\n    letter-spacing: 0.5px; color: #6B6A62; text-transform: uppercase; white-space: nowrap;\n  }\n\n\n  /* row tabs */\n  .rl-rowtabs { display: flex; align-items: center; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }\n  .rl-rowtab {\n    font-family: 'JetBrains Mono', monospace;\n    font-size: 13px;\n    font-weight: 600;\n    padding: 8px 14px;\n    border-radius: 6px;\n    background: #FFFFFF;\n    border: 1px solid #DAD6C9;\n    color: #55534C;\n    cursor: pointer;\n  }\n  .rl-rowtab.active { background: #B33A2E; border-color: #B33A2E; color: #FFF7F1; }\n\n  /* config bar */\n  .rl-config {\n    display: flex; align-items: center; gap: 18px; flex-wrap: wrap;\n    background: #FFFFFF; border: 1px solid #E4E1D8; border-radius: 10px;\n    padding: 12px 16px; margin-bottom: 18px; font-size: 13px;\n  }\n  .rl-config label { display: flex; align-items: center; gap: 8px; color: #6B6A62; font-weight: 500; }\n  .rl-config input[type=number] {\n    width: 60px; padding: 5px 8px; border: 1px solid #DAD6C9; border-radius: 5px;\n    font-family: 'JetBrains Mono', monospace; font-size: 13px;\n  }\n  .rl-config input[type=text] {\n    padding: 5px 8px; border: 1px solid #DAD6C9; border-radius: 5px; font-size: 13px; width: 150px;\n  }\n  .rl-config .rl-configspacer { flex: 1; }\n  .rl-configlabel { color: #A6A398; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }\n  .rl-configvalue { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #3B3A35; font-weight: 600; }\n\n  /* --- RACK VISUAL --- */\n  .rl-rackscroll { display: flex; justify-content: safe center; padding-bottom: 14px; overflow-x: auto; -webkit-overflow-scrolling: touch; }\n  .rl-rack {\n    display: flex; flex-direction: column; width: max-content; flex: 0 0 auto; min-width: max-content;\n    background: linear-gradient(180deg, #FAF9F5 0%, #EFECE3 100%);\n    border-radius: 10px; padding: 16px 20px 8px;\n    box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 12px 24px -18px rgba(0,0,0,0.35);\n  }\n\n  .rl-level { display: flex; align-items: stretch; }\n  .rl-levelbadge {\n    width: 52px; flex-shrink: 0;\n    display: flex; align-items: center; justify-content: center;\n    font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 17px;\n    color: #8E2A20; white-space: nowrap;\n  }\n  .rl-shelfarea { flex: 0 0 auto; min-width: max-content; display: flex; flex-direction: column; }\n  .rl-shelfrow { display: flex; align-items: stretch; justify-content: flex-start; padding: 10px 0 8px; gap: 2px; }\n  .rl-beam { height: 8px; background: linear-gradient(180deg, #E08A2B 0%, #C46F1C 100%); border-radius: 2px; box-shadow: inset 0 -2px 0 rgba(0,0,0,0.15); }\n\n  .rl-upright {\n    width: 5px; flex: 0 0 5px; align-self: stretch; margin: 0 3px;\n    background: linear-gradient(90deg, #3A6FD3 0%, #2E5AB8 60%, #22458E 100%);\n    border-radius: 1px;\n  }\n\n  .rl-slot {\n    flex: 1 1 0; min-width: 34px; max-width: 92px; height: var(--slot-h, 64px);\n    border-radius: 4px; cursor: pointer; overflow: visible;\n    display: flex; align-items: flex-end; justify-content: center;\n    position: relative; transition: transform 0.08s ease;\n    border: 1.5px dashed #C7C2B2; background: #FBFAF7;\n  }\n  .rl-slot:hover { transform: translateY(-2px); }\n  .rl-slot[draggable=\"true\"] { cursor: grab; }\n  .rl-slot.rl-drop-ok { outline: 2px solid #6B9E78; outline-offset: 1px; }\n  .rl-slot.rl-drop-bad { outline: 2px solid #B33A2E; outline-offset: 1px; }\n  .rl-flash {\n    position: fixed; top: 22px; left: 50%; transform: translateX(-50%);\n    background: #B33A2E; color: #FFF7F1; font-family: 'Inter', sans-serif; font-weight: 600;\n    font-size: 13px; padding: 10px 18px; border-radius: 8px;\n    box-shadow: 0 10px 24px rgba(0,0,0,0.28); z-index: 100;\n  }\n  .rl-slot.filled {\n    border: 1.5px solid #6B9E78; background: #F1F7F0;\n  }\n\n  /* --- MULTI-DEPTH SLOTS (2 or 3 pallets stacked one behind the other) --- */\n  .rl-slot-depth { flex: 1 1 0; min-width: 34px; max-width: 92px; height: var(--slot-h, 64px); position: relative; }\n  .rl-depth-layer {\n    position: absolute; border-radius: 4px; cursor: pointer;\n    display: flex; align-items: flex-end; justify-content: center;\n    transition: transform 0.08s ease;\n    border: 1.5px dashed #C7C2B2; background: #FBFAF7;\n  }\n  .rl-depth-layer:hover { transform: translateY(-2px); }\n  .rl-depth-layer[draggable=\"true\"] { cursor: grab; }\n  .rl-depth-layer.filled { border: 1.5px solid #6B9E78; background: #F1F7F0; }\n  .rl-depth-layer.rl-drop-ok { outline: 2px solid #6B9E78; outline-offset: 1px; }\n  .rl-depth-layer.rl-drop-bad { outline: 2px solid #B33A2E; outline-offset: 1px; }\n  .rl-depthtag {\n    font-family: 'JetBrains Mono', monospace; font-size: 8px; font-weight: 700;\n    color: #A6A398; letter-spacing: 0.5px; position: relative; z-index: 1; margin-bottom: calc(var(--slot-h, 64px) * 0.3);\n  }\n  .rl-depth-layer.filled .rl-depthtag { color: #6B9E78; }\n  .rl-slot-empty {\n    flex: 1 1 0; min-width: 34px; max-width: 92px; height: var(--slot-h, 64px);\n  }\n  /* pallet look: wood-slat deck across the bottom of the whole slot, with dark\n     block-cutouts near the front to read as a pallet, not just a plain square */\n  .rl-slot::before, .rl-depth-layer::before {\n    content: \"\"; position: absolute; left: 8%; right: 8%; bottom: calc(var(--slot-h, 64px) * 0.09); height: calc(var(--slot-h, 64px) * 0.19);\n    border-radius: 2px;\n    background:\n      repeating-linear-gradient(90deg, #C7BFA8 0 3px, #DCD5C0 3px 9px),\n      linear-gradient(180deg, #E7DFC8 0%, #CFC5A9 100%);\n    background-blend-mode: overlay;\n    box-shadow: inset 0 1px 0 rgba(255,255,255,0.4), inset 0 -2px 0 rgba(0,0,0,0.12);\n  }\n  .rl-slot::after, .rl-depth-layer::after {\n    content: \"\"; position: absolute; left: 20%; width: 14%; bottom: calc(var(--slot-h, 64px) * 0.09); height: calc(var(--slot-h, 64px) * 0.19);\n    background: rgba(43,43,40,0.16); border-radius: 1px;\n    box-shadow: 46% 0 0 rgba(43,43,40,0.16);\n  }\n  .rl-slot.filled::before, .rl-depth-layer.filled::before {\n    background:\n      repeating-linear-gradient(90deg, #9FC7A7 0 3px, #B9DBBF 3px 9px),\n      linear-gradient(180deg, #C7E4CB 0%, #A7D2AF 100%);\n    background-blend-mode: overlay;\n  }\n  .rl-slot.filled::after, .rl-depth-layer.filled::after { background: rgba(45,90,55,0.22); box-shadow: 46% 0 0 rgba(45,90,55,0.22); }\n  .rl-slotcode {\n    font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 800;\n    color: #0D0D0C; white-space: nowrap; position: relative; z-index: 1; margin-bottom: calc(var(--slot-h, 64px) * 0.3);\n  }\n  .rl-slot.filled .rl-slotcode { color: #0D0D0C; }\n  .rl-itembadge {\n    position: absolute; top: -6px; left: 50%; transform: translateX(-50%);\n    background: #6B9E78; color: #F1F7F0;\n    font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 600;\n    border-radius: 8px; padding: 1px 5px; line-height: 1.3;\n  }\n\n  .rl-endpost {\n    width: 6px; flex: 0 0 6px; align-self: stretch; margin: 0 3px;\n    background: linear-gradient(90deg, #3A6FD3 0%, #22458E 100%);\n    border-radius: 2px;\n  }\n\n  .rl-floor {\n    height: 10px; margin-top: 6px;\n    background: linear-gradient(180deg, #D8D2C0 0%, #C4BDA6 100%);\n    border-radius: 3px;\n  }\n\n  /* --- TABLE VIEW --- */\n  .rl-tablebar { display: flex; gap: 10px; align-items: center; margin-bottom: 14px; flex-wrap: wrap; }\n  .rl-search {\n    padding: 8px 12px; border: 1px solid #DAD6C9; border-radius: 6px; font-size: 13px;\n    width: 240px; background: #FFF;\n  }\n  .rl-tablesummary { font-size: 12px; color: #A6A398; }\n  .rl-btn {\n    padding: 8px 14px; border-radius: 6px; font-size: 13px; font-weight: 600;\n    border: 1px solid #DAD6C9; background: #FFF; color: #3B3A35; cursor: pointer;\n  }\n  .rl-btn:hover { border-color: #B33A2E; color: #B33A2E; }\n  .rl-btn.rl-danger:hover { border-color: #B33A2E; background: #FBEAF0; color: #99351A; }\n\n  .rl-table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: 10px; }\n  table.rl-table { width: 100%; min-width: 660px; table-layout: fixed; border-collapse: collapse; background: #FFF; border-radius: 10px; overflow: hidden; border: 1px solid #E4E1D8; }\n  table.rl-table td, table.rl-table th { overflow: hidden; text-overflow: ellipsis; }\n  table.rl-table th {\n    text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;\n    color: #A6A398; font-weight: 600; padding: 10px 14px; background: #F7F5EF; border-bottom: 1px solid #E4E1D8;\n  }\n  table.rl-table td { padding: 8px 14px; font-size: 13px; border-bottom: 1px solid #EFEDE5; vertical-align: middle; }\n  table.rl-table td:nth-child(5), table.rl-table td:nth-child(6),\n  table.rl-table th:nth-child(5), table.rl-table th:nth-child(6) { padding-left: 6px; padding-right: 6px; }\n  table.rl-table tr:last-child td { border-bottom: none; }\n  table.rl-table tr:hover { background: #FBFAF6; }\n  .rl-code { font-family: 'JetBrains Mono', monospace; font-weight: 600; color: #8E2A20; font-size: 12.5px; }\n  table.rl-table input {\n    width: 100%; border: 1px solid transparent; padding: 5px 7px; border-radius: 5px; font-size: 13px; font-family: inherit;\n    background: transparent;\n  }\n  table.rl-table input:hover, table.rl-table input:focus { border-color: #DAD6C9; background: #FFF; outline: none; }\n  .rl-emptytag { color: #B7B3A5; font-style: italic; font-size: 12px; }\n\n  /* --- MODAL --- */\n  /* The overlay — not the modal — is the scroll container, and it is sized to\n     the VISUAL viewport (--rl-vvh), never to vh. With a phone keyboard open vh\n     still reports the full page height, so a modal capped at 90vh stayed taller\n     than the visible area with nothing able to scroll: the lower rows, their\n     catalog suggestions and the Save button all sat stranded behind the keyboard. */\n  .rl-overlay {\n    position: fixed; left: 0; width: 100%;\n    top: var(--rl-vvtop, 0px); height: var(--rl-vvh, 100%);\n    background: rgba(30,28,24,0.45);\n    display: flex; align-items: flex-start; justify-content: center; z-index: 50; padding: 20px;\n    overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;\n  }\n  .rl-modal {\n    background: #FFF; border-radius: 12px; padding: 24px; width: min(460px, 92vw);\n    margin: auto; /* centres it while it fits, and cannot clip once it overflows */\n    box-shadow: 0 20px 50px rgba(0,0,0,0.25);\n  }\n  .rl-modal h3 {\n    font-family: 'Barlow Condensed', sans-serif; font-size: 22px; font-weight: 700; margin: 0 0 2px;\n    text-transform: uppercase; letter-spacing: 0.5px;\n  }\n  .rl-modal .rl-code { font-size: 13px; }\n  .rl-itemcard {\n    border: 1px solid #E4E1D8; border-radius: 7px; padding: 10px; margin-top: 8px; position: relative;\n    background: #FCFBF8;\n  }\n  .rl-itemcard .rl-itemnum {\n    font-family: 'JetBrains Mono', monospace; font-size: 9.5px; font-weight: 600; color: #B7B3A5;\n    text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;\n    display: flex; align-items: center; gap: 6px;\n  }\n  .rl-itemmoveicon {\n    border: 1px solid #DAD6C9; background: #FFF; border-radius: 5px; width: 18px; height: 18px;\n    display: inline-flex; align-items: center; justify-content: center; cursor: pointer;\n    color: #6B6A62; font-size: 10px; line-height: 1; padding: 0;\n    font-family: 'Inter', sans-serif; text-transform: none; letter-spacing: normal;\n  }\n  .rl-itemmoveicon:hover, .rl-itemmoveicon.active { border-color: #B33A2E; color: #B33A2E; background: #FBEAE7; }\n  .rl-itemremove {\n    position: absolute; top: 8px; right: 8px; border: none; background: none; cursor: pointer;\n    color: #B7B3A5; font-size: 12px; font-weight: 600;\n  }\n  .rl-itemremove:hover { color: #B33A2E; }\n\n  /* Row actions (move / remove) share one narrow column, sized as real tap\n     targets — the old inline-styled ⇄ measured 17x23px on a phone. */\n  .rl-actcol { width: 62px; }\n  .rl-qtycol { width: 110px; }\n  .rl-rowbtn {\n    border: none; background: transparent; cursor: pointer; padding: 0;\n    width: 28px; height: 28px; border-radius: 6px; line-height: 1;\n    display: inline-flex; align-items: center; justify-content: center;\n    font-family: 'Inter', sans-serif; font-size: 15px; color: #A6A398;\n  }\n  .rl-rowbtn:hover { background: #FBEAE7; color: #B33A2E; }\n  .rl-rowbtn.active { color: #C0392B; }\n  .rl-notincat { font-family: 'Inter', sans-serif; font-size: 10px; font-weight: 600; color: #B07A12; margin-top: 2px; }\n  @media (max-width: 760px) {\n    .rl-actcol { width: 96px; }\n    .rl-qtycol { width: 64px; }\n    .rl-rowbtn { width: 44px; height: 44px; font-size: 18px; }\n    /* iOS Safari zooms the page in on focus for any input under 16px and never\n       zooms back out. These fields carry their font-size inline, so !important\n       is the only way to raise the floor without rewriting every style attribute.\n       type=number (the 28px quantity) is already well over 16px and is excluded\n       so the rule cannot shrink it. */\n    .rl-modal input:not([type=number]), .rl-modal textarea, .rl-modal select,\n    .rl-search { font-size: 16px !important; }\n\n    /* Give the description its own full-width line. Sharing a row with the\n       quantity and two 44px buttons left it ~141px, which truncated longer\n       product names once the font floor went to 16px. The row becomes a card:\n       description across the top, quantity and actions beneath it. */\n    .rl-itemtable, .rl-itemtable tbody, .rl-itemtable tr, .rl-itemtable td { display: block; }\n    .rl-itemtable thead { display: none; }\n    .rl-itemtable tr.rl-itemrow {\n      display: grid; grid-template-columns: 92px 1fr;\n      grid-template-areas: 'desc desc' 'qty act';\n      align-items: center; gap: 8px;\n      border: 1px solid #1E1E1C; border-radius: 8px;\n      margin-top: 8px; padding: 10px;\n    }\n    .rl-itemrow > td { border: none !important; padding: 0 !important; width: auto !important; }\n    .rl-itemrow > td:first-child { grid-area: desc; }\n    .rl-itemrow > td.rl-qtycol { grid-area: qty; }\n    .rl-itemrow > td.rl-actcol { grid-area: act; justify-self: end; }\n    /* thead is hidden, so the quantity box needs its own label back. */\n    .rl-itemrow > td.rl-qtycol::before {\n      content: 'Qty'; display: block; text-align: center;\n      font-family: 'Inter', sans-serif; font-size: 10px; font-weight: 600;\n      letter-spacing: 0.5px; text-transform: uppercase; color: #A6A398; margin-bottom: 2px;\n    }\n  }\n  .rl-field { margin-top: 6px; }\n  .rl-fieldrow { display: flex; gap: 6px; margin-top: 6px; align-items: flex-end; }\n  .rl-fieldrow .rl-field { margin-top: 0; }\n  .rl-fieldrow .rl-field:first-child { flex: 0 0 55%; min-width: 0; }\n  .rl-qtyfield { flex: 1; }\n  .rl-qtyfield label {\n    display: block; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px;\n    font-weight: 600; color: #A6A398; margin-bottom: 4px; text-align: center;\n  }\n  .rl-qtyfield input { text-align: center; font-weight: 700; }\n  .rl-field label { display: none; }\n  .rl-field input, .rl-field textarea, .rl-field select {\n    width: 100%; border: 1px solid #DAD6C9; border-radius: 6px; padding: 6px 9px; font-size: 13px; font-family: inherit;\n  }\n  .rl-field textarea { resize: none; min-height: 28px; overflow: hidden; line-height: 1.35; }\n  .rl-addbtn {\n    margin-top: 12px; width: 100%; padding: 9px; border-radius: 7px; border: 1px dashed #B7B3A5;\n    background: transparent; color: #6B6A62; font-size: 13px; font-weight: 600; cursor: pointer;\n  }\n  .rl-addbtn:hover { border-color: #B33A2E; color: #B33A2E; }\n  .rl-modalbtns { display: flex; gap: 8px; margin-top: 22px; }\n  .rl-modalbtns .rl-btn { flex: 1; }\n  .rl-btn.rl-primary { background: #B33A2E; border-color: #B33A2E; color: #FFF7F1; }\n  .rl-btn.rl-primary:hover { background: #8E2A20; border-color: #8E2A20; color: #FFF7F1; }\n\n  .rl-movesection { margin-top: 22px; border-top: 1px solid #E4E1D8; padding-top: 16px; }\n  .rl-movetoggle {\n    width: 100%; background: #FBFAF7; border: 1.5px dashed #C7C2B2; border-radius: 8px;\n    color: #3B3A35; font-size: 14px; font-weight: 600; cursor: pointer;\n    padding: 12px 14px; display: flex; align-items: center; gap: 8px;\n  }\n  .rl-movetoggle:hover { color: #B33A2E; border-color: #B33A2E; background: #FBEAE7; }\n  .rl-movegrid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 14px; }\n  .rl-movefield label {\n    display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;\n    font-weight: 600; color: #A6A398; margin-bottom: 6px;\n  }\n  .rl-movefield select, .rl-movefield input {\n    width: 100%; border: 1.5px solid #E3B400; border-radius: 7px; padding: 10px 11px;\n    font-size: 15px; font-family: inherit; background: #FFF3B0; font-weight: 600; color: #3B3A35;\n  }\n  .rl-movefield select:focus, .rl-movefield input:focus { outline: none; border-color: #B33A2E; }\n  @media (max-width: 420px) {\n    .rl-movegrid { grid-template-columns: 1fr; }\n  }\n\n  .rl-loading { padding: 40px; text-align: center; color: #A6A398; font-size: 14px; }\n\n  /* --- DASHBOARD --- */\n  .rl-whgrid { display: flex; gap: 18px; flex-wrap: wrap; }\n  .rl-whcard {\n    background: #FFFFFF; border: 1px solid #E4E1D8; border-radius: 12px;\n    padding: 22px 24px; min-width: 220px; flex: 1 1 220px; max-width: 320px;\n    cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.05);\n    transition: transform 0.08s ease, box-shadow 0.08s ease;\n  }\n  .rl-whcard:hover { transform: translateY(-2px); box-shadow: 0 10px 20px -12px rgba(179,58,46,0.4); border-color: #C0392B; }\n  .rl-whname {\n    font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 22px;\n    text-transform: uppercase; letter-spacing: 0.5px; color: #1E1E1C; margin-bottom: 10px;\n  }\n  .rl-whstat { font-family: 'JetBrains Mono', monospace; font-size: 12.5px; color: #6B6A62; margin-top: 4px; }\n  .rl-whracks { font-size: 11px; color: #A6A398; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 10px; }\n\n  .rl-legend { display: flex; gap: 18px; margin-top: 14px; font-size: 12px; color: #6B6A62; flex-wrap: wrap; }\n  .rl-legend span { display: inline-flex; align-items: center; gap: 6px; }\n  .rl-legenddot { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }\n\n  /* --- MOBILE / NARROW SCREEN ADJUSTMENTS --- */\n  @media (max-width: 640px) {\n    #rl-root { padding: 16px 12px 40px; }\n    #rl-root h1 { font-size: 22px; }\n    .rl-warehouse { padding: 16px 14px; }\n    .rl-modal { padding: 18px; }\n    .rl-top { gap: 12px; margin-bottom: 16px; }\n    .rl-backbtn { padding: 8px 12px; font-size: 12.5px; }\n    .rl-viewtoggle button { padding: 8px 12px; font-size: 12.5px; }\n    .rl-rackblock { min-height: 220px; }\n    .rl-rackblock-short { min-height: 60px; }\n    .rl-fieldrow { flex-direction: column; align-items: stretch; }\n    .rl-fieldrow .rl-field:first-child { flex: none; }\n    .rl-qtyfield { flex: none; }\n    .rl-itemmoveicon { width: 26px; height: 26px; font-size: 12px; }\n    .rl-itemremove { width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; }\n    .rl-config { gap: 12px; padding: 10px 12px; }\n    .rl-tablebar { gap: 8px; }\n    .rl-rowtabs { gap: 6px; margin-bottom: 14px; }\n    .rl-rowtab { padding: 7px 11px; font-size: 12.5px; }\n  }\n\n\n  /* --- MOBILE --- */\n  @media (max-width: 760px) {\n    #rl-root { padding: 14px 12px 28px; }\n    .rl-top { margin-bottom: 16px; gap: 10px; align-items: flex-start; }\n    .rl-top h1 { font-size: 26px; }\n    .rl-navbtns { flex-wrap: wrap; gap: 8px; }\n    .rl-backbtn, .rl-btn { font-size: 12px; padding: 7px 10px; }\n\n    .rl-warehouse { padding: 12px; border-radius: 10px; }\n    .rl-blueprint-scroll .rl-blueprintbody { min-width: 1000px; }\n    .rl-floorshift { transform: translateX(32px); }\n    .rl-rackname { font-size: 14px; }\n    .rl-rackstat { font-size: 10px; }\n    .rl-rackblock { padding: 10px 4px; min-height: 220px; }\n    .rl-rackblock-tall { min-height: 300px; }\n    .rl-rackblock.rl-thin { flex: 0 0 62px; }\n    .rl-levelbadge { width: 40px; font-size: 14px; }\n    .rl-slot, .rl-slot-empty, .rl-slot-depth { min-width: 30px; max-width: 68px; }\n    .rl-slotcode { font-size: 9px; }\n\n    .rl-whgrid { gap: 12px; }\n    .rl-whcard { min-width: 0; max-width: none; flex: 1 1 100%; padding: 16px 18px; }\n\n    .rl-tablebar { gap: 8px; }\n    .rl-search { width: 100%; }\n    table.rl-table { min-width: 560px; }\n    table.rl-table td, table.rl-table th { font-size: 11px; padding: 7px 6px; }\n\n    .rl-modal { padding: 18px 16px; width: min(460px, 94vw); } .rl-overlay { padding: 10px 12px 24px; }\n    .rl-modal h3 { font-size: 24px; }\n    .rl-movegrid { grid-template-columns: 1fr 1fr; }\n  }\n\n  /* the site map is percentage-positioned: keep its 16/9 proportions and pan instead\n     of squeezing labels into unreadable slivers on narrow screens */\n  .rl-sitemap-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }\n  .rl-sitemap-scroll .rl-sitemap { min-width: 620px; }\n";
+  const CSS_TEXT = "\n  @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;600;700;800&display=swap');\n\n  * { box-sizing: border-box; }\n\n  #rl-root {\n    font-family: 'Inter', sans-serif;\n    color: #2B2B28;\n    background: #F3F1EC;\n    background-image: linear-gradient(#E4E1D8 1px, transparent 1px), linear-gradient(90deg, #E4E1D8 1px, transparent 1px);\n    background-size: 24px 24px;\n    min-height: 100vh;\n    padding: 28px 20px 60px;\n  }\n\n  #rl-root h1 {\n    font-family: 'Barlow Condensed', sans-serif;\n    font-weight: 700;\n    font-size: 30px;\n    letter-spacing: 0.5px;\n    text-transform: uppercase;\n    margin: 0;\n    color: #1E1E1C;\n  }\n\n  .rl-eyebrow {\n    font-family: 'JetBrains Mono', monospace;\n    font-size: 11px;\n    letter-spacing: 1.5px;\n    text-transform: uppercase;\n    color: #B33A2E;\n    font-weight: 600;\n    margin: 0 0 4px;\n  }\n\n  .rl-top {\n    display: flex;\n    justify-content: space-between;\n    align-items: flex-end;\n    flex-wrap: wrap;\n    gap: 16px;\n    margin-bottom: 22px;\n    max-width: 1180px;\n    margin-left: auto;\n    margin-right: auto;\n  }\n\n  .rl-navbtns { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }\n  .rl-backbtn {\n    display: inline-flex; align-items: center; gap: 6px;\n    font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600;\n    color: #6B6A62; background: #FFF; border: 1px solid #DAD6C9; border-radius: 6px;\n    padding: 8px 14px; cursor: pointer;\n  }\n  .rl-backbtn:hover { border-color: #B33A2E; color: #B33A2E; }\n\n  .rl-viewtoggle {\n    display: flex;\n    background: #E8E5DC;\n    border-radius: 8px;\n    padding: 3px;\n    gap: 2px;\n  }\n  .rl-viewtoggle button {\n    border: none;\n    background: transparent;\n    padding: 8px 16px;\n    font-family: 'Inter', sans-serif;\n    font-size: 13px;\n    font-weight: 600;\n    color: #6B6A62;\n    border-radius: 6px;\n    cursor: pointer;\n  }\n  .rl-viewtoggle button.active {\n    background: #FFFFFF;\n    color: #1E1E1C;\n    box-shadow: 0 1px 2px rgba(0,0,0,0.08);\n  }\n\n  .rl-wrap { max-width: 1180px; margin: 0 auto; }\n\n  /* --- OVERVIEW / BLUEPRINT --- */\n  .rl-warehouse {\n    background: #FFFFFF; border: 1px solid #E4E1D8; border-radius: 12px;\n    padding: 30px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);\n  }\n  .rl-blueprintbody { width: 100%; }\n  .rl-blueprint-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }\n  .rl-blueprint-scroll .rl-blueprintbody { min-width: 720px; }\n  .rl-mainrow { display: flex; align-items: stretch; gap: 4px; width: 100%; }\n  .rl-pairgroup { display: flex; align-items: stretch; flex: 2 1 0; min-width: 0; gap: 4px; }\n  .rl-pairgroup.rl-thinpair { flex: 0 0 auto; }\n  .rl-rackblock.rl-thin { flex: 0 0 80px; }\n\n  .rl-rackrun { transition: filter 0.15s ease, transform 0.15s ease; }\n  .rl-rackrun:hover { filter: brightness(1.08) saturate(1.12); transform: translateY(-6px) scale(1.035); }\n  .rl-rackrun:active { transform: translateY(-2px) scale(1.015); transition: transform 0.05s ease; }\n\n  .rl-rackblock {\n    flex: 1 1 0; min-width: 0; min-height: 300px; cursor: pointer;\n    border: 3px solid #C0392B; border-radius: 10px;\n    background: linear-gradient(180deg, #FBFAF7 0%, #F3EFE6 100%);\n    padding: 14px 6px; text-align: center;\n    display: flex; flex-direction: column; align-items: center; justify-content: center;\n    transition: transform 0.08s ease, box-shadow 0.08s ease;\n  }\n  .rl-rackblock:hover { transform: translateY(-2px); box-shadow: 0 6px 14px -8px rgba(179,58,46,0.5); }\n  .rl-pairgroup .rl-rackblock:first-child { border-radius: 10px 0 0 10px; }\n  .rl-pairgroup .rl-rackblock:last-child { border-radius: 0 10px 10px 0; }\n  .rl-rackblock .rl-rackname {\n    font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 19px;\n    text-transform: uppercase; letter-spacing: 0.4px; color: #1E1E1C;\n  }\n  .rl-rackblock .rl-rackstat {\n    font-family: 'JetBrains Mono', monospace; font-size: 12.5px; color: #8A877C; margin-top: 7px;\n  }\n  .rl-rackblock .rl-rackticks {\n    display: flex; gap: 3px; justify-content: center; margin-top: 10px; flex-wrap: wrap; max-width: 110px;\n  }\n  .rl-rackticks span { width: 6px; height: 11px; border-radius: 1px; background: #E4E1D8; }\n  .rl-rackticks span.on { background: #6B9E78; }\n\n  .rl-pairbrace {\n    width: 8px; align-self: stretch; flex-shrink: 0;\n    background:\n      repeating-linear-gradient(45deg, #C0392B 0 3px, transparent 3px 11px),\n      repeating-linear-gradient(-45deg, #C0392B 0 3px, transparent 3px 11px);\n    opacity: 0.55;\n  }\n  .rl-pairbrace-h {\n    height: 10px; flex-shrink: 0;\n    background:\n      repeating-linear-gradient(45deg, #C0392B 0 3px, transparent 3px 11px),\n      repeating-linear-gradient(-45deg, #C0392B 0 3px, transparent 3px 11px);\n    opacity: 0.55;\n  }\n\n  .rl-vaisle {\n    flex: 0.55 1 0; min-width: 0;\n    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;\n  }\n  .rl-vaisle-clickable { cursor: pointer; border-radius: 8px; transition: background 0.08s ease; }\n  .rl-vaisle-clickable:hover { background: #FBEAE7; }\n  .rl-vaisle-clickable:hover .rl-vaisleline { border-color: #C0392B; }\n  .rl-vaisle-clickable .rl-vaislelabel { color: #B33A2E; font-weight: 700; }\n  .rl-vaisleline { flex: 1; width: 0; border-left: 3px dashed #C7C2B2; }\n  .rl-vaislelabel {\n    writing-mode: vertical-rl;\n    font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 600;\n    color: #A6A398; text-transform: uppercase; letter-spacing: 1.5px; white-space: nowrap;\n  }\n\n  .rl-capgroup { display: flex; flex-direction: column; gap: 10px; flex: 0.9 1 0; min-width: 0; }\n  .rl-rackblock-cap {\n    width: 100%; min-height: 72px; flex-direction: row; justify-content: space-between; align-items: center;\n    padding: 10px 18px; gap: 16px;\n  }\n  .rl-rackblock-cap .rl-rackstat { margin-top: 0; }\n  .rl-rackblock-cap .rl-rackticks { margin-top: 0; max-width: 130px; }\n\n  .rl-rackblock-small { min-height: 84px; padding: 10px 8px; flex: 0 0 auto; }\n  .rl-rackblock-short { min-height: 70px; }\n  .rl-rackblock-tall { min-height: 420px; }\n  .rl-emptycross {\n    border-radius: 8px; border: 2px dashed #C7C2B2;\n    background:\n      repeating-linear-gradient(45deg, #C0392B 0 2px, transparent 2px 16px),\n      repeating-linear-gradient(-45deg, #C0392B 0 2px, transparent 2px 16px);\n    opacity: 0.4;\n  }\n  .rl-rackblock-small .rl-rackticks { display: none; }\n\n  .rl-rackblock-corner .rl-rackname { font-size: 11px; white-space: normal; word-break: break-word; line-height: 1.15; text-align: center; }\n  .rl-rackblock-corner .rl-rackstat { font-size: 11px; font-weight: 700; white-space: nowrap; margin-top: 3px; line-height: 1.2; }\n  .rl-rackblock-corner .rl-rackticks { display: none; }\n  .rl-rackblock-fit .rl-rackticks { display: none; }\n  .rl-rackblock-fit .rl-rackname { white-space: normal; text-align: center; line-height: 1.1; }\n  .rl-rackblock-fit .rl-rackstat { white-space: nowrap; }\n\n  .rl-wall { flex: 0 0 14px; display: flex; align-items: stretch; justify-content: center; }\n  .rl-wallline {\n    width: 8px; align-self: stretch; border-radius: 2px;\n    background: repeating-linear-gradient(45deg, #3B3A35 0 4px, #55534C 4px 8px);\n  }\n\n  .rl-cornerwrap { display: flex; flex: 1 1 0; min-width: 0; align-items: stretch; }\n  .rl-cornerspacer { flex: 0.75 0 0; }\n\n  .rl-haisle { display: flex; align-items: center; gap: 16px; padding: 26px 0 22px; width: 100%; }\n  .rl-haisleline { flex: 1; height: 0; border-top: 3px dashed #C0392B; }\n  .rl-haiselabel {\n    font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 600;\n    color: #B33A2E; text-transform: uppercase; letter-spacing: 1.5px; white-space: nowrap;\n  }\n  .rl-bottomrow { display: flex; width: 100%; }\n  .rl-bottomspacer { flex: 1.9 0 0; }\n  .rl-bottomtrailer { flex: 5.1 0 0; }\n  .rl-bottomrow .rl-rackblock-cap { flex: 2 1 0; min-width: 0; }\n\n  /* --- LOADING DOCK MARKERS --- */\n  .rl-dock {\n    flex: 0 0 140px; align-self: flex-end; height: 50%;\n    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;\n  }\n  .rl-dock-panel {\n    width: 100%; flex: 1; min-height: 34px; border-radius: 10px;\n    background: repeating-linear-gradient(45deg, #C0392B 0 3px, #FBFAF7 3px 14px);\n    border: 3px solid #C0392B;\n    box-shadow: 0 6px 14px -8px rgba(179,58,46,0.5);\n  }\n  .rl-docklabel {\n    font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 700;\n    letter-spacing: 0.5px; color: #6B6A62; text-transform: uppercase; white-space: nowrap;\n  }\n\n\n  /* row tabs */\n  .rl-rowtabs { display: flex; align-items: center; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }\n  .rl-rowtab {\n    font-family: 'JetBrains Mono', monospace;\n    font-size: 13px;\n    font-weight: 600;\n    padding: 8px 14px;\n    border-radius: 6px;\n    background: #FFFFFF;\n    border: 1px solid #DAD6C9;\n    color: #55534C;\n    cursor: pointer;\n  }\n  .rl-rowtab.active { background: #B33A2E; border-color: #B33A2E; color: #FFF7F1; }\n\n  /* config bar */\n  .rl-config {\n    display: flex; align-items: center; gap: 18px; flex-wrap: wrap;\n    background: #FFFFFF; border: 1px solid #E4E1D8; border-radius: 10px;\n    padding: 12px 16px; margin-bottom: 18px; font-size: 13px;\n  }\n  .rl-config label { display: flex; align-items: center; gap: 8px; color: #6B6A62; font-weight: 500; }\n  .rl-config input[type=number] {\n    width: 60px; padding: 5px 8px; border: 1px solid #DAD6C9; border-radius: 5px;\n    font-family: 'JetBrains Mono', monospace; font-size: 13px;\n  }\n  .rl-config input[type=text] {\n    padding: 5px 8px; border: 1px solid #DAD6C9; border-radius: 5px; font-size: 13px; width: 150px;\n  }\n  .rl-config .rl-configspacer { flex: 1; }\n  .rl-configlabel { color: #A6A398; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }\n  .rl-configvalue { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #3B3A35; font-weight: 600; }\n\n  /* --- RACK VISUAL --- */\n  .rl-rackscroll { display: flex; justify-content: safe center; padding-bottom: 14px; overflow-x: auto; -webkit-overflow-scrolling: touch; }\n  .rl-rack {\n    display: flex; flex-direction: column; width: max-content; flex: 0 0 auto; min-width: max-content;\n    background: linear-gradient(180deg, #FAF9F5 0%, #EFECE3 100%);\n    border-radius: 10px; padding: 16px 20px 8px;\n    box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 12px 24px -18px rgba(0,0,0,0.35);\n  }\n\n  .rl-level { display: flex; align-items: stretch; }\n  .rl-levelbadge {\n    width: 52px; flex-shrink: 0;\n    display: flex; align-items: center; justify-content: center;\n    font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 17px;\n    color: #8E2A20; white-space: nowrap;\n  }\n  .rl-shelfarea { flex: 0 0 auto; min-width: max-content; display: flex; flex-direction: column; }\n  .rl-shelfrow { display: flex; align-items: stretch; justify-content: flex-start; padding: 10px 0 8px; gap: 2px; }\n  .rl-beam { height: 8px; background: linear-gradient(180deg, #E08A2B 0%, #C46F1C 100%); border-radius: 2px; box-shadow: inset 0 -2px 0 rgba(0,0,0,0.15); }\n\n  .rl-upright {\n    width: 5px; flex: 0 0 5px; align-self: stretch; margin: 0 3px;\n    background: linear-gradient(90deg, #3A6FD3 0%, #2E5AB8 60%, #22458E 100%);\n    border-radius: 1px;\n  }\n\n  .rl-slot {\n    flex: 1 1 0; min-width: 34px; max-width: 92px; height: var(--slot-h, 64px);\n    border-radius: 4px; cursor: pointer; overflow: visible;\n    display: flex; align-items: flex-end; justify-content: center;\n    position: relative; transition: transform 0.08s ease;\n    border: 1.5px dashed #C7C2B2; background: #FBFAF7;\n  }\n  .rl-slot:hover { transform: translateY(-2px); }\n  .rl-slot[draggable=\"true\"] { cursor: grab; }\n  .rl-slot.rl-drop-ok { outline: 2px solid #6B9E78; outline-offset: 1px; }\n  .rl-slot.rl-drop-bad { outline: 2px solid #B33A2E; outline-offset: 1px; }\n  .rl-flash {\n    position: fixed; top: 22px; left: 50%; transform: translateX(-50%);\n    background: #B33A2E; color: #FFF7F1; font-family: 'Inter', sans-serif; font-weight: 600;\n    font-size: 13px; padding: 10px 18px; border-radius: 8px;\n    box-shadow: 0 10px 24px rgba(0,0,0,0.28); z-index: 100;\n  }\n  .rl-slot.filled {\n    border: 1.5px solid #6B9E78; background: #F1F7F0;\n  }\n\n  /* --- MULTI-DEPTH SLOTS (2 or 3 pallets stacked one behind the other) --- */\n  .rl-slot-depth { flex: 1 1 0; min-width: 34px; max-width: 92px; height: var(--slot-h, 64px); position: relative; }\n  .rl-depth-layer {\n    position: absolute; border-radius: 4px; cursor: pointer;\n    display: flex; align-items: flex-end; justify-content: center;\n    transition: transform 0.08s ease;\n    border: 1.5px dashed #C7C2B2; background: #FBFAF7;\n  }\n  .rl-depth-layer:hover { transform: translateY(-2px); }\n  .rl-depth-layer[draggable=\"true\"] { cursor: grab; }\n  .rl-depth-layer.filled { border: 1.5px solid #6B9E78; background: #F1F7F0; }\n  .rl-depth-layer.rl-drop-ok { outline: 2px solid #6B9E78; outline-offset: 1px; }\n  .rl-depth-layer.rl-drop-bad { outline: 2px solid #B33A2E; outline-offset: 1px; }\n  .rl-depthtag {\n    font-family: 'JetBrains Mono', monospace; font-size: 8px; font-weight: 700;\n    color: #A6A398; letter-spacing: 0.5px; position: relative; z-index: 1; margin-bottom: calc(var(--slot-h, 64px) * 0.3);\n  }\n  .rl-depth-layer.filled .rl-depthtag { color: #6B9E78; }\n  .rl-slot-empty {\n    flex: 1 1 0; min-width: 34px; max-width: 92px; height: var(--slot-h, 64px);\n  }\n  /* pallet look: wood-slat deck across the bottom of the whole slot, with dark\n     block-cutouts near the front to read as a pallet, not just a plain square */\n  .rl-slot::before, .rl-depth-layer::before {\n    content: \"\"; position: absolute; left: 8%; right: 8%; bottom: calc(var(--slot-h, 64px) * 0.09); height: calc(var(--slot-h, 64px) * 0.19);\n    border-radius: 2px;\n    background:\n      repeating-linear-gradient(90deg, #C7BFA8 0 3px, #DCD5C0 3px 9px),\n      linear-gradient(180deg, #E7DFC8 0%, #CFC5A9 100%);\n    background-blend-mode: overlay;\n    box-shadow: inset 0 1px 0 rgba(255,255,255,0.4), inset 0 -2px 0 rgba(0,0,0,0.12);\n  }\n  .rl-slot::after, .rl-depth-layer::after {\n    content: \"\"; position: absolute; left: 20%; width: 14%; bottom: calc(var(--slot-h, 64px) * 0.09); height: calc(var(--slot-h, 64px) * 0.19);\n    background: rgba(43,43,40,0.16); border-radius: 1px;\n    box-shadow: 46% 0 0 rgba(43,43,40,0.16);\n  }\n  .rl-slot.filled::before, .rl-depth-layer.filled::before {\n    background:\n      repeating-linear-gradient(90deg, #9FC7A7 0 3px, #B9DBBF 3px 9px),\n      linear-gradient(180deg, #C7E4CB 0%, #A7D2AF 100%);\n    background-blend-mode: overlay;\n  }\n  .rl-slot.filled::after, .rl-depth-layer.filled::after { background: rgba(45,90,55,0.22); box-shadow: 46% 0 0 rgba(45,90,55,0.22); }\n  .rl-slotcode {\n    font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 800;\n    color: #0D0D0C; white-space: nowrap; position: relative; z-index: 1; margin-bottom: calc(var(--slot-h, 64px) * 0.3);\n  }\n  .rl-slot.filled .rl-slotcode { color: #0D0D0C; }\n  .rl-itembadge {\n    position: absolute; top: -6px; left: 50%; transform: translateX(-50%);\n    background: #6B9E78; color: #F1F7F0;\n    font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 600;\n    border-radius: 8px; padding: 1px 5px; line-height: 1.3;\n  }\n\n  .rl-endpost {\n    width: 6px; flex: 0 0 6px; align-self: stretch; margin: 0 3px;\n    background: linear-gradient(90deg, #3A6FD3 0%, #22458E 100%);\n    border-radius: 2px;\n  }\n\n  .rl-floor {\n    height: 10px; margin-top: 6px;\n    background: linear-gradient(180deg, #D8D2C0 0%, #C4BDA6 100%);\n    border-radius: 3px;\n  }\n\n  /* --- TABLE VIEW --- */\n  .rl-tablebar { display: flex; gap: 10px; align-items: center; margin-bottom: 14px; flex-wrap: wrap; }\n  .rl-search {\n    padding: 8px 12px; border: 1px solid #DAD6C9; border-radius: 6px; font-size: 13px;\n    width: 240px; background: #FFF;\n  }\n  .rl-tablesummary { font-size: 12px; color: #A6A398; }\n  .rl-btn {\n    padding: 8px 14px; border-radius: 6px; font-size: 13px; font-weight: 600;\n    border: 1px solid #DAD6C9; background: #FFF; color: #3B3A35; cursor: pointer;\n  }\n  .rl-btn:hover { border-color: #B33A2E; color: #B33A2E; }\n  .rl-btn.rl-danger:hover { border-color: #B33A2E; background: #FBEAF0; color: #99351A; }\n\n  .rl-table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: 10px; }\n  table.rl-table { width: 100%; min-width: 660px; table-layout: fixed; border-collapse: collapse; background: #FFF; border-radius: 10px; overflow: hidden; border: 1px solid #E4E1D8; }\n  table.rl-table td, table.rl-table th { overflow: hidden; text-overflow: ellipsis; }\n  table.rl-table th {\n    text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;\n    color: #A6A398; font-weight: 600; padding: 10px 14px; background: #F7F5EF; border-bottom: 1px solid #E4E1D8;\n  }\n  table.rl-table td { padding: 8px 14px; font-size: 13px; border-bottom: 1px solid #EFEDE5; vertical-align: middle; }\n  table.rl-table td:nth-child(5), table.rl-table td:nth-child(6),\n  table.rl-table th:nth-child(5), table.rl-table th:nth-child(6) { padding-left: 6px; padding-right: 6px; }\n  table.rl-table tr:last-child td { border-bottom: none; }\n  table.rl-table tr:hover { background: #FBFAF6; }\n  .rl-code { font-family: 'JetBrains Mono', monospace; font-weight: 600; color: #8E2A20; font-size: 12.5px; }\n  table.rl-table input {\n    width: 100%; border: 1px solid transparent; padding: 5px 7px; border-radius: 5px; font-size: 13px; font-family: inherit;\n    background: transparent;\n  }\n  table.rl-table input:hover, table.rl-table input:focus { border-color: #DAD6C9; background: #FFF; outline: none; }\n  .rl-emptytag { color: #B7B3A5; font-style: italic; font-size: 12px; }\n\n  /* --- MODAL --- */\n  /* The overlay — not the modal — is the scroll container, and it is sized to\n     the VISUAL viewport (--rl-vvh), never to vh. With a phone keyboard open vh\n     still reports the full page height, so a modal capped at 90vh stayed taller\n     than the visible area with nothing able to scroll: the lower rows, their\n     catalog suggestions and the Save button all sat stranded behind the keyboard. */\n  .rl-overlay {\n    position: fixed; left: 0; width: 100%;\n    top: var(--rl-vvtop, 0px); height: var(--rl-vvh, 100%);\n    background: rgba(30,28,24,0.45);\n    display: flex; align-items: flex-start; justify-content: center; z-index: 50; padding: 20px;\n    overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;\n  }\n  .rl-modal {\n    background: #FFF; border-radius: 12px; padding: 24px; width: min(460px, 92vw);\n    margin: auto; /* centres it while it fits, and cannot clip once it overflows */\n    box-shadow: 0 20px 50px rgba(0,0,0,0.25);\n  }\n  .rl-modal h3 {\n    font-family: 'Barlow Condensed', sans-serif; font-size: 22px; font-weight: 700; margin: 0 0 2px;\n    text-transform: uppercase; letter-spacing: 0.5px;\n  }\n  .rl-modal .rl-code { font-size: 13px; }\n  .rl-itemcard {\n    border: 1px solid #E4E1D8; border-radius: 7px; padding: 10px; margin-top: 8px; position: relative;\n    background: #FCFBF8;\n  }\n  .rl-itemcard .rl-itemnum {\n    font-family: 'JetBrains Mono', monospace; font-size: 9.5px; font-weight: 600; color: #B7B3A5;\n    text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;\n    display: flex; align-items: center; gap: 6px;\n  }\n  .rl-itemmoveicon {\n    border: 1px solid #DAD6C9; background: #FFF; border-radius: 5px; width: 18px; height: 18px;\n    display: inline-flex; align-items: center; justify-content: center; cursor: pointer;\n    color: #6B6A62; font-size: 10px; line-height: 1; padding: 0;\n    font-family: 'Inter', sans-serif; text-transform: none; letter-spacing: normal;\n  }\n  .rl-itemmoveicon:hover, .rl-itemmoveicon.active { border-color: #B33A2E; color: #B33A2E; background: #FBEAE7; }\n  .rl-itemremove {\n    position: absolute; top: 8px; right: 8px; border: none; background: none; cursor: pointer;\n    color: #B7B3A5; font-size: 12px; font-weight: 600;\n  }\n  .rl-itemremove:hover { color: #B33A2E; }\n\n  /* Row actions (move / remove) share one narrow column, sized as real tap\n     targets — the old inline-styled ⇄ measured 17x23px on a phone. */\n  .rl-actcol { width: 62px; }\n  .rl-qtycol { width: 76px; }\n  .rl-rowbtn {\n    border: none; background: transparent; cursor: pointer; padding: 0;\n    width: 28px; height: 28px; border-radius: 6px; line-height: 1;\n    display: inline-flex; align-items: center; justify-content: center;\n    font-family: 'Inter', sans-serif; font-size: 15px; color: #A6A398;\n  }\n  .rl-rowbtn:hover { background: #FBEAE7; color: #B33A2E; }\n  .rl-rowbtn.active { color: #C0392B; }\n  .rl-notincat { font-family: 'Inter', sans-serif; font-size: 10px; font-weight: 600; color: #B07A12; margin-top: 2px; }\n  @media (max-width: 760px) {\n    .rl-actcol { width: 96px; }\n    .rl-qtycol { width: 64px; }\n    .rl-rowbtn { width: 44px; height: 44px; font-size: 18px; }\n    /* iOS Safari zooms the page in on focus for any input under 16px and never\n       zooms back out. These fields carry their font-size inline, so !important\n       is the only way to raise the floor without rewriting every style attribute.\n       type=number (the 28px quantity) is already well over 16px and is excluded\n       so the rule cannot shrink it. */\n    .rl-modal input:not([type=number]), .rl-modal textarea, .rl-modal select,\n    .rl-search { font-size: 16px !important; }\n\n    /* Give the description its own full-width line. Sharing a row with the\n       quantity and two 44px buttons left it ~141px, which truncated longer\n       product names once the font floor went to 16px. The row becomes a card:\n       description across the top, quantity and actions beneath it. */\n    .rl-itemtable, .rl-itemtable tbody, .rl-itemtable tr, .rl-itemtable td { display: block; }\n    .rl-itemtable thead { display: none; }\n    .rl-itemtable tr.rl-itemrow {\n      display: grid; grid-template-columns: 72px 72px 1fr;\n      grid-template-areas: 'desc desc desc' 'box unit act';\n      align-items: center; gap: 8px;\n      border: 1px solid #1E1E1C; border-radius: 8px;\n      margin-top: 8px; padding: 10px;\n    }\n    .rl-itemrow > td { border: none !important; padding: 0 !important; width: auto !important; }\n    .rl-itemrow > td:first-child { grid-area: desc; }\n    .rl-itemrow > td.rl-boxcol { grid-area: box; }\n    .rl-itemrow > td.rl-unitcol { grid-area: unit; }\n    .rl-itemrow > td.rl-actcol { grid-area: act; justify-self: end; }\n    /* thead is hidden, so the quantity box needs its own label back. */\n    .rl-itemrow > td.rl-qtycol::before {\n      content: attr(data-label); display: block; text-align: center;\n      font-family: 'Inter', sans-serif; font-size: 10px; font-weight: 600;\n      letter-spacing: 0.5px; text-transform: uppercase; color: #A6A398; margin-bottom: 2px;\n    }\n  }\n  .rl-field { margin-top: 6px; }\n  .rl-fieldrow { display: flex; gap: 6px; margin-top: 6px; align-items: flex-end; }\n  .rl-fieldrow .rl-field { margin-top: 0; }\n  .rl-fieldrow .rl-field:first-child { flex: 0 0 55%; min-width: 0; }\n  .rl-qtyfield { flex: 1; }\n  .rl-qtyfield label {\n    display: block; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px;\n    font-weight: 600; color: #A6A398; margin-bottom: 4px; text-align: center;\n  }\n  .rl-qtyfield input { text-align: center; font-weight: 700; }\n  .rl-field label { display: none; }\n  .rl-field input, .rl-field textarea, .rl-field select {\n    width: 100%; border: 1px solid #DAD6C9; border-radius: 6px; padding: 6px 9px; font-size: 13px; font-family: inherit;\n  }\n  .rl-field textarea { resize: none; min-height: 28px; overflow: hidden; line-height: 1.35; }\n  .rl-addbtn {\n    margin-top: 12px; width: 100%; padding: 9px; border-radius: 7px; border: 1px dashed #B7B3A5;\n    background: transparent; color: #6B6A62; font-size: 13px; font-weight: 600; cursor: pointer;\n  }\n  .rl-addbtn:hover { border-color: #B33A2E; color: #B33A2E; }\n  .rl-modalbtns { display: flex; gap: 8px; margin-top: 22px; }\n  .rl-modalbtns .rl-btn { flex: 1; }\n  .rl-btn.rl-primary { background: #B33A2E; border-color: #B33A2E; color: #FFF7F1; }\n  .rl-btn.rl-primary:hover { background: #8E2A20; border-color: #8E2A20; color: #FFF7F1; }\n\n  .rl-movesection { margin-top: 22px; border-top: 1px solid #E4E1D8; padding-top: 16px; }\n  .rl-movetoggle {\n    width: 100%; background: #FBFAF7; border: 1.5px dashed #C7C2B2; border-radius: 8px;\n    color: #3B3A35; font-size: 14px; font-weight: 600; cursor: pointer;\n    padding: 12px 14px; display: flex; align-items: center; gap: 8px;\n  }\n  .rl-movetoggle:hover { color: #B33A2E; border-color: #B33A2E; background: #FBEAE7; }\n  .rl-movegrid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 14px; }\n  .rl-movefield label {\n    display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;\n    font-weight: 600; color: #A6A398; margin-bottom: 6px;\n  }\n  .rl-movefield select, .rl-movefield input {\n    width: 100%; border: 1.5px solid #E3B400; border-radius: 7px; padding: 10px 11px;\n    font-size: 15px; font-family: inherit; background: #FFF3B0; font-weight: 600; color: #3B3A35;\n  }\n  .rl-movefield select:focus, .rl-movefield input:focus { outline: none; border-color: #B33A2E; }\n  @media (max-width: 420px) {\n    .rl-movegrid { grid-template-columns: 1fr; }\n  }\n\n  .rl-loading { padding: 40px; text-align: center; color: #A6A398; font-size: 14px; }\n\n  /* --- DASHBOARD --- */\n  .rl-whgrid { display: flex; gap: 18px; flex-wrap: wrap; }\n  .rl-whcard {\n    background: #FFFFFF; border: 1px solid #E4E1D8; border-radius: 12px;\n    padding: 22px 24px; min-width: 220px; flex: 1 1 220px; max-width: 320px;\n    cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.05);\n    transition: transform 0.08s ease, box-shadow 0.08s ease;\n  }\n  .rl-whcard:hover { transform: translateY(-2px); box-shadow: 0 10px 20px -12px rgba(179,58,46,0.4); border-color: #C0392B; }\n  .rl-whname {\n    font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 22px;\n    text-transform: uppercase; letter-spacing: 0.5px; color: #1E1E1C; margin-bottom: 10px;\n  }\n  .rl-whstat { font-family: 'JetBrains Mono', monospace; font-size: 12.5px; color: #6B6A62; margin-top: 4px; }\n  .rl-whracks { font-size: 11px; color: #A6A398; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 10px; }\n\n  .rl-legend { display: flex; gap: 18px; margin-top: 14px; font-size: 12px; color: #6B6A62; flex-wrap: wrap; }\n  .rl-legend span { display: inline-flex; align-items: center; gap: 6px; }\n  .rl-legenddot { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }\n\n  /* --- MOBILE / NARROW SCREEN ADJUSTMENTS --- */\n  @media (max-width: 640px) {\n    #rl-root { padding: 16px 12px 40px; }\n    #rl-root h1 { font-size: 22px; }\n    .rl-warehouse { padding: 16px 14px; }\n    .rl-modal { padding: 18px; }\n    .rl-top { gap: 12px; margin-bottom: 16px; }\n    .rl-backbtn { padding: 8px 12px; font-size: 12.5px; }\n    .rl-viewtoggle button { padding: 8px 12px; font-size: 12.5px; }\n    .rl-rackblock { min-height: 220px; }\n    .rl-rackblock-short { min-height: 60px; }\n    .rl-fieldrow { flex-direction: column; align-items: stretch; }\n    .rl-fieldrow .rl-field:first-child { flex: none; }\n    .rl-qtyfield { flex: none; }\n    .rl-itemmoveicon { width: 26px; height: 26px; font-size: 12px; }\n    .rl-itemremove { width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; }\n    .rl-config { gap: 12px; padding: 10px 12px; }\n    .rl-tablebar { gap: 8px; }\n    .rl-rowtabs { gap: 6px; margin-bottom: 14px; }\n    .rl-rowtab { padding: 7px 11px; font-size: 12.5px; }\n  }\n\n\n  /* --- MOBILE --- */\n  @media (max-width: 760px) {\n    #rl-root { padding: 14px 12px 28px; }\n    .rl-top { margin-bottom: 16px; gap: 10px; align-items: flex-start; }\n    .rl-top h1 { font-size: 26px; }\n    .rl-navbtns { flex-wrap: wrap; gap: 8px; }\n    .rl-backbtn, .rl-btn { font-size: 12px; padding: 7px 10px; }\n\n    .rl-warehouse { padding: 12px; border-radius: 10px; }\n    .rl-blueprint-scroll .rl-blueprintbody { min-width: 1000px; }\n    .rl-floorshift { transform: translateX(32px); }\n    .rl-rackname { font-size: 14px; }\n    .rl-rackstat { font-size: 10px; }\n    .rl-rackblock { padding: 10px 4px; min-height: 220px; }\n    .rl-rackblock-tall { min-height: 300px; }\n    .rl-rackblock.rl-thin { flex: 0 0 62px; }\n    .rl-levelbadge { width: 40px; font-size: 14px; }\n    .rl-slot, .rl-slot-empty, .rl-slot-depth { min-width: 30px; max-width: 68px; }\n    .rl-slotcode { font-size: 9px; }\n\n    .rl-whgrid { gap: 12px; }\n    .rl-whcard { min-width: 0; max-width: none; flex: 1 1 100%; padding: 16px 18px; }\n\n    .rl-tablebar { gap: 8px; }\n    .rl-search { width: 100%; }\n    table.rl-table { min-width: 560px; }\n    table.rl-table td, table.rl-table th { font-size: 11px; padding: 7px 6px; }\n\n    .rl-modal { padding: 18px 16px; width: min(460px, 94vw); } .rl-overlay { padding: 10px 12px 24px; }\n    .rl-modal h3 { font-size: 24px; }\n    .rl-movegrid { grid-template-columns: 1fr 1fr; }\n  }\n\n  /* the site map is percentage-positioned: keep its 16/9 proportions and pan instead\n     of squeezing labels into unreadable slivers on narrow screens */\n  .rl-sitemap-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }\n  .rl-sitemap-scroll .rl-sitemap { min-width: 620px; }\n";
 
   // Persistence bridge: inside the Damen app the host provides window.storage; a standalone
   // browser session falls back to localStorage so the site still saves.
@@ -590,6 +590,11 @@
         ".rl-ac-opt:active { background: #F6D9D3; }" +
         ".rl-ac-desc { font-family: 'Inter', sans-serif; font-size: 14px; color: #1E1E1C; line-height: 1.25; }" +
         ".rl-ac-code { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #8E2A20; font-weight: 700; }" +
+        // No spinner arrows on the count boxes: two narrow columns can't spare
+        // their width, and counts are typed, not clicked up one at a time.
+        ".rl-qty-input { -moz-appearance: textfield; appearance: textfield; }" +
+        ".rl-qty-input::-webkit-inner-spin-button, .rl-qty-input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }" +
+        ".rl-itemrow.rl-uncounted > td.rl-qtycol { background: #FBEAE7; box-shadow: inset 0 0 0 2px #B33A2E; border-radius: 6px; }" +
         ".rl-ac-empty { padding: 12px 13px; font-family: 'Inter', sans-serif; font-size: 13px; color: #8A877C; }" +
         "@media (max-width: 760px) {" +
         " .rl-ac { max-height: 44vh; border-radius: 12px; border-width: 2px; }" +
@@ -685,14 +690,44 @@
     if (auditLog.length > AUDIT_MAX) auditLog.length = AUDIT_MAX;
     saveAudit();
   }
+  // Box and unit counts. `quantity` is the BOX count (every count taken before
+  // the split was boxes), `quantityUnit` the loose units. They are kept apart
+  // and never added together — conversion is done outside the app. In an open
+  // editor an empty box is null, so a product with neither count can be refused.
+  function boxOf(it) { const n = parseInt(it && it.quantity, 10); return n > 0 ? n : 0; }
+  function unitOf(it) { const n = parseInt(it && it.quantityUnit, 10); return n > 0 ? n : 0; }
+  function fmtCount(box, unit) {
+    box = box || 0; unit = unit || 0;
+    if (!unit) return box + ' box';
+    return (box ? box + ' box · ' : '') + unit + ' unit';
+  }
+  function parseCount(v) {
+    const t = String(v == null ? '' : v).trim();
+    if (!t) return null;
+    const n = parseInt(t, 10);
+    return Number.isFinite(n) ? Math.max(0, n) : null;
+  }
+  // A stored item as an editable row.
+  function editRow(i) {
+    return { sku: i.sku || '', description: i.description || '', quantity: boxOf(i), quantityUnit: unitOf(i) };
+  }
+  // An editor row as it is saved: an empty count beside a filled one is 0.
+  function savedRow(it) {
+    return { sku: (it.sku || '').trim(), description: (it.description || '').trim(),
+             quantity: it.quantity == null ? 0 : it.quantity, quantityUnit: it.quantityUnit == null ? 0 : it.quantityUnit };
+  }
+  function hasProduct(it) { return !!((it.sku || '').trim() || (it.description || '').trim()); }
+  function isUncounted(it) { return hasProduct(it) && it.quantity == null && it.quantityUnit == null; }
+
   function itemKeyOf(it) { return (it.sku || '').trim().toUpperCase() + '|' + (it.description || '').trim().toUpperCase(); }
   function tallyItems(list) {
     const out = {};
     (list || []).forEach(it => {
       const k = itemKeyOf(it);
       if (!k.replace('|', '')) return;
-      if (!out[k]) out[k] = { sku: (it.sku || '').trim(), description: (it.description || '').trim(), qty: 0 };
-      out[k].qty += (parseInt(it.quantity, 10) || 0);
+      if (!out[k]) out[k] = { sku: (it.sku || '').trim(), description: (it.description || '').trim(), qty: 0, qtyUnit: 0 };
+      out[k].qty += boxOf(it);
+      out[k].qtyUnit += unitOf(it);
     });
     return out;
   }
@@ -704,9 +739,9 @@
     Object.keys(a).forEach(k => keys[k] = 1);
     Object.keys(keys).forEach(k => {
       const ob = b[k], oa = a[k];
-      if (!ob && oa) logAudit('added', { loc, wh: whName, sku: oa.sku, desc: oa.description, qty: oa.qty });
-      else if (ob && !oa) logAudit('removed', { loc, wh: whName, sku: ob.sku, desc: ob.description, qty: ob.qty });
-      else if (ob && oa && ob.qty !== oa.qty) logAudit('qty', { loc, wh: whName, sku: oa.sku, desc: oa.description, qty: oa.qty, prevQty: ob.qty });
+      if (!ob && oa) logAudit('added', { loc, wh: whName, sku: oa.sku, desc: oa.description, qty: oa.qty, qtyUnit: oa.qtyUnit });
+      else if (ob && !oa) logAudit('removed', { loc, wh: whName, sku: ob.sku, desc: ob.description, qty: ob.qty, qtyUnit: ob.qtyUnit });
+      else if (ob && oa && (ob.qty !== oa.qty || ob.qtyUnit !== oa.qtyUnit)) logAudit('qty', { loc, wh: whName, sku: oa.sku, desc: oa.description, qty: oa.qty, qtyUnit: oa.qtyUnit, prevQty: ob.qty, prevQtyUnit: ob.qtyUnit });
     });
   }
   function auditActionLabel(a) {
@@ -986,10 +1021,10 @@
 
   function openEditor(rowId, level, pos) {
     const code = level + '-' + pos;
-    const items = cellItems(rowId, code).map(i => ({ sku: i.sku || '', description: i.description || '', quantity: i.quantity != null ? i.quantity : 1 }));
+    const items = cellItems(rowId, code).map(editRow);
     // An item picked from the catalog ("place this somewhere") lands here pre-filled.
     if (state.placing && items.length < MAX_ITEMS) {
-      items.push({ sku: state.placing.sku, description: state.placing.description, quantity: 1 });
+      items.push({ sku: state.placing.sku, description: state.placing.description, quantity: null, quantityUnit: null });
     }
     state.editing = {
       rowId, level, pos, items, showMove: false, moveTarget: { whId: state.warehouseId, rowId, level, pos },
@@ -1625,7 +1660,7 @@
           out.push({
             rowId: row.id, rowName: row.name, level, pos, code,
             full: cleanFull + (depthTag && depthTag !== 'Front' ? suffix : ''),
-            itemIndex: idx, sku: item.sku, description: item.description, quantity: item.quantity != null ? item.quantity : 1
+            itemIndex: idx, sku: item.sku, description: item.description, quantity: boxOf(item), quantityUnit: unitOf(item)
           });
         });
       });
@@ -1635,7 +1670,7 @@
         out.push({
           isFloor: true, floorId, rowName: 'Floor storage',
           full: CURRENT_WH.floorLabel(floorId),
-          itemIndex: idx, sku: item.sku, description: item.description, quantity: item.quantity != null ? item.quantity : 1
+          itemIndex: idx, sku: item.sku, description: item.description, quantity: boxOf(item), quantityUnit: unitOf(item)
         });
       });
     });
@@ -1658,9 +1693,9 @@
       const descHandler = it.isFloor
         ? `RL.quickSaveFloorItem('${it.floorId}', ${it.itemIndex}, null, this.value)`
         : `RL.quickSaveItem(${it.rowId}, '${it.code}', ${it.itemIndex}, null, this.value)`;
-      const qtyHandler = it.isFloor
-        ? `RL.quickSaveFloorItemQty('${it.floorId}', ${it.itemIndex}, this.value)`
-        : `RL.quickSaveItemQty(${it.rowId}, '${it.code}', ${it.itemIndex}, this.value)`;
+      const qtyHandler = field => it.isFloor
+        ? `RL.quickSaveFloorItemQty('${it.floorId}', ${it.itemIndex}, '${field}', this.value)`
+        : `RL.quickSaveItemQty(${it.rowId}, '${it.code}', ${it.itemIndex}, '${field}', this.value)`;
       const moveHandler = it.isFloor
         ? `RL.moveFloorItemFromTable('${it.floorId}', ${it.itemIndex})`
         : `RL.moveItemFromTable(${it.rowId}, '${it.level}', '${it.pos}', ${it.itemIndex})`;
@@ -1670,11 +1705,12 @@
           <td>${esc(it.rowName)}</td>
           <td><input value="${esc(it.sku)}" placeholder="—" onchange="${skuHandler}"></td>
           <td><input value="${esc(it.description)}" placeholder="—" onchange="${descHandler}"></td>
-          <td><input type="number" min="0" style="width:100%; text-align:center;" value="${it.quantity}" onchange="${qtyHandler}"></td>
+          <td><input type="number" min="0" inputmode="numeric" style="width:100%; text-align:center;" value="${it.quantity}" onchange="${qtyHandler('quantity')}"></td>
+          <td><input type="number" min="0" inputmode="numeric" style="width:100%; text-align:center;" value="${it.quantityUnit}" onchange="${qtyHandler('quantityUnit')}"></td>
           <td style="text-align:center;"><button class="rl-itemmoveicon" onclick="${moveHandler}" title="Move this product to another location" aria-label="Move this product to another location">⇄</button></td>
         </tr>`;
     });
-    if (!rowsHtml) rowsHtml = `<tr><td colspan="6" class="rl-emptytag">No items match your search</td></tr>`;
+    if (!rowsHtml) rowsHtml = `<tr><td colspan="7" class="rl-emptytag">No items match your search</td></tr>`;
 
     return `
       <div class="rl-tablebar">
@@ -1692,10 +1728,11 @@
           <col style="width:90px;">
           <col style="width:90px;">
           <col>
-          <col style="width:84px;">
+          <col style="width:64px;">
+          <col style="width:64px;">
           <col style="width:60px;">
         </colgroup>
-        <thead><tr><th>Location</th><th>Rack</th><th>SKU</th><th>Description</th><th>Qty</th><th></th></tr></thead>
+        <thead><tr><th>Location</th><th>Rack</th><th>SKU</th><th>Description</th><th>Box</th><th>Unit</th><th></th></tr></thead>
         <tbody>${rowsHtml}</tbody>
       </table>
       </div>`;
@@ -1745,7 +1782,7 @@
         `;
       }
       itemsHtml += `
-        <tr class="rl-itemrow">
+        <tr class="rl-itemrow${e.showMissing && isUncounted(item) ? ' rl-uncounted' : ''}">
           <td style="border:1px solid #1E1E1C; border-top:none; padding:6px 8px; vertical-align:middle;">
             <input value="${esc(item.description)}" placeholder="Search the catalog…" autocomplete="off"
                    class="rl-cat-input" data-editor="rack" data-index="${i}"
@@ -1757,12 +1794,13 @@
                    style="width:100%; border:none; background:transparent; font-family:'JetBrains Mono',monospace; font-size:11px; color:#8A877C; padding:2px 0 0; outline:none;">
             ${notInCatalog(item) ? `<div class="rl-notincat">Not in the item catalog</div>` : ''}
           </td>
-          <td class="rl-qtycol" style="border:1px solid #1E1E1C; border-top:none; border-left:none; padding:2px 8px; text-align:center; vertical-align:middle;">
-            <input type="number" min="1" inputmode="numeric" value="${item.quantity != null ? item.quantity : 1}"
-                   class="rl-qty-input" data-editor="rack" data-index="${i}"
+          ${[['quantity', 'Box', 'rl-boxcol'], ['quantityUnit', 'Unit', 'rl-unitcol']].map(([field, label, cls]) => `
+          <td class="rl-qtycol ${cls}" data-label="${label}" style="border:1px solid #1E1E1C; border-top:none; border-left:none; padding:2px 6px; text-align:center; vertical-align:middle;">
+            <input type="number" min="0" inputmode="numeric" value="${item[field] != null ? item[field] : ''}" placeholder="0"
+                   aria-label="${label} count" class="rl-qty-input" data-editor="rack" data-index="${i}" data-field="${field}"
                    onfocus="RL.selectQty(this)" onchange="RL.setItemQty(${i}, this)"
                    style="width:100%; border:none; background:transparent; font-family:'Inter',sans-serif; font-size:28px; font-weight:500; color:#1E1E1C; text-align:center; padding:0; outline:none;">
-          </td>
+          </td>`).join('')}
           <td class="rl-actcol" style="border:none; padding:0 0 0 4px; vertical-align:middle; white-space:nowrap;">
             <button class="rl-rowbtn${showItemMove ? ' active' : ''}" onclick="RL.toggleItemMove(${i})"
                     aria-label="Move this item to another pallet" title="Move this item to another pallet">⇄</button>
@@ -1770,7 +1808,7 @@
                     aria-label="Remove this product from the pallet" title="Remove this product from the pallet">✕</button>
           </td>
         </tr>
-        ${showItemMove ? `<tr><td colspan="3" style="border:none; padding:10px 0 4px;">${itemMoveHtml}</td></tr>` : ''}`;
+        ${showItemMove ? `<tr><td colspan="4" style="border:none; padding:10px 0 4px;">${itemMoveHtml}</td></tr>` : ''}`;
     });
     const addBtn = e.items.length < MAX_ITEMS && e.items.length > 0
       ? `<button class="rl-addbtn" onclick="RL.addItem()">+ Add item (up to ${MAX_ITEMS} per pallet)</button>` : '';
@@ -1817,7 +1855,8 @@
             <thead>
               <tr>
                 <th style="border:1px solid #1E1E1C; padding:5px 8px; text-align:left; font-family:'Inter',sans-serif; font-size:11px; font-weight:600; color:#1E1E1C;">Description</th>
-                <th class="rl-qtycol" style="border:1px solid #1E1E1C; border-left:none; padding:5px 8px; text-align:left; font-family:'Inter',sans-serif; font-size:11px; font-weight:600; color:#1E1E1C;">Quantity</th>
+                <th class="rl-qtycol" style="border:1px solid #1E1E1C; border-left:none; padding:5px 6px; text-align:center; font-family:'Inter',sans-serif; font-size:11px; font-weight:600; color:#1E1E1C;">Box</th>
+                <th class="rl-qtycol" style="border:1px solid #1E1E1C; border-left:none; padding:5px 6px; text-align:center; font-family:'Inter',sans-serif; font-size:11px; font-weight:600; color:#1E1E1C;">Unit</th>
                 <th class="rl-actcol" style="border:none;"></th>
               </tr>
             </thead>
@@ -1878,7 +1917,7 @@
         `;
       }
       itemsHtml += `
-        <tr class="rl-itemrow">
+        <tr class="rl-itemrow${e.showMissing && isUncounted(item) ? ' rl-uncounted' : ''}">
           <td style="border:1px solid #1E1E1C; border-top:none; padding:6px 8px; vertical-align:middle;">
             <input value="${esc(item.description)}" placeholder="Search the catalog…" autocomplete="off"
                    class="rl-cat-input" data-editor="floor" data-index="${i}"
@@ -1890,12 +1929,13 @@
                    style="width:100%; border:none; background:transparent; font-family:'JetBrains Mono',monospace; font-size:11px; color:#8A877C; padding:2px 0 0; outline:none;">
             ${notInCatalog(item) ? `<div class="rl-notincat">Not in the item catalog</div>` : ''}
           </td>
-          <td class="rl-qtycol" style="border:1px solid #1E1E1C; border-top:none; border-left:none; padding:2px 8px; text-align:center; vertical-align:middle;">
-            <input type="number" min="1" inputmode="numeric" value="${item.quantity != null ? item.quantity : 1}"
-                   class="rl-qty-input" data-editor="floor" data-index="${i}"
+          ${[['quantity', 'Box', 'rl-boxcol'], ['quantityUnit', 'Unit', 'rl-unitcol']].map(([field, label, cls]) => `
+          <td class="rl-qtycol ${cls}" data-label="${label}" style="border:1px solid #1E1E1C; border-top:none; border-left:none; padding:2px 6px; text-align:center; vertical-align:middle;">
+            <input type="number" min="0" inputmode="numeric" value="${item[field] != null ? item[field] : ''}" placeholder="0"
+                   aria-label="${label} count" class="rl-qty-input" data-editor="floor" data-index="${i}" data-field="${field}"
                    onfocus="RL.selectQty(this)" onchange="RL.setFloorItemQty(${i}, this)"
                    style="width:100%; border:none; background:transparent; font-family:'Inter',sans-serif; font-size:28px; font-weight:500; color:#1E1E1C; text-align:center; padding:0; outline:none;">
-          </td>
+          </td>`).join('')}
           <td class="rl-actcol" style="border:none; padding:0 0 0 4px; vertical-align:middle; white-space:nowrap;">
             <button class="rl-rowbtn${showItemMove ? ' active' : ''}" onclick="RL.toggleFloorItemMove(${i})"
                     aria-label="Move this pallet onto a rack location" title="Move this pallet onto a rack location">⇄</button>
@@ -1903,7 +1943,7 @@
                     aria-label="Remove this pallet from floor storage" title="Remove this pallet from floor storage">✕</button>
           </td>
         </tr>
-        ${showItemMove ? `<tr><td colspan="3" style="border:none; padding:10px 0 4px;">${itemMoveHtml}</td></tr>` : ''}`;
+        ${showItemMove ? `<tr><td colspan="4" style="border:none; padding:10px 0 4px;">${itemMoveHtml}</td></tr>` : ''}`;
     });
 
     const addBtn = e.items.length < MAX_ITEMS && e.items.length > 0
@@ -1920,7 +1960,8 @@
             <thead>
               <tr>
                 <th style="border:1px solid #1E1E1C; padding:5px 8px; text-align:left; font-family:'Inter',sans-serif; font-size:11px; font-weight:600; color:#1E1E1C;">Description</th>
-                <th class="rl-qtycol" style="border:1px solid #1E1E1C; border-left:none; padding:5px 8px; text-align:left; font-family:'Inter',sans-serif; font-size:11px; font-weight:600; color:#1E1E1C;">Quantity</th>
+                <th class="rl-qtycol" style="border:1px solid #1E1E1C; border-left:none; padding:5px 6px; text-align:center; font-family:'Inter',sans-serif; font-size:11px; font-weight:600; color:#1E1E1C;">Box</th>
+                <th class="rl-qtycol" style="border:1px solid #1E1E1C; border-left:none; padding:5px 6px; text-align:center; font-family:'Inter',sans-serif; font-size:11px; font-weight:600; color:#1E1E1C;">Unit</th>
                 <th class="rl-actcol" style="border:none;"></th>
               </tr>
             </thead>
@@ -1953,7 +1994,7 @@
             whId: wh.id, whName: wh.name, rowId: row.id, rowName: row.name, level, pos, code,
             full: di.clean + (di.tag && di.tag !== 'Front' ? di.suffix : ''), depthTag: di.tag,
             itemIndex: idx, sku: item.sku || '', description: item.description || '',
-            quantity: item.quantity != null ? item.quantity : 1
+            quantity: boxOf(item), quantityUnit: unitOf(item)
           }));
         });
       });
@@ -1961,7 +2002,7 @@
         ((cache.floorData || {})[fid] || []).forEach((item, idx) => out.push({
           whId: wh.id, whName: wh.name, isFloor: true, floorId: fid, rowName: 'Floor storage',
           full: wh.floorLabel(fid), itemIndex: idx, sku: item.sku || '', description: item.description || '',
-          quantity: item.quantity != null ? item.quantity : 1
+          quantity: boxOf(item), quantityUnit: unitOf(item)
         }));
       });
     });
@@ -1976,10 +2017,11 @@
       const key = cat ? cat.c.toUpperCase() : itemKeyOf(p);
       if (!groups[key]) groups[key] = {
         key, sku: cat ? cat.c : p.sku, description: cat ? cat.d : p.description,
-        section: cat ? cat.s : '', inCatalog: !!cat, places: [], totalQty: 0
+        section: cat ? cat.s : '', inCatalog: !!cat, places: [], totalBox: 0, totalUnit: 0
       };
       groups[key].places.push(p);
-      groups[key].totalQty += p.quantity;
+      groups[key].totalBox += p.quantity;
+      groups[key].totalUnit += p.quantityUnit;
     });
     return groups;
   }
@@ -2033,7 +2075,7 @@
             <span style="display:block; font-family:'JetBrains Mono',monospace; font-size:15px; font-weight:800; color:#0D0D0C;">${esc(p.full)}</span>
             <span style="display:block; font-size:11.5px; color:#8A877C; margin-top:1px;">${esc(p.whName)}${p.isFloor ? '' : ' · ' + esc(p.rowName)}${p.depthTag && p.depthTag !== 'Front' ? ' · ' + esc(p.depthTag) : ''}</span>
           </span>
-          <span style="flex:0 0 auto; font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:700; color:#3F7D4E; background:#EDF5EE; border-radius:6px; padding:4px 8px;">×${p.quantity}</span>
+          <span style="flex:0 0 auto; font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:700; color:#3F7D4E; background:#EDF5EE; border-radius:6px; padding:4px 8px; white-space:nowrap;">${fmtCount(p.quantity, p.quantityUnit)}</span>
           <span style="flex:0 0 auto; color:#B7B3A5; font-size:16px;">›</span>
         </button>`;
       }).join('');
@@ -2042,7 +2084,7 @@
         <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:5px;">
           <span class="rl-code">${esc(g.sku)}</span>
           ${g.section ? `<span style="font-family:'JetBrains Mono',monospace; font-size:10px; font-weight:700; color:#8A877C; background:#F3F1EC; border-radius:5px; padding:2px 6px;">${esc(g.section)}</span>` : ''}
-          <span style="font-size:11.5px; color:#8A877C;">${g.places.length} location${g.places.length === 1 ? '' : 's'} · ${g.totalQty} total</span>
+          <span style="font-size:11.5px; color:#8A877C;">${g.places.length} location${g.places.length === 1 ? '' : 's'} · ${fmtCount(g.totalBox, g.totalUnit)} total</span>
         </div>
         <div style="display:flex; flex-direction:column; gap:6px; margin-top:12px;">${rows}</div>
         <button class="rl-btn" style="width:100%; min-height:44px; margin-top:8px;" onclick="RL.startPlacing('${esc(g.sku)}', '${esc(g.description).replace(/'/g, '&#39;')}')">+ Place another pallet</button>
@@ -2099,12 +2141,13 @@
         <td style="font-family:'JetBrains Mono',monospace; font-weight:800; color:#0D0D0C;">${esc(p.full)}</td>
         <td>${esc(p.whName)}${p.isFloor ? '' : ' · ' + esc(p.rowName)}</td>
         <td style="text-align:center;">${p.quantity}</td>
+        <td style="text-align:center;">${p.quantityUnit}</td>
       </tr>`;
     }).join('');
-    if (!tableRows) tableRows = `<tr><td colspan="5" class="rl-emptytag">${q ? 'No items match your search' : 'Nothing placed yet'}</td></tr>`;
-    const tableBody = `<div class="rl-table-scroll"><table class="rl-table" style="min-width:600px;">
-      <colgroup><col style="width:120px;"><col><col style="width:96px;"><col style="width:150px;"><col style="width:54px;"></colgroup>
-      <thead><tr><th>Item code</th><th>Description</th><th>Location</th><th>Warehouse</th><th>Qty</th></tr></thead>
+    if (!tableRows) tableRows = `<tr><td colspan="6" class="rl-emptytag">${q ? 'No items match your search' : 'Nothing placed yet'}</td></tr>`;
+    const tableBody = `<div class="rl-table-scroll"><table class="rl-table" style="min-width:650px;">
+      <colgroup><col style="width:120px;"><col><col style="width:96px;"><col style="width:150px;"><col style="width:54px;"><col style="width:54px;"></colgroup>
+      <thead><tr><th>Item code</th><th>Description</th><th>Location</th><th>Warehouse</th><th>Box</th><th>Unit</th></tr></thead>
       <tbody>${tableRows}</tbody></table></div>`;
 
     const isTable = state.findView === 'table';
@@ -2156,7 +2199,7 @@
         ${g
           ? `<span style="flex:0 0 auto; text-align:right;">
                <span style="display:block; font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:800; color:#0D0D0C;">${esc(g.places[0].full)}${g.places.length > 1 ? ' +' + (g.places.length - 1) : ''}</span>
-               <span style="display:block; font-size:10.5px; color:#3F7D4E; font-weight:600; margin-top:1px;">${g.totalQty} on hand</span>
+               <span style="display:block; font-size:10.5px; color:#3F7D4E; font-weight:600; margin-top:1px;">${fmtCount(g.totalBox, g.totalUnit)} on hand</span>
              </span>`
           : `<span style="flex:0 0 auto; font-family:'Inter',sans-serif; font-size:11.5px; font-weight:600; color:#B7B3A5;">Locate →</span>`}
       </button>`;
@@ -2193,7 +2236,7 @@
         <span style="flex:1 1 auto; min-width:0;">
           <span style="display:block; font-family:'Inter',sans-serif; font-size:13px; font-weight:500; color:#1E1E1C; line-height:1.35;">${esc(e.desc || e.sku || '(pallet)')}</span>
           <span style="display:block; font-family:'JetBrains Mono',monospace; font-size:11px; color:#8A877C; margin-top:2px;">
-            ${e.from ? esc(e.from) + ' → ' + esc(e.to || '') : esc(e.loc || '')}${e.wh ? ' · ' + esc(e.wh) : ''}${e.qty != null ? ' · ×' + e.qty : ''}${e.prevQty != null ? ' (was ×' + e.prevQty + ')' : ''}
+            ${e.from ? esc(e.from) + ' → ' + esc(e.to || '') : esc(e.loc || '')}${e.wh ? ' · ' + esc(e.wh) : ''}${e.qty != null ? ' · ' + fmtCount(e.qty, e.qtyUnit) : ''}${e.prevQty != null ? ' (was ' + fmtCount(e.prevQty, e.prevQtyUnit) + ')' : ''}
           </span>
         </span>
         <span style="flex:0 0 auto; text-align:right;">
@@ -2282,8 +2325,10 @@
           if (cat[0].value !== (it.description || '')) applyItemField(it, 'description', cat[0].value);
           if (cat[1].value !== (it.sku || '')) applyItemField(it, 'sku', cat[1].value);
         }
-        const q = root.querySelector('.rl-qty-input' + sel);
-        if (q) it.quantity = Math.max(1, parseInt(q.value, 10) || 1);
+        root.querySelectorAll('.rl-qty-input' + sel).forEach(q => {
+          const field = q.getAttribute('data-field');
+          if (field === 'quantity' || field === 'quantityUnit') it[field] = parseCount(q.value);
+        });
       });
     });
   }
@@ -2293,11 +2338,41 @@
     if (el) el.focus();
   }
   function focusQty(editor, i) {
-    const el = root.querySelector('.rl-qty-input[data-editor="' + editor + '"][data-index="' + i + '"]');
+    const el = root.querySelector('.rl-qty-input[data-editor="' + editor + '"][data-index="' + i + '"][data-field="quantity"]');
     if (!el) return;
     el.focus();
     try { el.select(); } catch (e) {}
   }
+  // One box/unit field edited. Empty stays empty (null), anything else is a
+  // whole number >= 0 written straight back, so the screen shows what saves.
+  function setCount(ed, i, el) {
+    const it = ed && ed.items[i];
+    const field = el.getAttribute('data-field');
+    if (!it || (field !== 'quantity' && field !== 'quantityUnit')) return;
+    const n = parseCount(el.value);
+    it[field] = n;
+    const shown = n == null ? '' : String(n);
+    if (el.value !== shown) el.value = shown;
+    if (!isUncounted(it)) { const tr = el.closest('tr'); if (tr) tr.classList.remove('rl-uncounted'); }
+  }
+
+  // Save/move guard: a product with neither a box nor a unit count is refused
+  // and its count boxes outlined — never silently stored as a made-up number.
+  function refuseUncounted(editor, ed) {
+    const bad = [];
+    ed.items.forEach((it, i) => { if (isUncounted(it)) bad.push(i); });
+    if (!bad.length) return false;
+    ed.showMissing = true;
+    bad.forEach(i => {
+      const q = root.querySelector('.rl-qty-input[data-editor="' + editor + '"][data-index="' + i + '"]');
+      const tr = q && q.closest('tr');
+      if (tr) tr.classList.add('rl-uncounted');
+    });
+    showFlash('Enter a box or unit count for the highlighted product' + (bad.length > 1 ? 's' : '') + '.');
+    focusQty(editor, bad[0]);
+    return true;
+  }
+
   function markSaving(ed, on) {
     ed.saving = on;
     const btn = root.querySelector('.rl-modalbtns .rl-primary');
@@ -2616,7 +2691,7 @@
       const srcItems = cellItems(src.rowId, src.code);
       const srcParts = src.code.split('-'), tgtParts = targetCode.split('-');
       srcItems.forEach(it => logAudit('moved', {
-        sku: it.sku, desc: it.description, qty: it.quantity, wh: CURRENT_WH.name,
+        sku: it.sku, desc: it.description, qty: it.quantity, qtyUnit: it.quantityUnit, wh: CURRENT_WH.name,
         from: fullLoc(src.rowId, srcParts[0], srcParts[1]), to: fullLoc(targetRowId, tgtParts[0], tgtParts[1])
       }));
       setCellItems(targetRowId, targetCode, srcItems);
@@ -2627,7 +2702,7 @@
     },
 
     openFloorEditor(floorId) {
-      const items = floorItems(floorId).map(i => ({ sku: i.sku || '', description: i.description || '', quantity: i.quantity != null ? i.quantity : 1 }));
+      const items = floorItems(floorId).map(editRow);
       state.floorEditing = { floorId, items, itemMoveIndex: null, itemMoveTarget: null };
       render();
     },
@@ -2639,7 +2714,7 @@
       // A blank row is already waiting at the bottom: go to it, don't stack another.
       if (!last || last.sku.trim() || last.description.trim()) {
         if (items.length >= MAX_ITEMS) return;
-        items.push({ sku: '', description: '', quantity: 1 });
+        items.push({ sku: '', description: '', quantity: null, quantityUnit: null });
         render();
       }
       // Straight into the new row with the keyboard up — no second tap.
@@ -2657,13 +2732,7 @@
       try { el.select(); } catch (e) {}
       setTimeout(() => { if (document.activeElement === el) { try { el.select(); } catch (e) {} } }, 0);
     },
-    setFloorItemQty(i, el) {
-      const it = state.floorEditing.items[i];
-      if (!it) return;
-      const n = Math.max(1, parseInt(el.value, 10) || 1);
-      it.quantity = n;
-      if (el.value !== String(n)) el.value = n;
-    },
+    setFloorItemQty(i, el) { setCount(state.floorEditing, i, el); },
     async submitFloorEditor() {
       const e = state.floorEditing;
       // A second tap while the first save is still in flight would write and
@@ -2671,9 +2740,9 @@
       if (!e || e.saving || e.busy) return;
       commitEditorInputs();
       if (acInput) acHide();
+      if (refuseUncounted('floor', e)) return;
       markSaving(e, true);
-      const cleaned = e.items.filter(it => it.sku.trim() || it.description.trim())
-        .map(it => ({ sku: it.sku.trim(), description: it.description.trim(), quantity: it.quantity || 1 }));
+      const cleaned = e.items.filter(hasProduct).map(savedRow);
       // Refresh everyone else's items first, then change only this floor area.
       await mergeFloorDataFromServer();
       const before = floorItems(e.floorId);
@@ -2702,7 +2771,7 @@
       // A blank row is already waiting at the bottom: go to it, don't stack another.
       if (!last || last.sku.trim() || last.description.trim()) {
         if (items.length >= MAX_ITEMS) return;
-        items.push({ sku: '', description: '', quantity: 1 });
+        items.push({ sku: '', description: '', quantity: null, quantityUnit: null });
         render();
       }
       // Straight into the new row with the keyboard up — no second tap.
@@ -2713,18 +2782,7 @@
       state.editing.items.splice(i, 1);
       render();
     },
-    // Clamp the quantity to at least 1 and write it straight back into the box.
-    // Clearing the field, or typing 0, used to leave "" or "0" on screen while
-    // submitEditor's `it.quantity || 1` quietly stored 1 instead — the screen and
-    // the saved row disagreed with nothing to tell you. Same value is stored as
-    // before; the difference is that you can now see it.
-    setItemQty(i, el) {
-      const it = state.editing.items[i];
-      if (!it) return;
-      const n = Math.max(1, parseInt(el.value, 10) || 1);
-      it.quantity = n;
-      if (el.value !== String(n)) el.value = n;
-    },
+    setItemQty(i, el) { setCount(state.editing, i, el); },
     async submitEditor() {
       const e = state.editing;
       // A second tap while the first save is still in flight would write and
@@ -2732,9 +2790,9 @@
       if (!e || e.saving || e.busy) return;
       commitEditorInputs();
       if (acInput) acHide();
+      if (refuseUncounted('rack', e)) return;
       markSaving(e, true);
-      const cleaned = e.items.filter(it => it.sku.trim() || it.description.trim())
-        .map(it => ({ sku: it.sku.trim(), description: it.description.trim(), quantity: it.quantity || 1 }));
+      const cleaned = e.items.filter(hasProduct).map(savedRow);
       // Refresh everyone else's items first, then change only this slot.
       await mergeRackDataFromServer();
       const code = e.level + '-' + e.pos;
@@ -2834,8 +2892,8 @@
         return;
       }
 
-      const sourceItems = e.items.filter(it => it.sku.trim() || it.description.trim())
-        .map(it => ({ sku: it.sku.trim(), description: it.description.trim(), quantity: it.quantity || 1 }));
+      if (refuseUncounted('rack', e)) return;
+      const sourceItems = e.items.filter(hasProduct).map(savedRow);
 
       const targetCache = whCache[tgt.whId];
       const targetItems = (targetCache.data[tgt.rowId] && targetCache.data[tgt.rowId][tgt.code]) || [];
@@ -2854,10 +2912,10 @@
       const srcLabel = fullLoc(src.rowId, e.level, e.pos);
       const tgtLabel = fullLoc(tgt.rowId, e.moveTarget.level, e.moveTarget.pos) + (tgt.whId !== src.whId ? ' (' + targetWh.name + ')' : '');
       sourceItems.forEach(it => logAudit(targetItems.length ? 'swapped' : 'moved', {
-        sku: it.sku, desc: it.description, qty: it.quantity, wh: CURRENT_WH.name, from: srcLabel, to: tgtLabel
+        sku: it.sku, desc: it.description, qty: it.quantity, qtyUnit: it.quantityUnit, wh: CURRENT_WH.name, from: srcLabel, to: tgtLabel
       }));
       targetItems.forEach(it => logAudit('swapped', {
-        sku: it.sku, desc: it.description, qty: it.quantity, wh: targetWh.name, from: tgtLabel, to: srcLabel
+        sku: it.sku, desc: it.description, qty: it.quantity, qtyUnit: it.quantityUnit, wh: targetWh.name, from: tgtLabel, to: srcLabel
       }));
 
       // write whatever was at the target (for a swap) back into the source slot
@@ -2908,7 +2966,8 @@
       const e = state.editing;
       const i = e.itemMoveIndex;
       if (i == null || !e.items[i]) return;
-      const item = { sku: (e.items[i].sku || '').trim(), description: (e.items[i].description || '').trim(), quantity: e.items[i].quantity || 1 };
+      if (refuseUncounted(e === state.floorEditing ? 'floor' : 'rack', e)) return;
+      const item = savedRow(e.items[i]);
       if (!item.sku && !item.description) { showFlash('This item is empty — nothing to move.'); return; }
 
       const t = e.itemMoveTarget;
@@ -2937,13 +2996,13 @@
       // remove the item from the pallet currently open in the editor
       e.items.splice(i, 1);
       const remainingSourceItems = e.items.filter(it => it.sku.trim() || it.description.trim())
-        .map(it => ({ sku: it.sku.trim(), description: it.description.trim(), quantity: it.quantity || 1 }));
+        .map(savedRow);
       setCellItems(e.rowId, srcCode, remainingSourceItems);
 
       // add it onto the target pallet
       targetCache.data[t.rowId][tgtCode] = [...existingTarget, item];
       logAudit('moved', {
-        sku: item.sku, desc: item.description, qty: item.quantity, wh: CURRENT_WH.name,
+        sku: item.sku, desc: item.description, qty: item.quantity, qtyUnit: item.quantityUnit, wh: CURRENT_WH.name,
         from: fullLoc(e.rowId, e.level, e.pos),
         to: fullLoc(t.rowId, t.level, t.pos) + (t.whId !== state.warehouseId ? ' (' + targetWh.name + ')' : '')
       });
@@ -3002,7 +3061,8 @@
       const e = state.floorEditing;
       const i = e.itemMoveIndex;
       if (i == null || !e.items[i]) return;
-      const item = { sku: (e.items[i].sku || '').trim(), description: (e.items[i].description || '').trim(), quantity: e.items[i].quantity || 1 };
+      if (refuseUncounted(e === state.floorEditing ? 'floor' : 'rack', e)) return;
+      const item = savedRow(e.items[i]);
       if (!item.sku && !item.description) { showFlash('This item is empty — nothing to move.'); return; }
 
       const t = e.itemMoveTarget;
@@ -3025,13 +3085,13 @@
       // remove it from floor storage
       e.items.splice(i, 1);
       const remainingItems = e.items.filter(it => it.sku.trim() || it.description.trim())
-        .map(it => ({ sku: it.sku.trim(), description: it.description.trim(), quantity: it.quantity || 1 }));
+        .map(savedRow);
       setFloorItems(e.floorId, remainingItems);
 
       // add it onto the target rack pallet
       targetCache.data[t.rowId][tgtCode] = [...existingTarget, item];
       logAudit('moved', {
-        sku: item.sku, desc: item.description, qty: item.quantity, wh: CURRENT_WH.name,
+        sku: item.sku, desc: item.description, qty: item.quantity, qtyUnit: item.quantityUnit, wh: CURRENT_WH.name,
         from: CURRENT_WH.floorLabel(e.floorId),
         to: fullLoc(t.rowId, t.level, t.pos) + (t.whId !== state.warehouseId ? ' (' + targetWh.name + ')' : '')
       });
@@ -3054,7 +3114,7 @@
     },
 
     quickSaveItem(rowId, code, itemIndex, sku, description) {
-      const items = cellItems(rowId, code).map(i => ({ sku: i.sku, description: i.description, quantity: i.quantity != null ? i.quantity : 1 }));
+      const items = cellItems(rowId, code).map(editRow);
       if (!items[itemIndex]) return;
       if (sku !== null) items[itemIndex].sku = sku;
       if (description !== null) items[itemIndex].description = description;
@@ -3063,17 +3123,18 @@
       saveCell(rowId, code);
       render();
     },
-    quickSaveItemQty(rowId, code, itemIndex, qty) {
-      const items = cellItems(rowId, code).map(i => ({ sku: i.sku, description: i.description, quantity: i.quantity != null ? i.quantity : 1 }));
+    quickSaveItemQty(rowId, code, itemIndex, field, qty) {
+      const items = cellItems(rowId, code).map(editRow);
       if (!items[itemIndex]) return;
-      items[itemIndex].quantity = parseInt(qty, 10) || 0;
+      if (field !== 'quantity' && field !== 'quantityUnit') return;
+      items[itemIndex][field] = parseCount(qty) || 0;
       logItemDiff(fullLoc(rowId, code.split('-')[0], code.split('-')[1]), CURRENT_WH.name, cellItems(rowId, code), items);
       setCellItems(rowId, code, items);
       saveCell(rowId, code);
       render();
     },
     quickSaveFloorItem(floorId, itemIndex, sku, description) {
-      const items = floorItems(floorId).map(i => ({ sku: i.sku, description: i.description, quantity: i.quantity != null ? i.quantity : 1 }));
+      const items = floorItems(floorId).map(editRow);
       if (!items[itemIndex]) return;
       if (sku !== null) items[itemIndex].sku = sku;
       if (description !== null) items[itemIndex].description = description;
@@ -3081,10 +3142,11 @@
       saveFloor(floorId);
       render();
     },
-    quickSaveFloorItemQty(floorId, itemIndex, qty) {
-      const items = floorItems(floorId).map(i => ({ sku: i.sku, description: i.description, quantity: i.quantity != null ? i.quantity : 1 }));
+    quickSaveFloorItemQty(floorId, itemIndex, field, qty) {
+      const items = floorItems(floorId).map(editRow);
       if (!items[itemIndex]) return;
-      items[itemIndex].quantity = parseInt(qty, 10) || 0;
+      if (field !== 'quantity' && field !== 'quantityUnit') return;
+      items[itemIndex][field] = parseCount(qty) || 0;
       setFloorItems(floorId, items);
       saveFloor(floorId);
       render();
@@ -3092,10 +3154,11 @@
     setSearch(v) { state.search = v; renderKeepingFocus(); },
     exportCsv() {
       const items = allItemRows();
-      let csv = 'Location,Rack,SKU,Description,Qty\n';
+      let csv = 'Location,Rack,SKU,Description,Qty Box,Qty Unit\n';
       items.forEach(it => {
-        const esc2 = s => '"' + String(s || '').replace(/"/g, '""') + '"';
-        csv += [esc2(it.full), esc2(it.rowName), esc2(it.sku), esc2(it.description), esc2(it.quantity)].join(',') + '\n';
+        // 0 is a real count: write it, don't blank it.
+        const esc2 = s => '"' + String(s == null ? '' : s).replace(/"/g, '""') + '"';
+        csv += [esc2(it.full), esc2(it.rowName), esc2(it.sku), esc2(it.description), esc2(it.quantity), esc2(it.quantityUnit)].join(',') + '\n';
       });
       const blob = new Blob([csv], { type: 'text/csv' });
       const url = URL.createObjectURL(blob);
@@ -3118,6 +3181,7 @@
           whName: p.whName,
           rowName: p.rowName || '',
           qty: p.quantity,
+          qtyUnit: p.quantityUnit,
         };
       });
       if (q) rows = rows.filter(p =>
@@ -3125,8 +3189,8 @@
       rows.sort((a, b) =>
         (a.desc || '').localeCompare(b.desc || '') || a.full.localeCompare(b.full, undefined, { numeric: true }));
       const esc2 = s => '"' + String(s == null ? '' : s).replace(/"/g, '""') + '"';
-      let csv = 'Item code,Description,Location,Warehouse,Qty\n';
-      rows.forEach(p => { csv += [esc2(p.code), esc2(p.desc), esc2(p.full), esc2(p.wh), esc2(p.qty)].join(',') + '\n'; });
+      let csv = 'Item code,Description,Location,Warehouse,Qty Box,Qty Unit\n';
+      rows.forEach(p => { csv += [esc2(p.code), esc2(p.desc), esc2(p.full), esc2(p.wh), esc2(p.qty), esc2(p.qtyUnit)].join(',') + '\n'; });
       const blob = new Blob([csv], { type: 'text/csv' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');

@@ -204,6 +204,13 @@
       "when": 1785000000008,
       "tag": "0028_optional_purchase_unit",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1785000000009,
+      "tag": "0029_inventory_qty_unit",
+      "breakpoints": true
     }
   ]
 }

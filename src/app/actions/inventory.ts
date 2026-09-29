@@ -132,6 +132,7 @@ async function syncPlacements(
         itemCode: d.itemCode,
         description: d.description,
         quantity: d.quantity,
+        quantityUnit: d.quantityUnit ?? 0,
         updatedBy: user.id,
       });
     }
@@ -141,6 +142,7 @@ async function syncPlacements(
         .update(inventoryPlacements)
         .set({
           quantity: u.quantity,
+          quantityUnit: u.quantityUnit,
           description: u.description,
           updatedBy: user.id,
           updatedAt: new Date(),
@@ -292,5 +294,6 @@ export async function findItemLocations(code: string) {
     unitLabel: UNIT_LABELS[r.unit],
     location: r.location,
     quantity: r.quantity,
+    quantityUnit: r.quantityUnit,
   }));
 }

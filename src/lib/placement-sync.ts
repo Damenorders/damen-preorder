@@ -10,7 +10,10 @@
 export interface ClientItem {
   sku?: string;
   description?: string;
+  /** Box count. */
   quantity?: number;
+  /** Loose-unit count. Absent from clients older than the box/unit split. */
+  quantityUnit?: number;
 }
 
 export type RackBlob = Record<string, Record<string, ClientItem[]>>;
@@ -25,6 +28,9 @@ export interface Desired {
   itemCode: string;
   description: string;
   quantity: number;
+  /** undefined = the client didn't send one (a page loaded before the
+   *  box/unit split): keep whatever unit count is stored. */
+  quantityUnit: number | undefined;
 }
 
 export interface DesiredBlob {
@@ -41,6 +47,7 @@ export interface ExistingPlacement {
   itemCode: string;
   description: string;
   quantity: number;
+  quantityUnit: number;
   floorId: string | null;
 }
 
@@ -50,12 +57,14 @@ export interface AuditDraft {
   description: string;
   location: string;
   quantity: number;
+  quantityUnit: number;
   prevQuantity?: number;
+  prevQuantityUnit?: number;
 }
 
 export interface SyncPlan {
   inserts: Desired[];
-  updates: { id: string; quantity: number; description: string }[];
+  updates: { id: string; quantity: number; quantityUnit: number; description: string }[];
   deleteIds: string[];
   audits: AuditDraft[];
 }
@@ -80,8 +89,20 @@ export function clientSku(itemCode: string, description: string, isCatalogItem: 
   return !isCatalogItem && itemCode === freehandCode(description) ? "" : itemCode;
 }
 
+/** A whole, non-negative count, or undefined when none was sent. */
+function count(v: unknown): number | undefined {
+  if (v === undefined || v === null || v === "") return undefined;
+  const n = Number(v);
+  return Number.isFinite(n) ? Math.max(0, Math.trunc(n)) : undefined;
+}
+
 export function normalise(items: ClientItem[] | undefined) {
-  const out: { code: string; description: string; quantity: number }[] = [];
+  const out: {
+    code: string;
+    description: string;
+    quantity: number;
+    quantityUnit: number | undefined;
+  }[] = [];
   for (const it of items ?? []) {
     const code = (it.sku ?? "").trim();
     const description = (it.description ?? "").trim();
@@ -91,7 +112,8 @@ export function normalise(items: ClientItem[] | undefined) {
     out.push({
       code: code || freehandCode(description),
       description,
-      quantity: Number.isFinite(it.quantity) ? Number(it.quantity) : 1,
+      quantity: count(it.quantity) ?? 0,
+      quantityUnit: count(it.quantityUnit),
     });
   }
   return out;
@@ -115,6 +137,7 @@ export function desiredFromRackBlob(blob: RackBlob): DesiredBlob {
           itemCode: it.code,
           description: it.description,
           quantity: it.quantity,
+          quantityUnit: it.quantityUnit,
         });
       }
     }
@@ -138,6 +161,7 @@ export function desiredFromFloorBlob(blob: FloorBlob): DesiredBlob {
         itemCode: it.code,
         description: it.description,
         quantity: it.quantity,
+        quantityUnit: it.quantityUnit,
       });
     }
   }
@@ -166,31 +190,39 @@ export function planSync(
   const after = new Map(desired.map((d) => [keyOf(d.location, d.itemCode), d]));
 
   const inserts: Desired[] = [];
-  const updates: { id: string; quantity: number; description: string }[] = [];
+  const updates: { id: string; quantity: number; quantityUnit: number; description: string }[] = [];
   const deleteIds: string[] = [];
   const audits: AuditDraft[] = [];
 
   for (const [key, d] of after) {
     const prev = before.get(key);
     if (!prev) {
-      inserts.push(d);
+      const unit = d.quantityUnit ?? 0;
+      inserts.push({ ...d, quantityUnit: unit });
       audits.push({
         action: "added",
         itemCode: d.itemCode,
         description: d.description,
         location: d.location,
         quantity: d.quantity,
+        quantityUnit: unit,
       });
-    } else if (prev.quantity !== d.quantity || prev.description !== d.description) {
-      updates.push({ id: prev.id, quantity: d.quantity, description: d.description });
-      if (prev.quantity !== d.quantity) {
+      continue;
+    }
+    const unit = d.quantityUnit ?? prev.quantityUnit;
+    const countChanged = prev.quantity !== d.quantity || prev.quantityUnit !== unit;
+    if (countChanged || prev.description !== d.description) {
+      updates.push({ id: prev.id, quantity: d.quantity, quantityUnit: unit, description: d.description });
+      if (countChanged) {
         audits.push({
           action: "qty",
           itemCode: d.itemCode,
           description: d.description,
           location: d.location,
           quantity: d.quantity,
+          quantityUnit: unit,
           prevQuantity: prev.quantity,
+          prevQuantityUnit: prev.quantityUnit,
         });
       }
     }
@@ -208,6 +240,7 @@ export function planSync(
       description: prev.description,
       location: prev.location,
       quantity: prev.quantity,
+      quantityUnit: prev.quantityUnit,
     });
   }
 

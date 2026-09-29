@@ -53,7 +53,10 @@ export const inventoryPlacements = pgTable(
     floorId: text("floor_id"),
     itemCode: text("item_code").notNull(),
     description: text("description").notNull().default(""),
-    quantity: integer("quantity").notNull().default(1),
+    // Box count (every count taken before 0029 was boxes).
+    quantity: integer("quantity").notNull().default(0),
+    // Loose-unit count. Never added to the box count here.
+    quantityUnit: integer("quantity_unit").notNull().default(0),
     updatedBy: uuid("updated_by").references(() => users.id),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()
@@ -79,6 +82,8 @@ export const inventoryAudit = pgTable(
     toLocation: text("to_location"),
     quantity: integer("quantity"),
     prevQuantity: integer("prev_quantity"),
+    quantityUnit: integer("quantity_unit"),
+    prevQuantityUnit: integer("prev_quantity_unit"),
     userId: uuid("user_id").references(() => users.id),
     userName: text("user_name").notNull().default(""),
     createdAt: timestamp("created_at", { withTimezone: true })

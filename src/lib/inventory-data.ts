@@ -54,7 +54,7 @@ export async function getRackData(unit: WarehouseUnit) {
 
   const out: Record<
     string,
-    Record<string, { sku: string; description: string; quantity: number }[]>
+    Record<string, { sku: string; description: string; quantity: number; quantityUnit: number }[]>
   > = {};
   for (const r of rows) {
     if (r.floorId || r.rack == null || !r.level || !r.position) continue;
@@ -66,6 +66,7 @@ export async function getRackData(unit: WarehouseUnit) {
       sku: clientSku(r.itemCode, r.description, !!r.catalogActive),
       description: r.description,
       quantity: r.quantity,
+      quantityUnit: r.quantityUnit,
     });
   }
   return out;
@@ -77,7 +78,7 @@ export async function getFloorData(unit: WarehouseUnit) {
 
   const out: Record<
     string,
-    { sku: string; description: string; quantity: number }[]
+    { sku: string; description: string; quantity: number; quantityUnit: number }[]
   > = {};
   for (const r of rows) {
     if (!r.floorId) continue;
@@ -86,6 +87,7 @@ export async function getFloorData(unit: WarehouseUnit) {
       sku: clientSku(r.itemCode, r.description, !!r.catalogActive),
       description: r.description,
       quantity: r.quantity,
+      quantityUnit: r.quantityUnit,
     });
   }
   return out;
@@ -111,5 +113,7 @@ export async function getInventoryAudit(limit = 200) {
     wh: r.unit ?? "",
     qty: r.quantity ?? undefined,
     prevQty: r.prevQuantity ?? undefined,
+    qtyUnit: r.quantityUnit ?? undefined,
+    prevQtyUnit: r.prevQuantityUnit ?? undefined,
   }));
 }

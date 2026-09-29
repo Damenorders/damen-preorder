@@ -20,7 +20,7 @@ type LocationWrite = {
   rackId?: string;
   slotCode?: string;
   floorId?: string;
-  items: { sku?: string; description?: string; quantity?: number }[];
+  items: { sku?: string; description?: string; quantity?: number; quantityUnit?: number }[];
 };
 
 declare global {

@@ -15,7 +15,7 @@ function row(
   location: string,
   itemCode: string,
   quantity = 1,
-  opts: { floorId?: string | null; description?: string } = {},
+  opts: { floorId?: string | null; description?: string; quantityUnit?: number } = {},
 ): ExistingPlacement {
   return {
     id: `id-${++idSeq}`,
@@ -23,21 +23,24 @@ function row(
     itemCode,
     description: opts.description ?? itemCode,
     quantity,
+    quantityUnit: opts.quantityUnit ?? 0,
     floorId: opts.floorId ?? (location.startsWith("floor:") ? location.slice(6) : null),
   };
 }
 
-test("normalise trims, drops blanks, defaults qty, keys freehand by description", () => {
+test("normalise trims, drops blanks, keys freehand by description, never invents a count", () => {
   const out = normalise([
-    { sku: " ABC ", description: " Apples ", quantity: 3 },
+    { sku: " ABC ", description: " Apples ", quantity: 3, quantityUnit: 7 },
     { sku: "", description: "" }, // dropped
-    { sku: "", description: "Freehand item" }, // code falls back to description
-    { sku: "XYZ" }, // qty defaults to 1
+    { sku: "", description: "Freehand item", quantity: 2 }, // code falls back to description
+    { sku: "XYZ" }, // no box count sent -> 0 (not a made-up 1); no unit count -> undefined
+    { sku: "NEG", quantity: -4, quantityUnit: 2.9 }, // clamped / truncated
   ]);
   assert.deepEqual(out, [
-    { code: "ABC", description: "Apples", quantity: 3 },
-    { code: "Freehand item", description: "Freehand item", quantity: 1 },
-    { code: "XYZ", description: "", quantity: 1 },
+    { code: "ABC", description: "Apples", quantity: 3, quantityUnit: 7 },
+    { code: "Freehand item", description: "Freehand item", quantity: 2, quantityUnit: undefined },
+    { code: "XYZ", description: "", quantity: 0, quantityUnit: undefined },
+    { code: "NEG", description: "", quantity: 0, quantityUnit: 2 },
   ]);
 });
 
@@ -83,7 +86,7 @@ test("planSync updates quantity and records a qty audit", () => {
   const { desired, locations } = desiredFromRackBlob({ "50": { "A-1": [{ sku: "X", quantity: 5 }] } });
   const plan = planSync(existing, "rack", desired, locations);
   assert.equal(plan.inserts.length, 0);
-  assert.deepEqual(plan.updates, [{ id: existing[0].id, quantity: 5, description: "" }]);
+  assert.deepEqual(plan.updates, [{ id: existing[0].id, quantity: 5, quantityUnit: 0, description: "" }]);
   assert.equal(plan.deleteIds.length, 0);
   assert.equal(plan.audits[0].action, "qty");
   assert.equal(plan.audits[0].prevQuantity, 1);
@@ -155,7 +158,7 @@ test("planSync swaps quantities correctly on a two-item slot", () => {
   const plan = planSync(existing, "rack", desired, locations);
   assert.equal(plan.inserts.length, 1);
   assert.equal(plan.inserts[0].itemCode, "V");
-  assert.deepEqual(plan.updates, [{ id: existing[0].id, quantity: 3, description: "Apples" }]);
+  assert.deepEqual(plan.updates, [{ id: existing[0].id, quantity: 3, quantityUnit: 0, description: "Apples" }]);
   assert.deepEqual(plan.deleteIds, [existing[1].id]); // W removed
 });
 
@@ -188,4 +191,45 @@ test("saving a freehand item again after reload is a no-op (no duplicate row)", 
   });
   const plan = planSync(existing, "rack", desired, locations);
   assert.deepEqual(plan, { inserts: [], updates: [], deleteIds: [], audits: [] });
+});
+
+test("box and unit counts are stored separately and never added together", () => {
+  const { desired, locations } = desiredFromRackBlob({
+    "15": { "A-1": [{ sku: "X", quantity: 3, quantityUnit: 12 }] },
+  });
+  const plan = planSync([], "rack", desired, locations);
+  assert.equal(plan.inserts[0].quantity, 3);
+  assert.equal(plan.inserts[0].quantityUnit, 12);
+  assert.equal(plan.audits[0].quantity, 3);
+  assert.equal(plan.audits[0].quantityUnit, 12);
+});
+
+test("changing only the unit count is an update with a qty audit showing both before/after", () => {
+  const existing = [row("15-A-1", "X", 3, { quantityUnit: 12 })];
+  const { desired, locations } = desiredFromRackBlob({
+    "15": { "A-1": [{ sku: "X", description: "X", quantity: 3, quantityUnit: 5 }] },
+  });
+  const plan = planSync(existing, "rack", desired, locations);
+  assert.deepEqual(plan.updates, [{ id: existing[0].id, quantity: 3, quantityUnit: 5, description: "X" }]);
+  assert.equal(plan.audits.length, 1);
+  assert.deepEqual(
+    [plan.audits[0].prevQuantity, plan.audits[0].prevQuantityUnit, plan.audits[0].quantity, plan.audits[0].quantityUnit],
+    [3, 12, 3, 5],
+  );
+});
+
+// A phone that loaded the page before the box/unit split runs the old script,
+// which sends only `quantity`. Its save must not wipe unit counts entered on a
+// phone running the new one.
+test("a save from an old client (no unit count) keeps the stored unit count", () => {
+  const existing = [row("15-A-1", "X", 3, { description: "X", quantityUnit: 12 })];
+  const { desired, locations } = desiredFromRackBlob({
+    "15": { "A-1": [{ sku: "X", description: "X", quantity: 4 }] },
+  });
+  const plan = planSync(existing, "rack", desired, locations);
+  assert.deepEqual(plan.updates, [{ id: existing[0].id, quantity: 4, quantityUnit: 12, description: "X" }]);
+  // ...and an old client re-saving unchanged boxes is a no-op, not a unit wipe.
+  const same = desiredFromRackBlob({ "15": { "A-1": [{ sku: "X", description: "X", quantity: 3 }] } });
+  const noop = planSync(existing, "rack", same.desired, same.locations);
+  assert.deepEqual(noop, { inserts: [], updates: [], deleteIds: [], audits: [] });
 });
