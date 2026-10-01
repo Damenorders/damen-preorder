@@ -57,6 +57,17 @@ export default async function AdminDashboard() {
             ]}
           />
           <DashboardCard
+            title="Odoo Inventory"
+            subtitle="The Odoo count: locations and quantities"
+            links={[
+              { label: "Find an Item", href: "/odoo-inventory?screen=find", primary: true, variant: "highlight" },
+              { label: "Odoo Catalog", href: "/odoo-inventory?screen=catalog" },
+              { label: "Warehouse Map", href: "/odoo-inventory?screen=map" },
+              { label: "Activity Log", href: "/odoo-inventory?screen=activity" },
+              { label: "Upload Odoo List", href: "/odoo-inventory/upload" },
+            ]}
+          />
+          <DashboardCard
             title="Pickups & Deliveries"
             subtitle="Pickup sheets and delivery tracking"
             links={[

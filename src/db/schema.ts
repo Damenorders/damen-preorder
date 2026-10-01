@@ -399,3 +399,5 @@ export * from "./inventory-schema";
 export * from "./product-list-schema";
 
 export * from "./purchase-order-schema";
+
+export * from "./odoo-inventory-schema";

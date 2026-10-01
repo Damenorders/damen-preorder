@@ -211,6 +211,13 @@
       "when": 1785000000009,
       "tag": "0029_inventory_qty_unit",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1785000000010,
+      "tag": "0030_odoo_inventory",
+      "breakpoints": true
     }
   ]
 }

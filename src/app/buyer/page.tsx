@@ -66,6 +66,20 @@ export default async function BuyerDashboard() {
               ]}
             />
           )}
+          {/* Odoo Inventory: buyer/admin (and dispatch) — hidden from the Butcher role. */}
+          {!isButcher && (
+            <DashboardCard
+              title="Odoo Inventory"
+              subtitle="The Odoo count: locations and quantities"
+              links={[
+                { label: "Find an Item", href: "/odoo-inventory?screen=find", primary: true, variant: "highlight" },
+                { label: "Odoo Catalog", href: "/odoo-inventory?screen=catalog" },
+                { label: "Warehouse Map", href: "/odoo-inventory?screen=map" },
+                { label: "Activity Log", href: "/odoo-inventory?screen=activity" },
+                { label: "Upload Odoo List", href: "/odoo-inventory/upload" },
+              ]}
+            />
+          )}
           {/* Pickups are buyer/admin only — hidden from the Butcher role. */}
           {!isButcher && (
             <DashboardCard
