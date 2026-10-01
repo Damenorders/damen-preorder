@@ -1207,13 +1207,13 @@
     // Fixed (non-growing) widths — nothing here stretches to fill leftover row space, so
     // racks stay exactly this size no matter what the floor cells do.
     const floorCell = (label, floorId) => `
-      <div class="rl-vaisle rl-vaisle-clickable" onclick="RL.openFloorEditor('${floorId}')" title="${esc(label)} — click to log pallets stored here" style="flex:0 0 65px; min-height:450px; padding:8px 0;">
+      <div class="rl-vaisle rl-vaisle-clickable" onclick="RL.openFloorEditor('${floorId}')" title="${esc(label)} — click to log pallets stored here" style="flex:0 0 65px; width:65px; min-width:65px; min-height:450px; padding:8px 0;">
         <div class="rl-vaisleline"></div>
         <div class="rl-vaislelabel" style="writing-mode:horizontal-tb; letter-spacing:1.5px; font-size:13px;">${esc(label)}${floorItems(floorId).length ? ` · ${floorItems(floorId).length}` : ''}</div>
         <div class="rl-vaisleline"></div>
       </div>`;
     const thinRack = (id) => `
-      <div style="flex:0 0 80px; min-width:0; min-height:450px;">${rackRunHtml(getRow(id), 'v', 450)}</div>`;
+      <div style="flex:0 0 80px; width:80px; min-width:80px; min-height:450px;">${rackRunHtml(getRow(id), 'v', 450)}</div>`;
     const brace = `<div class="rl-pairbrace" title="Shared back-to-back frame"></div>`;
     const stripCell = (label, floorId) => `
       <div class="rl-vaisle rl-vaisle-clickable" onclick="RL.openFloorEditor('${floorId}')" title="${esc(label)} — click to log pallets stored here" style="flex:1 1 0; min-height:52px; padding:8px 0;">
@@ -1224,7 +1224,10 @@
 
     // Racks 33/32/31/30 are a fixed 80px and Floor 3/Floor 2 a fixed 65px. The floors
     // must not size off leftover space: the plan is fit-content, and iOS Safari resolves
-    // a zero-basis flex item there to zero, collapsing the floor aisles on phones.
+    // a zero-basis flex item there to zero, collapsing the floor aisles on phones. Each
+    // column also carries an explicit width/min-width: Safari measures the plan's
+    // fit-content width from those, not from flex-basis, and with flex-basis alone the
+    // border came out narrower than the row, leaving Rack #30 outside it.
     // On a phone the plan is wider than the screen and scrolls sideways.
     const mainHtml = thinRack(33)
       + floorCell('Floor 3', 'floor3')
