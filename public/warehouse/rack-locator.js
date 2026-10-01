@@ -1207,7 +1207,7 @@
     // Fixed (non-growing) widths — nothing here stretches to fill leftover row space, so
     // racks stay exactly this size no matter what the floor cells do.
     const floorCell = (label, floorId) => `
-      <div class="rl-vaisle rl-vaisle-clickable" onclick="RL.openFloorEditor('${floorId}')" title="${esc(label)} — click to log pallets stored here" style="flex:1.5 1 0; min-height:450px; padding:8px 0;">
+      <div class="rl-vaisle rl-vaisle-clickable" onclick="RL.openFloorEditor('${floorId}')" title="${esc(label)} — click to log pallets stored here" style="flex:0 0 65px; min-height:450px; padding:8px 0;">
         <div class="rl-vaisleline"></div>
         <div class="rl-vaislelabel" style="writing-mode:horizontal-tb; letter-spacing:1.5px; font-size:13px;">${esc(label)}${floorItems(floorId).length ? ` · ${floorItems(floorId).length}` : ''}</div>
         <div class="rl-vaisleline"></div>
@@ -1222,9 +1222,10 @@
         <div class="rl-vaisleline"></div>
       </div>`;
 
-    // Racks 33/32/31/30 are a fixed 137px each — this never changes regardless of Floor
-    // 3/Floor 2's width. Floor 3 and Floor 2 are now a fixed 130px (thinner than before);
-    // the row no longer stretches to fill the card, which is fine — compact is the goal.
+    // Racks 33/32/31/30 are a fixed 80px and Floor 3/Floor 2 a fixed 65px. The floors
+    // must not size off leftover space: the plan is fit-content, and iOS Safari resolves
+    // a zero-basis flex item there to zero, collapsing the floor aisles on phones.
+    // On a phone the plan is wider than the screen and scrolls sideways.
     const mainHtml = thinRack(33)
       + floorCell('Floor 3', 'floor3')
       + thinRack(32) + brace + thinRack(31)
