@@ -246,3 +246,24 @@ export function planSync(
 
   return { inserts, updates, deleteIds, audits };
 }
+
+/**
+ * The first product that appears twice at one location, or null. planSync
+ * keys rows by (location, item code), so a second line of the same product
+ * would silently overwrite the first one's count — a save like that is
+ * refused instead, and the person puts the whole count on one line.
+ */
+export function findDuplicate(desired: Desired[]): Desired | null {
+  const seen = new Set<string>();
+  for (const d of desired) {
+    const key = JSON.stringify([d.location, d.itemCode]);
+    if (seen.has(key)) return d;
+    seen.add(key);
+  }
+  return null;
+}
+
+/** The message shown when findDuplicate finds one. */
+export function duplicateMessage(d: Desired): string {
+  return `${d.description || d.itemCode} is listed twice at ${d.location}. Put its whole count on one line.`;
+}

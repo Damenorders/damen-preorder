@@ -2,6 +2,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   clientSku,
+  duplicateMessage,
+  findDuplicate,
   desiredFromFloorBlob,
   desiredFromRackBlob,
   normalise,
@@ -232,4 +234,19 @@ test("a save from an old client (no unit count) keeps the stored unit count", ()
   const same = desiredFromRackBlob({ "15": { "A-1": [{ sku: "X", description: "X", quantity: 3 }] } });
   const noop = planSync(existing, "rack", same.desired, same.locations);
   assert.deepEqual(noop, { inserts: [], updates: [], deleteIds: [], audits: [] });
+});
+
+test("the same product twice at one location is caught before planSync can drop a count", () => {
+  const dupSku = desiredFromRackBlob({ "15": { "B-3": [{ sku: "OIL-12", quantity: 2 }, { sku: "OIL-12", quantity: 5 }] } });
+  const found = findDuplicate(dupSku.desired);
+  assert.ok(found);
+  assert.equal(found.location, "15-B-3");
+  assert.match(duplicateMessage(found), /listed twice at 15-B-3/);
+
+  const dupText = desiredFromFloorBlob({ "2": [{ description: "Tahini" }, { description: "Tahini" }] });
+  assert.ok(findDuplicate(dupText.desired));
+
+  // Same product at two DIFFERENT locations is fine.
+  const twoPlaces = desiredFromRackBlob({ "15": { "B-3": [{ sku: "OIL-12" }], "B-4": [{ sku: "OIL-12" }] } });
+  assert.equal(findDuplicate(twoPlaces.desired), null);
 });

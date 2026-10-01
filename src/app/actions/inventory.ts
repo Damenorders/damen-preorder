@@ -30,6 +30,8 @@ import {
 import {
   desiredFromFloorBlob,
   desiredFromRackBlob,
+  duplicateMessage,
+  findDuplicate,
   planSync,
   type ClientItem,
   type Desired,
@@ -216,11 +218,15 @@ export async function writeWarehouseKey(
 
   if (parsed.kind === "rack-data") {
     const { desired, locations } = desiredFromRackBlob(blob as RackBlob);
+    const dup = findDuplicate(desired);
+    if (dup) return { ok: false, error: duplicateMessage(dup) };
     await syncPlacements(user, parsed.unit, "rack", desired, locations);
     return { ok: true };
   }
   if (parsed.kind === "floor-data") {
     const { desired, locations } = desiredFromFloorBlob(blob as FloorBlob);
+    const dup = findDuplicate(desired);
+    if (dup) return { ok: false, error: duplicateMessage(dup) };
     await syncPlacements(user, parsed.unit, "floor", desired, locations);
     return { ok: true };
   }
@@ -251,12 +257,16 @@ export async function writeWarehouseLocation(input: {
   if (scope === "rack") {
     if (!rackId || !slotCode) return { ok: false, error: "Missing rack location" };
     const { desired, locations } = desiredFromRackBlob({ [rackId]: { [slotCode]: list } });
+    const dup = findDuplicate(desired);
+    if (dup) return { ok: false, error: duplicateMessage(dup) };
     await syncPlacements(user, unit, "rack", desired, locations);
     return { ok: true };
   }
   if (scope === "floor") {
     if (!floorId) return { ok: false, error: "Missing floor id" };
     const { desired, locations } = desiredFromFloorBlob({ [floorId]: list });
+    const dup = findDuplicate(desired);
+    if (dup) return { ok: false, error: duplicateMessage(dup) };
     await syncPlacements(user, unit, "floor", desired, locations);
     return { ok: true };
   }

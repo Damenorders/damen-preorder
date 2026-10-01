@@ -830,7 +830,7 @@
       const res = await STORE.set(key, value);
       if (res && res.ok === false) {
         console.error('Inventory save rejected:', res.error);
-        showFlash('⚠ ' + label + ' did not sync to the main inventory — check your connection and try again.');
+        showFlash('⚠ ' + (res.error || label + ' did not sync to the main inventory — check your connection and try again.'));
         return false;
       }
       return true;
@@ -859,7 +859,7 @@
       const res = await STORE.writeLocation(payload);
       if (res && res.ok === false) {
         console.error('Inventory save rejected:', res.error);
-        showFlash('⚠ ' + label + ' did not sync to the main inventory — check your connection and try again.');
+        showFlash('⚠ ' + (res.error || label + ' did not sync to the main inventory — check your connection and try again.'));
         return false;
       }
       return true;
@@ -1037,6 +1037,10 @@
     render();
   }
 
+  // A value passed as a string argument inside an onclick="…" attribute. esc()
+  // alone turned an apostrophe into &#39;, which the browser decodes back into a
+  // bare ' — so "HUILE D'OLIVE" broke the handler and the button did nothing.
+  function jsArg(s) { return esc(JSON.stringify(String(s == null ? '' : s))); }
   function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   }
@@ -2091,7 +2095,7 @@
           <span style="font-size:11.5px; color:#8A877C;">${g.places.length} location${g.places.length === 1 ? '' : 's'} · ${fmtCount(g.totalBox, g.totalUnit)} total</span>
         </div>
         <div style="display:flex; flex-direction:column; gap:6px; margin-top:12px;">${rows}</div>
-        <button class="rl-btn" style="width:100%; min-height:44px; margin-top:8px;" onclick="RL.startPlacing('${esc(g.sku)}', '${esc(g.description).replace(/'/g, '&#39;')}')">+ Place another pallet</button>
+        <button class="rl-btn" style="width:100%; min-height:44px; margin-top:8px;" onclick="RL.startPlacing(${jsArg(g.sku)}, ${jsArg(g.description)})">+ Place another pallet</button>
       </div>`;
     };
 
@@ -2117,7 +2121,7 @@
           <span style="font-family:'JetBrains Mono',monospace; font-size:10px; font-weight:700; color:#8A877C; background:#F3F1EC; border-radius:5px; padding:2px 6px;">${esc(it.s)}</span>
           <span style="font-size:11.5px; color:#B7B3A5; font-style:italic;">No location saved</span>
         </div>
-        <button class="rl-btn" style="width:100%; min-height:44px; margin-top:10px;" onclick="RL.startPlacing('${esc(it.c)}', '${esc(it.d).replace(/'/g, '&#39;')}')">Give it a location</button>
+        <button class="rl-btn" style="width:100%; min-height:44px; margin-top:10px;" onclick="RL.startPlacing(${jsArg(it.c)}, ${jsArg(it.d)})">Give it a location</button>
       </div>`).join('');
 
     const summary = `<div style="font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:600; letter-spacing:0.4px; color:#8A877C; margin-bottom:12px;">${q ? listGroups.length + ' match' + (listGroups.length === 1 ? '' : 'es') : located.length + ' item' + (located.length === 1 ? '' : 's') + ' placed'} · ${totalPlaced} pallet placement${totalPlaced === 1 ? '' : 's'} · one shared inventory, all users</div>`;
@@ -2193,7 +2197,7 @@
 
     const rows = shown.map(it => {
       const g = byCode[it.c.toUpperCase()];
-      return `<button onclick="${g ? `RL.findItem('${esc(it.c)}')` : `RL.startPlacing('${esc(it.c)}', '${esc(it.d).replace(/'/g, '&#39;')}')`}"
+      return `<button onclick="${g ? `RL.findItem(${jsArg(it.c)})` : `RL.startPlacing(${jsArg(it.c)}, ${jsArg(it.d)})`}"
               style="display:flex; align-items:center; gap:10px; width:100%; text-align:left; min-height:56px; background:#FFF;
                      border:none; border-bottom:1px solid #EFEDE5; padding:10px 12px; cursor:pointer;">
         <span style="flex:1 1 auto; min-width:0;">
@@ -2374,6 +2378,33 @@
     });
     showFlash('Enter a box or unit count for the highlighted product' + (bad.length > 1 ? 's' : '') + '.');
     focusQty(editor, bad[0]);
+    return true;
+  }
+
+  // The same product on two lines of one pallet would have one count
+  // overwrite the other when saved (the server keeps one row per product per
+  // location), so it is refused: same item code, or — for a product typed
+  // without a code — same description (case and spacing ignored).
+  function productKey(it) {
+    const sku = String(it.sku || '').trim();
+    return sku ? 'S:' + sku.toUpperCase() : 'D:' + String(it.description || '').trim().replace(/\s+/g, ' ').toUpperCase();
+  }
+  function duplicateReason(items) {
+    const seen = {};
+    for (const it of items) {
+      if (!hasProduct(it)) continue;
+      const k = productKey(it);
+      if (seen[k]) return (it.description || it.sku) + ' is on this pallet twice. Put its whole count on one line.';
+      seen[k] = 1;
+    }
+    return null;
+  }
+  // Every save/move guard: a missing count first, then a duplicate product.
+  function refuseInvalid(editor, ed) {
+    if (refuseUncounted(editor, ed)) return true;
+    const reason = duplicateReason(ed.items);
+    if (!reason) return false;
+    showFlash(reason);
     return true;
   }
 
@@ -2744,7 +2775,7 @@
       if (!e || e.saving || e.busy) return;
       commitEditorInputs();
       if (acInput) acHide();
-      if (refuseUncounted('floor', e)) return;
+      if (refuseInvalid('floor', e)) return;
       markSaving(e, true);
       const cleaned = e.items.filter(hasProduct).map(savedRow);
       // Refresh everyone else's items first, then change only this floor area.
@@ -2794,7 +2825,7 @@
       if (!e || e.saving || e.busy) return;
       commitEditorInputs();
       if (acInput) acHide();
-      if (refuseUncounted('rack', e)) return;
+      if (refuseInvalid('rack', e)) return;
       markSaving(e, true);
       const cleaned = e.items.filter(hasProduct).map(savedRow);
       // Refresh everyone else's items first, then change only this slot.
@@ -2896,7 +2927,7 @@
         return;
       }
 
-      if (refuseUncounted('rack', e)) return;
+      if (refuseInvalid('rack', e)) return;
       const sourceItems = e.items.filter(hasProduct).map(savedRow);
 
       const targetCache = whCache[tgt.whId];
@@ -2970,7 +3001,7 @@
       const e = state.editing;
       const i = e.itemMoveIndex;
       if (i == null || !e.items[i]) return;
-      if (refuseUncounted(e === state.floorEditing ? 'floor' : 'rack', e)) return;
+      if (refuseInvalid(e === state.floorEditing ? 'floor' : 'rack', e)) return;
       const item = savedRow(e.items[i]);
       if (!item.sku && !item.description) { showFlash('This item is empty — nothing to move.'); return; }
 
@@ -2994,6 +3025,10 @@
       const existingTarget = targetCache.data[t.rowId][tgtCode] || [];
       if (existingTarget.length >= MAX_ITEMS) {
         showFlash('That pallet already has the maximum of ' + MAX_ITEMS + ' items.');
+        return;
+      }
+      if (existingTarget.some(t => productKey(t) === productKey(item))) {
+        showFlash('That pallet already has ' + (item.description || item.sku) + ' — open it and add to its count instead.');
         return;
       }
 
@@ -3065,7 +3100,7 @@
       const e = state.floorEditing;
       const i = e.itemMoveIndex;
       if (i == null || !e.items[i]) return;
-      if (refuseUncounted(e === state.floorEditing ? 'floor' : 'rack', e)) return;
+      if (refuseInvalid(e === state.floorEditing ? 'floor' : 'rack', e)) return;
       const item = savedRow(e.items[i]);
       if (!item.sku && !item.description) { showFlash('This item is empty — nothing to move.'); return; }
 
@@ -3083,6 +3118,10 @@
       const existingTarget = targetCache.data[t.rowId][tgtCode] || [];
       if (existingTarget.length >= MAX_ITEMS) {
         showFlash('That pallet already has the maximum of ' + MAX_ITEMS + ' items.');
+        return;
+      }
+      if (existingTarget.some(t => productKey(t) === productKey(item))) {
+        showFlash('That pallet already has ' + (item.description || item.sku) + ' — open it and add to its count instead.');
         return;
       }
 
@@ -3122,6 +3161,8 @@
       if (!items[itemIndex]) return;
       if (sku !== null) items[itemIndex].sku = sku;
       if (description !== null) items[itemIndex].description = description;
+      const dup = duplicateReason(items);
+      if (dup) { showFlash(dup); render(); return; }
       logItemDiff(fullLoc(rowId, code.split('-')[0], code.split('-')[1]), CURRENT_WH.name, cellItems(rowId, code), items);
       setCellItems(rowId, code, items);
       saveCell(rowId, code);
@@ -3142,6 +3183,8 @@
       if (!items[itemIndex]) return;
       if (sku !== null) items[itemIndex].sku = sku;
       if (description !== null) items[itemIndex].description = description;
+      const dup = duplicateReason(items);
+      if (dup) { showFlash(dup); render(); return; }
       setFloorItems(floorId, items);
       saveFloor(floorId);
       render();
