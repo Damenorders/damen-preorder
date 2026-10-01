@@ -118,7 +118,10 @@ export function readXlsx(buf: Buffer): string[][] {
 
   while ((rowMatch = rowRe.exec(sheet))) {
     const cells: string[] = [];
-    const cellRe = /<c\b([^>]*)(?:\/>|>([\s\S]*?)<\/c>)/g;
+    // Lazy attributes: a greedy [^>]* ate the "/" of an empty self-closing
+    // cell (<c r="B4" s="1"/>), so the match ran on to the NEXT cell's </c> —
+    // that cell's value was lost, or its shared-string index read as a number.
+    const cellRe = /<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g;
     let cellMatch: RegExpExecArray | null;
 
     while ((cellMatch = cellRe.exec(rowMatch[1]))) {
