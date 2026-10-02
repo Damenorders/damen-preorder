@@ -795,6 +795,61 @@
   function hasProduct(it) { return !!((it.sku || '').trim() || (it.description || '').trim()); }
   function isUncounted(it) { return hasProduct(it) && it.quantity == null && it.quantityUnit == null; }
 
+  // An item move takes all of a product line or only part of it. The Box and
+  // Unit fields start at the full count; a field nobody touched means "all of
+  // it", and one cleared beside a filled one is 0. ed.itemMoveAmount holds only
+  // what was typed.
+  function moveHave(item) {
+    return { box: item.quantity == null ? 0 : item.quantity, unit: item.quantityUnit == null ? 0 : item.quantityUnit };
+  }
+  function moveAmountHtml(editor, ed, item) {
+    const a = ed.itemMoveAmount || {};
+    const have = moveHave(item);
+    return `<div class="orl-movegrid">` + [['box', 'Box'], ['unit', 'Units']].map(([f, label]) => {
+      const v = a[f] === undefined ? String(have[f]) : (a[f] == null ? '' : String(a[f]));
+      return `
+            <div class="orl-movefield">
+              <label>${label} to move <span class="orl-movehave">(of ${have[f]})</span></label>
+              <input type="number" min="0" inputmode="numeric" class="orl-moveamt" data-editor="${editor}" data-field="${f}" data-shown="${v}"
+                     value="${v}" placeholder="0" onfocus="ORL.selectQty(this)" onchange="ORL.setItemMoveAmount('${editor}', '${f}', this.value)">
+            </div>`;
+    }).join('') + `</div>`;
+  }
+  // A count edited while the move panel is open: untouched amount fields
+  // follow it, so what is shown is what "all" will move.
+  function syncMoveAmount(editor, ed) {
+    const item = ed && ed.itemMoveIndex != null && ed.items[ed.itemMoveIndex];
+    if (!item) return;
+    const have = moveHave(item);
+    root.querySelectorAll('.orl-moveamt[data-editor="' + editor + '"]').forEach(q => {
+      const f = q.getAttribute('data-field');
+      const lab = q.parentNode.querySelector('.orl-movehave');
+      if (lab) lab.textContent = '(of ' + have[f] + ')';
+      if ((ed.itemMoveAmount || {})[f] !== undefined || q.value !== q.getAttribute('data-shown')) return;
+      q.value = String(have[f]);
+      q.setAttribute('data-shown', q.value);
+    });
+  }
+  function commitMoveAmount(editor, ed) {
+    root.querySelectorAll('.orl-moveamt[data-editor="' + editor + '"]').forEach(q => {
+      if (q.value === q.getAttribute('data-shown')) return;
+      ed.itemMoveAmount = ed.itemMoveAmount || {};
+      ed.itemMoveAmount[q.getAttribute('data-field')] = parseCount(q.value);
+    });
+  }
+  // item is a savedRow (numbers). Returns { box, unit, full } or { error }.
+  function resolveMoveAmount(ed, item) {
+    const a = ed.itemMoveAmount || {};
+    let box = a.box === undefined ? item.quantity : a.box;
+    let unit = a.unit === undefined ? item.quantityUnit : a.unit;
+    if (box == null && unit == null) return { error: 'Enter how many to move.' };
+    box = box || 0; unit = unit || 0;
+    if (!box && !unit) return { error: 'Enter how many to move — 0 moves nothing.' };
+    if (box > item.quantity) return { error: 'There ' + (item.quantity === 1 ? 'is' : 'are') + ' only ' + item.quantity + ' box here — you cannot move ' + box + '.' };
+    if (unit > item.quantityUnit) return { error: 'There ' + (item.quantityUnit === 1 ? 'is' : 'are') + ' only ' + item.quantityUnit + ' unit here — you cannot move ' + unit + '.' };
+    return { box, unit, full: box === item.quantity && unit === item.quantityUnit };
+  }
+
   /* ---------------- ODOO RULES ---------------- */
   // Where a product stands against the Odoo list:
   //   ok         — an Odoo SKU (or an empty row)
@@ -1960,6 +2015,7 @@
         const levelsI = (targetLayoutI[t.rowId] && targetLayoutI[t.rowId].levelsOrder) || [];
         const levelOptionsI = levelsI.map(l => `<option value="${l}" ${l === t.level ? 'selected' : ''}>${l}</option>`).join('');
         itemMoveHtml = `
+          ${moveAmountHtml(e === state.floorEditing ? 'floor' : 'rack', e, item)}
           <div class="orl-movegrid">
             <div class="orl-movefield">
               <label>Warehouse</label>
@@ -2101,6 +2157,7 @@
         const levelsI = (targetLayoutI[t.rowId] && targetLayoutI[t.rowId].levelsOrder) || [];
         const levelOptionsI = levelsI.map(l => `<option value="${l}" ${l === t.level ? 'selected' : ''}>${l}</option>`).join('');
         itemMoveHtml = `
+          ${moveAmountHtml(e === state.floorEditing ? 'floor' : 'rack', e, item)}
           <div class="orl-movegrid">
             <div class="orl-movefield">
               <label>Warehouse</label>
@@ -2536,6 +2593,7 @@
           if (field === 'quantity' || field === 'quantityUnit') it[field] = parseCount(q.value);
         });
       });
+      commitMoveAmount(editor, ed);
     });
   }
 
@@ -2560,6 +2618,7 @@
     const shown = n == null ? '' : String(n);
     if (el.value !== shown) el.value = shown;
     if (!isUncounted(it)) { const tr = el.closest('tr'); if (tr) tr.classList.remove('orl-uncounted'); }
+    if (i === ed.itemMoveIndex) syncMoveAmount(ed === state.floorEditing ? 'floor' : 'rack', ed);
   }
 
   // Save/move guard: a product with neither a box nor a unit count is refused
@@ -3311,6 +3370,12 @@
       render();
     },
 
+    setItemMoveAmount(editor, field, value) {
+      const ed = editor === 'floor' ? state.floorEditing : state.editing;
+      if (!ed || (field !== 'box' && field !== 'unit')) return;
+      ed.itemMoveAmount = ed.itemMoveAmount || {};
+      ed.itemMoveAmount[field] = parseCount(value);
+    },
     toggleItemMove(i) {
       commitEditorInputs();
       const e = state.editing;
@@ -3318,6 +3383,7 @@
         e.itemMoveIndex = null;
       } else {
         e.itemMoveIndex = i;
+        e.itemMoveAmount = {};
         e.itemMoveTarget = { whId: state.warehouseId, rowId: e.rowId, level: e.level, pos: e.pos };
       }
       render();
@@ -3346,6 +3412,8 @@
       if (refuseInvalid(e === state.floorEditing ? 'floor' : 'rack', e)) return;
       const item = savedRow(e.items[i]);
       if (!item.sku && !item.description) { showFlash('This item is empty — nothing to move.'); return; }
+      const amt = resolveMoveAmount(e, item);
+      if (amt.error) { showFlash(amt.error); return; }
 
       const t = e.itemMoveTarget;
       const srcCode = e.level + '-' + e.pos;
@@ -3374,16 +3442,19 @@
         return;
       }
 
-      // remove the item from the pallet currently open in the editor
-      e.items.splice(i, 1);
+      // Take it off the pallet open in the editor — the whole line, or only
+      // the amount moved, the rest staying where it is.
+      const moved = Object.assign({}, item, { quantity: amt.box, quantityUnit: amt.unit });
+      if (amt.full) e.items.splice(i, 1);
+      else { e.items[i].quantity = item.quantity - amt.box; e.items[i].quantityUnit = item.quantityUnit - amt.unit; }
       const remainingSourceItems = e.items.filter(it => it.sku.trim() || it.description.trim())
         .map(savedRow);
       setCellItems(e.rowId, srcCode, remainingSourceItems);
 
       // add it onto the target pallet
-      targetCache.data[t.rowId][tgtCode] = [...existingTarget, item];
+      targetCache.data[t.rowId][tgtCode] = [...existingTarget, moved];
       logAudit('moved', {
-        sku: item.sku, desc: item.description, qty: item.quantity, qtyUnit: item.quantityUnit, wh: CURRENT_WH.name,
+        sku: item.sku, desc: item.description, qty: moved.quantity, qtyUnit: moved.quantityUnit, wh: CURRENT_WH.name,
         from: fullLoc(e.rowId, e.level, e.pos),
         to: fullLoc(t.rowId, t.level, t.pos) + (t.whId !== state.warehouseId ? ' (' + targetWh.name + ')' : '')
       });
@@ -3397,17 +3468,20 @@
       }
 
       e.itemMoveIndex = null;
+      e.itemMoveAmount = {};
       // The flash no longer redraws the screen, so redraw the editor here.
       render();
       const dt = depthInfo(t.rowId, t.rowId + '-' + tgtCode);
       const displayTgt = dt.clean + (dt.tag && dt.tag !== 'Front' ? dt.suffix : '');
-      showFlash('Moved item to ' + displayTgt + (t.whId !== state.warehouseId ? ' in ' + targetWh.name : '') + '.');
+      showFlash('Moved ' + fmtCount(amt.box, amt.unit) + ' to ' + displayTgt + (t.whId !== state.warehouseId ? ' in ' + targetWh.name : '') + '.' +
+        (amt.full ? '' : ' ' + fmtCount(item.quantity - amt.box, item.quantityUnit - amt.unit) + ' left here.'));
     },
 
     // Jump straight from the spreadsheet view into a pallet's per-item move panel.
     moveItemFromTable(rowId, level, pos, itemIndex) {
       openEditor(rowId, level, pos);
       state.editing.itemMoveIndex = itemIndex;
+      state.editing.itemMoveAmount = {};
       state.editing.itemMoveTarget = { whId: state.warehouseId, rowId, level, pos };
       render();
     },
@@ -3420,6 +3494,7 @@
       } else {
         const firstRow = state.rows[0];
         e.itemMoveIndex = i;
+        e.itemMoveAmount = {};
         e.itemMoveTarget = { whId: state.warehouseId, rowId: firstRow.id, level: RACK_LAYOUT[firstRow.id].levelsOrder[0], pos: 1 };
       }
       render();
@@ -3448,6 +3523,8 @@
       if (refuseInvalid(e === state.floorEditing ? 'floor' : 'rack', e)) return;
       const item = savedRow(e.items[i]);
       if (!item.sku && !item.description) { showFlash('This item is empty — nothing to move.'); return; }
+      const amt = resolveMoveAmount(e, item);
+      if (amt.error) { showFlash(amt.error); return; }
 
       const t = e.itemMoveTarget;
       const tgtCode = t.level + '-' + t.pos;
@@ -3470,16 +3547,18 @@
         return;
       }
 
-      // remove it from floor storage
-      e.items.splice(i, 1);
+      // Take it out of floor storage — the whole line, or only the amount moved.
+      const moved = Object.assign({}, item, { quantity: amt.box, quantityUnit: amt.unit });
+      if (amt.full) e.items.splice(i, 1);
+      else { e.items[i].quantity = item.quantity - amt.box; e.items[i].quantityUnit = item.quantityUnit - amt.unit; }
       const remainingItems = e.items.filter(it => it.sku.trim() || it.description.trim())
         .map(savedRow);
       setFloorItems(e.floorId, remainingItems);
 
       // add it onto the target rack pallet
-      targetCache.data[t.rowId][tgtCode] = [...existingTarget, item];
+      targetCache.data[t.rowId][tgtCode] = [...existingTarget, moved];
       logAudit('moved', {
-        sku: item.sku, desc: item.description, qty: item.quantity, qtyUnit: item.quantityUnit, wh: CURRENT_WH.name,
+        sku: item.sku, desc: item.description, qty: moved.quantity, qtyUnit: moved.quantityUnit, wh: CURRENT_WH.name,
         from: CURRENT_WH.floorLabel(e.floorId),
         to: fullLoc(t.rowId, t.level, t.pos) + (t.whId !== state.warehouseId ? ' (' + targetWh.name + ')' : '')
       });
@@ -3491,11 +3570,13 @@
       }
 
       e.itemMoveIndex = null;
+      e.itemMoveAmount = {};
       // The flash no longer redraws the screen, so redraw the editor here.
       render();
       const dt = depthInfo(t.rowId, t.rowId + '-' + tgtCode);
       const displayTgt = dt.clean + (dt.tag && dt.tag !== 'Front' ? dt.suffix : '');
-      showFlash('Moved item to ' + displayTgt + (t.whId !== state.warehouseId ? ' in ' + targetWh.name : '') + '.');
+      showFlash('Moved ' + fmtCount(amt.box, amt.unit) + ' to ' + displayTgt + (t.whId !== state.warehouseId ? ' in ' + targetWh.name : '') + '.' +
+        (amt.full ? '' : ' ' + fmtCount(item.quantity - amt.box, item.quantityUnit - amt.unit) + ' left here.'));
     },
 
     // Jump straight from the spreadsheet view into a floor pallet's move panel.

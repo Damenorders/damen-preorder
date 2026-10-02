@@ -141,6 +141,32 @@ test("a move is logged as one 'moved' row, not removed + added", () => {
   ]);
 });
 
+test("moving part of a line is one 'moved' row with the amount moved", () => {
+  const base = { sku: "A100", description: "TS - SQUARE RICE PAPER 22CM", consignment: false };
+  const rows = pairMoves(
+    [
+      { action: "added", unit: "dry", location: "15-B-6", ...base, quantity: 6, quantityUnit: 0 },
+      { action: "qty", unit: "dry", location: "15-B-4", ...base, quantity: 4, quantityUnit: 2, prevQuantity: 10, prevQuantityUnit: 2 },
+    ],
+    (unit, loc) => `${unit}:${loc}`,
+  );
+  assert.deepEqual(rows, [
+    { action: "moved", unit: "dry", sku: "A100", description: base.description, fromLocation: "dry:15-B-4", toLocation: "dry:15-B-6", quantity: 6, quantityUnit: 0, consignment: false },
+  ]);
+});
+
+test("a count drop that doesn't match what arrived is not a move", () => {
+  const base = { sku: "A100", description: "TS - SQUARE RICE PAPER 22CM", consignment: false };
+  const rows = pairMoves(
+    [
+      { action: "added", unit: "dry", location: "15-B-6", ...base, quantity: 5, quantityUnit: 0 },
+      { action: "qty", unit: "dry", location: "15-B-4", ...base, quantity: 4, quantityUnit: 0, prevQuantity: 10, prevQuantityUnit: 0 },
+    ],
+    (unit, loc) => `${unit}:${loc}`,
+  );
+  assert.deepEqual(rows.map((r) => r.action), ["added", "qty"]);
+});
+
 test("a swap logs two moves; unrelated changes stay as they are", () => {
   const a = { sku: "A100", description: "TS - SQUARE RICE PAPER 22CM", quantity: 1, quantityUnit: 0, consignment: false };
   const b = { sku: null, description: "Mystery sauce", quantity: 2, quantityUnit: 0, consignment: false };

@@ -311,7 +311,9 @@ export type OdooAuditRow =
  * A move is saved as two location writes, which on their own read as
  * "removed" at the source and "added" at the target. This pairs them back up:
  * the same product leaving one location and arriving at another becomes one
- * "moved" row (from → to, with the count it arrived with). Anything that
+ * "moved" row (from → to, with the count it arrived with). Part of a line
+ * moved reads as a count drop at the source, and pairs the same way when the
+ * drop matches what arrived. Anything that
  * doesn't pair — a real removal, a count change — is kept as it was.
  * `label` names a location for the log.
  */
@@ -340,6 +342,36 @@ export function pairMoves(
       sku: added.sku,
       description: added.description,
       fromLocation: label(removed.unit, removed.location),
+      toLocation: label(added.unit, added.location),
+      quantity: added.quantity,
+      quantityUnit: added.quantityUnit,
+      consignment: added.consignment,
+    });
+  }
+  // Part of a line moved: the source count drops by exactly what arrives.
+  for (const dropped of audits) {
+    if (dropped.action !== "qty" || used.has(dropped)) continue;
+    const box = (dropped.prevQuantity ?? dropped.quantity) - dropped.quantity;
+    const unit = (dropped.prevQuantityUnit ?? dropped.quantityUnit) - dropped.quantityUnit;
+    if (box < 0 || unit < 0 || box + unit === 0) continue;
+    const added = audits.find(
+      (a) =>
+        a.action === "added" &&
+        !used.has(a) &&
+        keyOf(a) === keyOf(dropped) &&
+        (a.unit !== dropped.unit || a.location !== dropped.location) &&
+        a.quantity === box &&
+        a.quantityUnit === unit,
+    );
+    if (!added) continue;
+    used.add(added);
+    used.add(dropped);
+    out.push({
+      action: "moved",
+      unit: added.unit,
+      sku: added.sku,
+      description: added.description,
+      fromLocation: label(dropped.unit, dropped.location),
       toLocation: label(added.unit, added.location),
       quantity: added.quantity,
       quantityUnit: added.quantityUnit,
