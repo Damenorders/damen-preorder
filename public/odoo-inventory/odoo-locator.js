@@ -290,8 +290,29 @@
       floorIds: ['floor2', 'floor1'],
       floorLabel: id => ({ floor2: 'Floor 2', floor1: 'Floor 1' }[id] || id),
       storagePrefix: 'fridge60-'
+    },
+    // The Meat Fridge and Fish Fridge are each ONE location: no racks or
+    // pallets, a single list (stored as floor area FRIDGE_SPOT) that holds any
+    // number of products. Not drawn on the map — they open from the two
+    // buttons under it.
+    meatfridge: {
+      id: 'meatfridge', name: 'Meat Fridge', fridge: true,
+      rackIds: [], layout: {},
+      floorIds: ['main'], floorLabel: () => 'Meat Fridge',
+      storagePrefix: 'meatfridge-'
+    },
+    fishfridge: {
+      id: 'fishfridge', name: 'Fish Fridge', fridge: true,
+      rackIds: [], layout: {},
+      floorIds: ['main'], floorLabel: () => 'Fish Fridge',
+      storagePrefix: 'fishfridge-'
     }
   };
+  const FRIDGE_SPOT = 'main';
+  // Places that pick a rack location only list the warehouses that have racks.
+  function rackWarehouses() { return Object.values(WAREHOUSES).filter(w => !w.fridge); }
+  // How many product lines an editor may hold: a pallet stops at MAX_ITEMS, a fridge never does.
+  function itemLimit() { return CURRENT_WH && CURRENT_WH.fridge ? Infinity : MAX_ITEMS; }
 
   // Mutable "current warehouse" pointers — reassigned by switchWarehouse() below.
   // Rest of the code below reads these as if they were the only warehouse, same as before.
@@ -2012,7 +2033,10 @@
       let itemMoveHtml = '';
       if (showItemMove) {
         const t = e.itemMoveTarget;
-        const whOptionsI = Object.values(WAREHOUSES).map(w => `<option value="${w.id}" ${w.id === t.whId ? 'selected' : ''}>${esc(w.name)}</option>`).join('');
+        // Rack warehouses and the two fridges — never the fridge this product is already in.
+        const whOptionsI = Object.values(WAREHOUSES).filter(w => !(w.fridge && w.id === state.warehouseId))
+          .map(w => `<option value="${w.id}" ${w.id === t.whId ? 'selected' : ''}>${esc(w.name)}</option>`).join('');
+        const toFridge = !!WAREHOUSES[t.whId].fridge;
         const targetCacheI = whCache[t.whId] || { rows: [] };
         const rowOptionsI = targetCacheI.rows.map(r => `<option value="${r.id}" ${r.id === t.rowId ? 'selected' : ''}>${esc(r.name)}</option>`).join('');
         const targetLayoutI = WAREHOUSES[t.whId].layout;
@@ -2025,7 +2049,7 @@
               <label>Warehouse</label>
               <select onchange="ORL.setItemMoveField('whId', this.value)">${whOptionsI}</select>
             </div>
-            <div class="orl-movefield">
+            ${toFridge ? '' : `<div class="orl-movefield">
               <label>Rack</label>
               <select onchange="ORL.setItemMoveField('rowId', parseInt(this.value))">${rowOptionsI}</select>
             </div>
@@ -2036,9 +2060,9 @@
             <div class="orl-movefield">
               <label>Position</label>
               <input type="text" value="${esc(String(t.pos))}" placeholder="e.g. 1 or 1a" onchange="ORL.setItemMoveField('pos', this.value.trim())">
-            </div>
+            </div>`}
           </div>
-          <button class="orl-btn orl-primary" style="width:100%; margin-top:10px;" onclick="ORL.confirmItemMove()">Move this item here</button>
+          <button class="orl-btn orl-primary" style="width:100%; margin-top:10px;" onclick="ORL.confirmItemMove()">${toFridge ? 'Move into ' + esc(WAREHOUSES[t.whId].name) : 'Move this item here'}</button>
         `;
       }
       itemsHtml += `
@@ -2076,7 +2100,7 @@
     const addBtn = e.items.length < MAX_ITEMS && e.items.length > 0
       ? `<button class="orl-addbtn" onclick="ORL.addItem()">+ Add item (up to ${MAX_ITEMS} per pallet)</button>` : '';
 
-    const whOptions = Object.values(WAREHOUSES).map(w => `<option value="${w.id}" ${w.id === e.moveTarget.whId ? 'selected' : ''}>${esc(w.name)}</option>`).join('');
+    const whOptions = rackWarehouses().map(w => `<option value="${w.id}" ${w.id === e.moveTarget.whId ? 'selected' : ''}>${esc(w.name)}</option>`).join('');
     const targetCache = whCache[e.moveTarget.whId] || { rows: [] };
     const rowOptions = targetCache.rows.map(r => `<option value="${r.id}" ${r.id === e.moveTarget.rowId ? 'selected' : ''}>${esc(r.name)}</option>`).join('');
     const targetLayout = WAREHOUSES[e.moveTarget.whId].layout;
@@ -2147,6 +2171,8 @@
   function renderFloorModal() {
     if (!state.floorEditing) return '';
     const e = state.floorEditing;
+    const isFridge = !!CURRENT_WH.fridge;
+    const addLabel = isFridge ? '+ Add product' : '+ Add pallet';
 
     let itemsHtml = '';
     e.items.forEach((item, i) => {
@@ -2154,7 +2180,10 @@
       let itemMoveHtml = '';
       if (showItemMove) {
         const t = e.itemMoveTarget;
-        const whOptionsI = Object.values(WAREHOUSES).map(w => `<option value="${w.id}" ${w.id === t.whId ? 'selected' : ''}>${esc(w.name)}</option>`).join('');
+        // Rack warehouses and the two fridges — never the fridge this product is already in.
+        const whOptionsI = Object.values(WAREHOUSES).filter(w => !(w.fridge && w.id === state.warehouseId))
+          .map(w => `<option value="${w.id}" ${w.id === t.whId ? 'selected' : ''}>${esc(w.name)}</option>`).join('');
+        const toFridge = !!WAREHOUSES[t.whId].fridge;
         const targetCacheI = whCache[t.whId] || { rows: [] };
         const rowOptionsI = targetCacheI.rows.map(r => `<option value="${r.id}" ${r.id === t.rowId ? 'selected' : ''}>${esc(r.name)}</option>`).join('');
         const targetLayoutI = WAREHOUSES[t.whId].layout;
@@ -2167,7 +2196,7 @@
               <label>Warehouse</label>
               <select onchange="ORL.setFloorItemMoveField('whId', this.value)">${whOptionsI}</select>
             </div>
-            <div class="orl-movefield">
+            ${toFridge ? '' : `<div class="orl-movefield">
               <label>Rack</label>
               <select onchange="ORL.setFloorItemMoveField('rowId', parseInt(this.value))">${rowOptionsI}</select>
             </div>
@@ -2178,9 +2207,9 @@
             <div class="orl-movefield">
               <label>Position</label>
               <input type="text" value="${esc(String(t.pos))}" placeholder="e.g. 1 or 1a" onchange="ORL.setFloorItemMoveField('pos', this.value.trim())">
-            </div>
+            </div>`}
           </div>
-          <button class="orl-btn orl-primary" style="width:100%; margin-top:10px;" onclick="ORL.confirmFloorItemMove()">Move onto that rack location</button>
+          <button class="orl-btn orl-primary" style="width:100%; margin-top:10px;" onclick="ORL.confirmFloorItemMove()">${toFridge ? 'Move into ' + esc(WAREHOUSES[t.whId].name) : 'Move onto that rack location'}</button>
         `;
       }
       itemsHtml += `
@@ -2207,27 +2236,27 @@
             <div class="orl-actgrid">
               ${consTagHtml('floor', item, i)}
               <button class="orl-rowbtn" onclick="ORL.removeFloorItem(${i})"
-                    aria-label="Remove this pallet from floor storage" title="Remove this pallet from floor storage">✕</button>
+                    aria-label="${isFridge ? 'Remove this product from the fridge' : 'Remove this pallet from floor storage'}" title="${isFridge ? 'Remove this product from the fridge' : 'Remove this pallet from floor storage'}">✕</button>
               <button class="orl-rowbtn orl-movebtn${showItemMove ? ' active' : ''}" onclick="ORL.toggleFloorItemMove(${i})"
-                    aria-label="Move this pallet onto a rack location" title="Move this pallet onto a rack location">⇄</button>
+                    aria-label="${isFridge ? 'Move this product somewhere else' : 'Move this pallet onto a rack location'}" title="${isFridge ? 'Move this product somewhere else' : 'Move this pallet onto a rack location'}">⇄</button>
             </div>
           </td>
         </tr>
         ${showItemMove ? `<tr><td colspan="4" style="border:none; padding:10px 0 4px;">${itemMoveHtml}</td></tr>` : ''}`;
     });
 
-    const addBtn = e.items.length < MAX_ITEMS && e.items.length > 0
-      ? `<button class="orl-addbtn" onclick="ORL.addFloorItem()">+ Add pallet</button>` : '';
+    const addBtn = e.items.length < itemLimit() && e.items.length > 0
+      ? `<button class="orl-addbtn" onclick="ORL.addFloorItem()">${addLabel}</button>` : '';
 
     return `
       <div class="orl-overlay">
         <div class="orl-modal">
-          <div class="orl-eyebrow">Floor storage</div>
+          <div class="orl-eyebrow">${isFridge ? 'Fridge' : 'Floor storage'}</div>
           <div class="orl-titlerow" style="margin-bottom:6px;">
             <h3 style="font-size:30px; margin:0;">${esc(CURRENT_WH.floorLabel(e.floorId))}</h3>
-            ${consSwitchHtml('floor', e, 'area')}
+            ${consSwitchHtml('floor', e, isFridge ? 'fridge' : 'area')}
           </div>
-          <div class="orl-code" style="color:#A6A398; margin-bottom:14px;">Pallets sitting on the floor in this aisle — no specific rack location</div>
+          <div class="orl-code" style="color:#A6A398; margin-bottom:14px;">${isFridge ? 'One location — every product in this fridge, no racks or pallets' : 'Pallets sitting on the floor in this aisle — no specific rack location'}</div>
 
           <table class="orl-itemtable" style="width:100%; border-collapse:collapse; table-layout:fixed;">
             <thead>
@@ -2240,7 +2269,7 @@
             </thead>
             <tbody>${itemsHtml}</tbody>
           </table>
-          ${itemsHtml ? '' : `<button class="orl-addbtn" style="margin-top:12px;" onclick="ORL.addFloorItem()">+ Add pallet</button>`}
+          ${itemsHtml ? '' : `<button class="orl-addbtn" style="margin-top:12px;" onclick="ORL.addFloorItem()">${addLabel}</button>`}
           ${addBtn}
 
           <div class="orl-modalbtns">
@@ -2514,7 +2543,7 @@
         <span style="flex:1 1 auto; min-width:0;">
           <span style="display:block; font-family:'Inter',sans-serif; font-size:13px; font-weight:500; color:#1E1E1C; line-height:1.35;">${esc(e.desc || e.sku || '(pallet)')}</span>
           <span style="display:block; font-family:'JetBrains Mono',monospace; font-size:11px; color:#8A877C; margin-top:2px;">
-            ${e.from ? esc(e.from) + ' → ' + esc(e.to || '') : esc(e.loc || '')}${e.wh ? ' · ' + esc(e.wh) : ''}${e.qty != null ? ' · ' + fmtCount(e.qty, e.qtyUnit) : ''}${e.prevQty != null ? ' (was ' + fmtCount(e.prevQty, e.prevQtyUnit) + ')' : ''}
+            ${e.from ? esc(e.from) + ' → ' + esc(e.to || '') : esc(e.loc || '')}${e.wh && e.wh !== e.loc ? ' · ' + esc(e.wh) : ''}${e.qty != null ? ' · ' + fmtCount(e.qty, e.qtyUnit) : ''}${e.prevQty != null ? ' (was ' + fmtCount(e.prevQty, e.prevQtyUnit) + ')' : ''}
           </span>
         </span>
         <span style="flex:0 0 auto; text-align:right;">
@@ -2662,6 +2691,55 @@
     ed.saving = on;
     const btn = root.querySelector('.orl-modalbtns .orl-primary');
     if (btn) { btn.disabled = on; btn.textContent = on ? 'Saving…' : 'Save'; }
+  }
+
+  /* ---------------- MOVE A PRODUCT INTO A FRIDGE ---------------- */
+  // From the open pallet editor ('rack') or floor/fridge editor ('floor'):
+  // the whole line or part of it goes onto the fridge's one list. Same rules
+  // as a move onto a pallet — the product may not already be in that fridge —
+  // and both sides are saved together (persistMove).
+  async function moveIntoFridge(kind, e, i, item, amt) {
+    const t = e.itemMoveTarget;
+    const fridge = WAREHOUSES[t.whId];
+    if (kind === 'floor' && t.whId === state.warehouseId) { showFlash('This product is already in ' + fridge.name + '.'); return; }
+    if (!whCache[t.whId]) await loadWarehouseData(t.whId);
+    const cache = whCache[t.whId];
+    const existing = (cache.floorData && cache.floorData[FRIDGE_SPOT]) || [];
+    if (existing.some(x => productKey(x) === productKey(item))) {
+      showFlash(fridge.name + ' already has ' + (item.description || item.sku) + ' — open it and add to its count instead.');
+      return;
+    }
+    const moved = Object.assign({}, item, { quantity: amt.box, quantityUnit: amt.unit });
+    if (amt.full) e.items.splice(i, 1);
+    else { e.items[i].quantity = item.quantity - amt.box; e.items[i].quantityUnit = item.quantityUnit - amt.unit; }
+    const remaining = e.items.filter(it => it.sku.trim() || it.description.trim()).map(savedRow);
+    let source, from;
+    if (kind === 'rack') {
+      const srcCode = e.level + '-' + e.pos;
+      setCellItems(e.rowId, srcCode, remaining);
+      source = cellPayload(state.warehouseId, e.rowId, srcCode);
+      from = fullLoc(e.rowId, e.level, e.pos);
+    } else {
+      setFloorItems(e.floorId, remaining);
+      source = floorPayload(state.warehouseId, e.floorId);
+      from = CURRENT_WH.floorLabel(e.floorId);
+    }
+    cache.floorData = cache.floorData || {};
+    cache.floorData[FRIDGE_SPOT] = [...existing, moved];
+    logAudit('moved', {
+      sku: item.sku, desc: item.description, qty: moved.quantity, qtyUnit: moved.quantityUnit, wh: CURRENT_WH.name,
+      from, to: fridge.name
+    });
+    if (!(await persistMove(floorPayload(t.whId, FRIDGE_SPOT), source))) {
+      if (kind === 'rack') state.editing = null; else state.floorEditing = null;
+      render();
+      return;
+    }
+    e.itemMoveIndex = null;
+    e.itemMoveAmount = {};
+    render();
+    showFlash('Moved ' + fmtCount(amt.box, amt.unit) + ' to ' + fridge.name + '.' +
+      (amt.full ? '' : ' ' + fmtCount(item.quantity - amt.box, item.quantityUnit - amt.unit) + ' left here.'));
   }
 
   /* ---------------- MOVE A WHOLE PALLET (mouse drag and finger drag) ---------------- */
@@ -2893,6 +2971,23 @@
       return;
     }
 
+    if (state.screen === 'fridge') {
+      if (!state.floorEditing) { state.screen = 'map'; state.warehouseId = null; renderScreen(); return; }
+      root.innerHTML = `
+        <div class="orl-top">
+          <div>
+            <div class="orl-eyebrow">Odoo Inventory</div>
+            <h1>${esc(CURRENT_WH.name)}</h1>
+          </div>
+          <button class="orl-backbtn" onclick="ORL.closeFloorEditor()">← Back to warehouse view</button>
+        </div>
+        ${globalNav('map')}
+        ${renderFloorModal()}
+        ${state.flash ? `<div class="orl-flash">${esc(state.flash)}</div>` : ''}
+      `;
+      return;
+    }
+
     if (state.screen === 'map') {
       root.innerHTML = `
         ${placingBanner()}
@@ -2975,7 +3070,7 @@
   }
 
   function renderDashboard() {
-    const cards = Object.values(WAREHOUSES).map(wh => {
+    const cards = rackWarehouses().map(wh => {
       const cache = whCache[wh.id] || { rows: [], data: {}, floorData: {} };
       let filled = 0, total = 0;
       cache.rows.forEach(row => {
@@ -3058,7 +3153,19 @@
                style="position:absolute; left:96%; top:60%; width:4%; height:18%; box-sizing:border-box; cursor:pointer; border:2px solid #1E3A6B; border-radius:2px; background:#F6F2E9; display:flex; align-items:center; justify-content:center; font-family:'JetBrains Mono',monospace; font-weight:700; font-size:9px; color:#1E1E1C; transition:background 0.1s ease;">R5</div>
         </div>
         </div>
-      </div>`;
+      </div>
+      ${fridgeButtonsHtml()}`;
+  }
+  function fridgeButtonsHtml() {
+    const btn = id => {
+      const n = ((whCache[id] && whCache[id].floorData && whCache[id].floorData[FRIDGE_SPOT]) || []).length;
+      return `<button class="orl-btn" onclick="ORL.openFridge('${id}')"
+                style="flex:1 1 0; min-width:0; min-height:56px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;">
+          <span style="font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:18px; letter-spacing:0.4px; text-transform:uppercase; color:#1E1E1C;">${esc(WAREHOUSES[id].name)}</span>
+          <span style="font-size:11.5px; color:#8A877C;">${n} product${n === 1 ? '' : 's'}</span>
+        </button>`;
+    };
+    return `<div style="display:flex; gap:10px; max-width:1180px; margin:14px auto 0;">${btn('meatfridge')}${btn('fishfridge')}</div>`;
   }
 
   window.ORL = {
@@ -3127,13 +3234,38 @@
       render();
     },
     closeFloorEditor() { state.floorEditing = null; render(); },
+    async openFridge(whId) {
+      const wh = WAREHOUSES[whId];
+      if (!wh || !wh.fridge) return;
+      if (!whCache[whId]) await loadWarehouseData(whId);
+      const cache = whCache[whId];
+      CURRENT_WH = wh;
+      RACK_IDS = wh.rackIds;
+      RACK_LAYOUT = wh.layout;
+      FLOOR_IDS = wh.floorIds;
+      state.warehouseId = whId;
+      state.rows = cache.rows;
+      state.data = cache.data;
+      state.floorData = cache.floorData;
+      state.activeRowId = null;
+      state.screen = 'fridge';
+      await mergeFloorDataFromServer(); // open on the freshest copy
+      ORL.openFloorEditor(FRIDGE_SPOT);
+      // A product picked with "Give it a location" lands in the list, ready to count.
+      const e = state.floorEditing;
+      if (state.placing && e) {
+        e.items.push({ sku: state.placing.sku, description: state.placing.description, quantity: null, quantityUnit: null,
+                       consignment: palletConsState(e) === 'on' });
+        render();
+      }
+    },
     addFloorItem() {
       commitEditorInputs();
       const items = state.floorEditing.items;
       const last = items[items.length - 1];
       // A blank row is already waiting at the bottom: go to it, don't stack another.
       if (!last || last.sku.trim() || last.description.trim()) {
-        if (items.length >= MAX_ITEMS) return;
+        if (items.length >= itemLimit()) return;
         items.push({ sku: '', description: '', quantity: null, quantityUnit: null,
                      consignment: palletConsState(state.floorEditing) === 'on' });
         render();
@@ -3292,6 +3424,7 @@
       openEditor(rowId, level, pos);
     },
     async goToFloor(whId, floorId) {
+      if (WAREHOUSES[whId] && WAREHOUSES[whId].fridge) return ORL.openFridge(whId);
       if (whId !== state.warehouseId) await switchWarehouse(whId);
       state.screen = 'overview';
       ORL.openFloorEditor(floorId);
@@ -3420,6 +3553,7 @@
       if (amt.error) { showFlash(amt.error); return; }
 
       const t = e.itemMoveTarget;
+      if (WAREHOUSES[t.whId].fridge) return moveIntoFridge('rack', e, i, item, amt);
       const srcCode = e.level + '-' + e.pos;
       const tgtCode = t.level + '-' + t.pos;
       if (t.whId === state.warehouseId && t.rowId === e.rowId && tgtCode === srcCode) {
@@ -3496,10 +3630,11 @@
       if (e.itemMoveIndex === i) {
         e.itemMoveIndex = null;
       } else {
-        const firstRow = state.rows[0];
+        const baseWh = CURRENT_WH.fridge ? WAREHOUSES.dry : CURRENT_WH;
+        const firstRow = (whCache[baseWh.id] || state).rows[0];
         e.itemMoveIndex = i;
         e.itemMoveAmount = {};
-        e.itemMoveTarget = { whId: state.warehouseId, rowId: firstRow.id, level: RACK_LAYOUT[firstRow.id].levelsOrder[0], pos: 1 };
+        e.itemMoveTarget = { whId: baseWh.id, rowId: firstRow.id, level: baseWh.layout[firstRow.id].levelsOrder[0], pos: 1 };
       }
       render();
     },
@@ -3531,6 +3666,7 @@
       if (amt.error) { showFlash(amt.error); return; }
 
       const t = e.itemMoveTarget;
+      if (WAREHOUSES[t.whId].fridge) return moveIntoFridge('floor', e, i, item, amt);
       const tgtCode = t.level + '-' + t.pos;
       const targetWh = WAREHOUSES[t.whId];
       const targetLayout = targetWh.layout[t.rowId];

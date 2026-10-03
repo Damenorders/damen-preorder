@@ -26,6 +26,10 @@ export const odooWarehouseUnitEnum = pgEnum("odoo_warehouse_unit", [
   "fridge40",
   "fridge50",
   "fridge60",
+  // Single-location fridges (drizzle/0031_odoo_fridges.sql): no racks, one
+  // floor area 'main' holding any number of products.
+  "meatfridge",
+  "fishfridge",
 ]);
 
 /**

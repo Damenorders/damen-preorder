@@ -28,7 +28,7 @@ import {
 } from "@/db/schema";
 import { requireRole } from "@/lib/auth";
 import { getOdooAudit, getOdooFloorData, getOdooRackData } from "@/lib/odoo-inventory-data";
-import { ODOO_UNITS, ODOO_UNIT_LABELS, displayLocation } from "@/lib/odoo-locations";
+import { ODOO_FRIDGES, ODOO_UNITS, ODOO_UNIT_LABELS, displayLocation } from "@/lib/odoo-locations";
 import {
   desiredFromOdooFloorBlob,
   desiredFromOdooRackBlob,
@@ -249,7 +249,8 @@ export async function writeOdooMove(
   const crossArea = t.unit !== s.unit;
   const label = (unit: string, location: string) => {
     const u = unit as OdooWarehouseUnit;
-    return displayLocation(u, location) + (crossArea ? ` (${ODOO_UNIT_LABELS[u]})` : "");
+    // A fridge's location already is its name ("Meat Fridge"), so no "(area)" after it.
+    return displayLocation(u, location) + (crossArea && !ODOO_FRIDGES.includes(u) ? ` (${ODOO_UNIT_LABELS[u]})` : "");
   };
   try {
     await db.transaction(async (tx) => {
