@@ -297,12 +297,14 @@
     // buttons under it.
     meatfridge: {
       id: 'meatfridge', name: 'Meat Fridge', fridge: true,
+      weightField: 'weightKg', weightLabel: 'KG', // the Meat Fridge also counts kilograms
       rackIds: [], layout: {},
       floorIds: ['main'], floorLabel: () => 'Meat Fridge',
       storagePrefix: 'meatfridge-'
     },
     fishfridge: {
       id: 'fishfridge', name: 'Fish Fridge', fridge: true,
+      weightField: 'weightLbs', weightLabel: 'LBS', // the Fish Fridge also counts pounds
       rackIds: [], layout: {},
       floorIds: ['main'], floorLabel: () => 'Fish Fridge',
       storagePrefix: 'fishfridge-'
@@ -665,6 +667,8 @@
         ".orl-actgrid .orl-movebtn { grid-column: 1 / -1; width: 100%; height: 24px; border: 1.5px solid #DAD6C9; border-radius: 6px; }" +
         ".orl-actgrid .orl-movebtn.active { border-color: #C0392B; }" +
         ".orl-note-short { display: none; }" +
+        ".orl-weighttag { font-family: 'JetBrains Mono', monospace; font-size: 10.5px; font-weight: 700; color: #2E5AB8; margin-top: 2px; }" +
+        ".orl-qtycol.orl-wtcol { width: 92px; }" +
         // Phones: one compact line per product — name + SKU, Box, Unit, then
         // C / ✕ over a thin ⇄ — so a 20-30 product pallet isn't pages of scrolling.
         // Typed fields stay 16px (iOS zooms the page on anything smaller).
@@ -677,6 +681,10 @@
         " .orl-itemtable tr.orl-itemrow { grid-template-columns: minmax(0, 1fr) 40px 40px 56px; grid-template-areas: 'desc box unit act';" +
         "  gap: 4px; border: none; border-bottom: 0.5px solid #E4E1D8; border-radius: 0; margin-top: 0; padding: 6px 0; }" +
         " .orl-itemrow > td.orl-qtycol::before { display: none; }" +
+        " .orl-itemtable.orl-has-weight thead tr, .orl-itemtable.orl-has-weight tr.orl-itemrow { grid-template-columns: minmax(0, 1fr) 40px 40px 54px 56px; }" +
+        " .orl-itemtable.orl-has-weight tr.orl-itemrow { grid-template-areas: 'desc box unit wt act'; }" +
+        " .orl-itemrow > td.orl-wtcol { grid-area: wt; }" +
+        " .orl-itemrow .orl-qty-input[data-field^='weight'] { font-size: 16px !important; }" +
         " .orl-itemrow > td:first-child { min-width: 0; }" +
         " .orl-itemrow td:first-child .orl-cat-input { display: block; text-overflow: ellipsis; }" +
         // The SKU field: 16px so iOS won't zoom, drawn at ~11px.
@@ -792,10 +800,37 @@
   // editor an empty box is null, so a product with neither count can be refused.
   function boxOf(it) { const n = parseInt(it && it.quantity, 10); return n > 0 ? n : 0; }
   function unitOf(it) { const n = parseInt(it && it.quantityUnit, 10); return n > 0 ? n : 0; }
-  function fmtCount(box, unit) {
+  // Weights: pounds (counted in the Fish Fridge) and kilograms (Meat Fridge),
+  // two decimals, null when not counted. A weight stays with its product line
+  // wherever the line is moved and is never converted from one unit to the other.
+  const WEIGHTS = [['weightLbs', 'LBS', 'lbs'], ['weightKg', 'KG', 'kg']];
+  function wOf(v) {
+    if (v === undefined || v === null || v === '') return null;
+    const n = Number(v);
+    return Number.isFinite(n) && n >= 0 ? Math.round(n * 100) / 100 : null;
+  }
+  function parseWeight(v) {
+    const t = String(v == null ? '' : v).trim().replace(',', '.');
+    return t ? wOf(t) : null;
+  }
+  function fmtWeight(lbs, kg) {
+    const parts = [];
+    if (lbs != null) parts.push(lbs + ' LBS');
+    if (kg != null) parts.push(kg + ' KG');
+    return parts.join(' · ');
+  }
+  function fmtCount(box, unit, lbs, kg) {
     box = box || 0; unit = unit || 0;
-    if (!unit) return box + ' box';
-    return (box ? box + ' box · ' : '') + unit + ' unit';
+    const w = fmtWeight(lbs, kg);
+    if (w && !box && !unit) return w;
+    const c = !unit ? box + ' box' : (box ? box + ' box · ' : '') + unit + ' unit';
+    return w ? c + ' · ' + w : c;
+  }
+  // A weight a line carries but this editor has no box for (e.g. LBS on a
+  // pallet, or KG in the Fish Fridge): shown read-only under the product.
+  function weightTagHtml(item, editableField) {
+    const w = WEIGHTS.filter(([f]) => f !== editableField && item[f] != null).map(([f, label]) => item[f] + ' ' + label);
+    return w.length ? `<div class="orl-weighttag">${esc(w.join(' · '))}</div>` : '';
   }
   function parseCount(v) {
     const t = String(v == null ? '' : v).trim();
@@ -805,33 +840,40 @@
   }
   // A stored item as an editable row.
   function editRow(i) {
-    return { sku: i.sku || '', description: i.description || '', quantity: boxOf(i), quantityUnit: unitOf(i), consignment: !!i.consignment };
+    return { sku: i.sku || '', description: i.description || '', quantity: boxOf(i), quantityUnit: unitOf(i),
+             weightLbs: wOf(i.weightLbs), weightKg: wOf(i.weightKg), consignment: !!i.consignment };
   }
   // An editor row as it is saved: an empty count beside a filled one is 0.
   function savedRow(it) {
     return { sku: (it.sku || '').trim(), description: (it.description || '').trim(),
              quantity: it.quantity == null ? 0 : it.quantity, quantityUnit: it.quantityUnit == null ? 0 : it.quantityUnit,
-             consignment: !!it.consignment };
+             weightLbs: wOf(it.weightLbs), weightKg: wOf(it.weightKg), consignment: !!it.consignment };
   }
   function hasProduct(it) { return !!((it.sku || '').trim() || (it.description || '').trim()); }
-  function isUncounted(it) { return hasProduct(it) && it.quantity == null && it.quantityUnit == null; }
+  function isUncounted(it) {
+    return hasProduct(it) && it.quantity == null && it.quantityUnit == null && it.weightLbs == null && it.weightKg == null;
+  }
 
   // An item move takes all of a product line or only part of it. The Box and
   // Unit fields start at the full count; a field nobody touched means "all of
   // it", and one cleared beside a filled one is 0. ed.itemMoveAmount holds only
   // what was typed.
   function moveHave(item) {
-    return { box: item.quantity == null ? 0 : item.quantity, unit: item.quantityUnit == null ? 0 : item.quantityUnit };
+    return { box: item.quantity == null ? 0 : item.quantity, unit: item.quantityUnit == null ? 0 : item.quantityUnit,
+             lbs: wOf(item.weightLbs), kg: wOf(item.weightKg) };
   }
+  const isWeightAmt = f => f === 'lbs' || f === 'kg';
   function moveAmountHtml(editor, ed, item) {
     const a = ed.itemMoveAmount || {};
     const have = moveHave(item);
-    return `<div class="orl-movegrid">` + [['box', 'Box'], ['unit', 'Units']].map(([f, label]) => {
+    const fields = [['box', 'Box'], ['unit', 'Units']]
+      .concat(WEIGHTS.filter(([, , f]) => have[f] != null).map(([, label, f]) => [f, label]));
+    return `<div class="orl-movegrid">` + fields.map(([f, label]) => {
       const v = a[f] === undefined ? String(have[f]) : (a[f] == null ? '' : String(a[f]));
       return `
             <div class="orl-movefield">
               <label>${label} to move <span class="orl-movehave">(of ${have[f]})</span></label>
-              <input type="number" min="0" inputmode="numeric" class="orl-moveamt" data-editor="${editor}" data-field="${f}" data-shown="${v}"
+              <input ${isWeightAmt(f) ? 'type="text" inputmode="decimal" autocomplete="off"' : 'type="number" min="0" inputmode="numeric"'} class="orl-moveamt" data-editor="${editor}" data-field="${f}" data-shown="${v}"
                      value="${v}" placeholder="0" onfocus="ORL.selectQty(this)" onchange="ORL.setItemMoveAmount('${editor}', '${f}', this.value)">
             </div>`;
     }).join('') + `</div>`;
@@ -855,7 +897,8 @@
     root.querySelectorAll('.orl-moveamt[data-editor="' + editor + '"]').forEach(q => {
       if (q.value === q.getAttribute('data-shown')) return;
       ed.itemMoveAmount = ed.itemMoveAmount || {};
-      ed.itemMoveAmount[q.getAttribute('data-field')] = parseCount(q.value);
+      const f = q.getAttribute('data-field');
+      ed.itemMoveAmount[f] = isWeightAmt(f) ? parseWeight(q.value) : parseCount(q.value);
     });
   }
   // item is a savedRow (numbers). Returns { box, unit, full } or { error }.
@@ -863,12 +906,33 @@
     const a = ed.itemMoveAmount || {};
     let box = a.box === undefined ? item.quantity : a.box;
     let unit = a.unit === undefined ? item.quantityUnit : a.unit;
-    if (box == null && unit == null) return { error: 'Enter how many to move.' };
+    const have = moveHave(item);
+    // A weight only moves on a line that has one; untouched means all of it.
+    const w = {};
+    for (const [, label, f] of WEIGHTS) {
+      if (have[f] == null) { w[f] = null; continue; }
+      const v = a[f] === undefined ? have[f] : a[f];
+      w[f] = v == null ? 0 : v;
+      if (w[f] > have[f]) return { error: 'There is only ' + have[f] + ' ' + label + ' here — you cannot move ' + w[f] + '.' };
+    }
+    if (box == null && unit == null && !w.lbs && !w.kg) return { error: 'Enter how many to move.' };
     box = box || 0; unit = unit || 0;
-    if (!box && !unit) return { error: 'Enter how many to move — 0 moves nothing.' };
+    if (!box && !unit && !w.lbs && !w.kg) return { error: 'Enter how many to move — 0 moves nothing.' };
     if (box > item.quantity) return { error: 'There ' + (item.quantity === 1 ? 'is' : 'are') + ' only ' + item.quantity + ' box here — you cannot move ' + box + '.' };
     if (unit > item.quantityUnit) return { error: 'There ' + (item.quantityUnit === 1 ? 'is' : 'are') + ' only ' + item.quantityUnit + ' unit here — you cannot move ' + unit + '.' };
-    return { box, unit, full: box === item.quantity && unit === item.quantityUnit };
+    const full = box === item.quantity && unit === item.quantityUnit &&
+      (have.lbs == null || w.lbs === have.lbs) && (have.kg == null || w.kg === have.kg);
+    return { box, unit, lbs: w.lbs, kg: w.kg, full };
+  }
+  // The part of a line that moves, and what stays behind on a partial move.
+  function movedPart(item, amt) {
+    return Object.assign({}, item, { quantity: amt.box, quantityUnit: amt.unit, weightLbs: amt.lbs, weightKg: amt.kg });
+  }
+  function leaveRest(line, item, amt) {
+    line.quantity = item.quantity - amt.box;
+    line.quantityUnit = item.quantityUnit - amt.unit;
+    if (amt.lbs != null) line.weightLbs = wOf(item.weightLbs - amt.lbs);
+    if (amt.kg != null) line.weightKg = wOf(item.weightKg - amt.kg);
   }
 
   /* ---------------- ODOO RULES ---------------- */
@@ -2077,6 +2141,7 @@
                    onchange="ORL.pickItemField(${i}, 'sku', this.value)"
                    style="width:100%; border:none; background:transparent; font-family:'JetBrains Mono',monospace; font-size:11px; color:#8A877C; padding:2px 0 0; outline:none;">
             ${itemNoteHtml(item)}
+            ${weightTagHtml(item, null)}
           </td>
           ${[['quantity', 'Box', 'orl-boxcol'], ['quantityUnit', 'Unit', 'orl-unitcol']].map(([field, label, cls]) => `
           <td class="orl-qtycol ${cls}" data-label="${label}" style="border:1px solid #1E1E1C; border-top:none; border-left:none; padding:2px 6px; text-align:center; vertical-align:middle;">
@@ -2173,6 +2238,10 @@
     const e = state.floorEditing;
     const isFridge = !!CURRENT_WH.fridge;
     const addLabel = isFridge ? '+ Add product' : '+ Add pallet';
+    // The Fish Fridge also counts LBS, the Meat Fridge KG — nowhere else.
+    const weightField = CURRENT_WH.weightField || null;
+    const qtyCols = [['quantity', 'Box', 'orl-boxcol'], ['quantityUnit', 'Unit', 'orl-unitcol']]
+      .concat(weightField ? [[weightField, CURRENT_WH.weightLabel, 'orl-wtcol']] : []);
 
     let itemsHtml = '';
     e.items.forEach((item, i) => {
@@ -2224,13 +2293,14 @@
                    onchange="ORL.pickFloorItemField(${i}, 'sku', this.value)"
                    style="width:100%; border:none; background:transparent; font-family:'JetBrains Mono',monospace; font-size:11px; color:#8A877C; padding:2px 0 0; outline:none;">
             ${itemNoteHtml(item)}
+            ${weightTagHtml(item, weightField)}
           </td>
-          ${[['quantity', 'Box', 'orl-boxcol'], ['quantityUnit', 'Unit', 'orl-unitcol']].map(([field, label, cls]) => `
+          ${qtyCols.map(([field, label, cls]) => `
           <td class="orl-qtycol ${cls}" data-label="${label}" style="border:1px solid #1E1E1C; border-top:none; border-left:none; padding:2px 6px; text-align:center; vertical-align:middle;">
-            <input type="number" min="0" inputmode="numeric" value="${item[field] != null ? item[field] : ''}" placeholder="0"
+            <input ${cls === 'orl-wtcol' ? 'type="text" inputmode="decimal" autocomplete="off"' : 'type="number" min="0" inputmode="numeric"'} value="${item[field] != null ? item[field] : ''}" placeholder="0"
                    aria-label="${label} count" class="orl-qty-input" data-editor="floor" data-index="${i}" data-field="${field}"
                    onfocus="ORL.selectQty(this)" onchange="ORL.setFloorItemQty(${i}, this)"
-                   style="width:100%; border:none; background:transparent; font-family:'Inter',sans-serif; font-size:28px; font-weight:500; color:#1E1E1C; text-align:center; padding:0; outline:none;">
+                   style="width:100%; border:none; background:transparent; font-family:'Inter',sans-serif; font-size:${cls === 'orl-wtcol' ? 20 : 28}px; font-weight:500; color:#1E1E1C; text-align:center; padding:0; outline:none;">
           </td>`).join('')}
           <td class="orl-actcol" style="border:none; padding:0 0 0 4px; vertical-align:middle; white-space:nowrap;">
             <div class="orl-actgrid">
@@ -2242,7 +2312,7 @@
             </div>
           </td>
         </tr>
-        ${showItemMove ? `<tr><td colspan="4" style="border:none; padding:10px 0 4px;">${itemMoveHtml}</td></tr>` : ''}`;
+        ${showItemMove ? `<tr><td colspan="${qtyCols.length + 2}" style="border:none; padding:10px 0 4px;">${itemMoveHtml}</td></tr>` : ''}`;
     });
 
     const addBtn = e.items.length < itemLimit() && e.items.length > 0
@@ -2258,12 +2328,13 @@
           </div>
           <div class="orl-code" style="color:#A6A398; margin-bottom:14px;">${isFridge ? 'One location — every product in this fridge, no racks or pallets' : 'Pallets sitting on the floor in this aisle — no specific rack location'}</div>
 
-          <table class="orl-itemtable" style="width:100%; border-collapse:collapse; table-layout:fixed;">
+          <table class="orl-itemtable${weightField ? ' orl-has-weight' : ''}" style="width:100%; border-collapse:collapse; table-layout:fixed;">
             <thead>
               <tr>
                 <th style="border:1px solid #1E1E1C; padding:5px 8px; text-align:left; font-family:'Inter',sans-serif; font-size:11px; font-weight:600; color:#1E1E1C;">Description</th>
                 <th class="orl-qtycol" style="border:1px solid #1E1E1C; border-left:none; padding:5px 6px; text-align:center; font-family:'Inter',sans-serif; font-size:11px; font-weight:600; color:#1E1E1C;">Box</th>
                 <th class="orl-qtycol" style="border:1px solid #1E1E1C; border-left:none; padding:5px 6px; text-align:center; font-family:'Inter',sans-serif; font-size:11px; font-weight:600; color:#1E1E1C;">Unit</th>
+                ${weightField ? `<th class="orl-qtycol orl-wtcol" style="border:1px solid #1E1E1C; border-left:none; padding:5px 6px; text-align:center; font-family:'Inter',sans-serif; font-size:11px; font-weight:600; color:#1E1E1C;">${esc(CURRENT_WH.weightLabel)}</th>` : ''}
                 <th class="orl-actcol" style="border:none;"></th>
               </tr>
             </thead>
@@ -2296,7 +2367,7 @@
             whId: wh.id, whName: wh.name, rowId: row.id, rowName: row.name, level, pos, code,
             full: di.clean + (di.tag && di.tag !== 'Front' ? di.suffix : ''), depthTag: di.tag,
             itemIndex: idx, sku: item.sku || '', description: item.description || '',
-            quantity: boxOf(item), quantityUnit: unitOf(item)
+            quantity: boxOf(item), quantityUnit: unitOf(item), weightLbs: wOf(item.weightLbs), weightKg: wOf(item.weightKg)
           }));
         });
       });
@@ -2304,7 +2375,7 @@
         ((cache.floorData || {})[fid] || []).forEach((item, idx) => out.push({
           whId: wh.id, whName: wh.name, isFloor: true, floorId: fid, rowName: 'Floor storage',
           full: wh.floorLabel(fid), itemIndex: idx, sku: item.sku || '', description: item.description || '',
-          quantity: boxOf(item), quantityUnit: unitOf(item)
+          quantity: boxOf(item), quantityUnit: unitOf(item), weightLbs: wOf(item.weightLbs), weightKg: wOf(item.weightKg)
         }));
       });
     });
@@ -2321,11 +2392,13 @@
       const key = cat ? cat.c.toUpperCase() : itemKeyOf(p);
       if (!groups[key]) groups[key] = {
         key, sku: cat ? cat.c : p.sku, description: cat ? cat.d : p.description,
-        section: !cat ? 'Not in Odoo' : cat.x ? 'No longer in Odoo list' : '', inCatalog: !!cat, places: [], totalBox: 0, totalUnit: 0
+        section: !cat ? 'Not in Odoo' : cat.x ? 'No longer in Odoo list' : '', inCatalog: !!cat, places: [], totalBox: 0, totalUnit: 0, totalLbs: null, totalKg: null
       };
       groups[key].places.push(p);
       groups[key].totalBox += p.quantity;
       groups[key].totalUnit += p.quantityUnit;
+      if (p.weightLbs != null) groups[key].totalLbs = wOf((groups[key].totalLbs || 0) + p.weightLbs);
+      if (p.weightKg != null) groups[key].totalKg = wOf((groups[key].totalKg || 0) + p.weightKg);
     });
     return groups;
   }
@@ -2379,7 +2452,7 @@
             <span style="display:block; font-family:'JetBrains Mono',monospace; font-size:15px; font-weight:800; color:#0D0D0C;">${esc(p.full)}</span>
             <span style="display:block; font-size:11.5px; color:#8A877C; margin-top:1px;">${esc(p.whName)}${p.isFloor ? '' : ' · ' + esc(p.rowName)}${p.depthTag && p.depthTag !== 'Front' ? ' · ' + esc(p.depthTag) : ''}</span>
           </span>
-          <span style="flex:0 0 auto; font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:700; color:#3F7D4E; background:#EDF5EE; border-radius:6px; padding:4px 8px; white-space:nowrap;">${fmtCount(p.quantity, p.quantityUnit)}</span>
+          <span style="flex:0 0 auto; font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:700; color:#3F7D4E; background:#EDF5EE; border-radius:6px; padding:4px 8px; white-space:nowrap;">${fmtCount(p.quantity, p.quantityUnit, p.weightLbs, p.weightKg)}</span>
           <span style="flex:0 0 auto; color:#B7B3A5; font-size:16px;">›</span>
         </button>`;
       }).join('');
@@ -2388,7 +2461,7 @@
         <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:5px;">
           <span class="orl-code">${esc(g.sku)}</span>
           ${g.section ? `<span style="font-family:'JetBrains Mono',monospace; font-size:10px; font-weight:700; color:#B07A12; background:#FBF3E2; border-radius:5px; padding:2px 6px;">${esc(g.section)}</span>` : ''}
-          <span style="font-size:11.5px; color:#8A877C;">${g.places.length} location${g.places.length === 1 ? '' : 's'} · ${fmtCount(g.totalBox, g.totalUnit)} total</span>
+          <span style="font-size:11.5px; color:#8A877C;">${g.places.length} location${g.places.length === 1 ? '' : 's'} · ${fmtCount(g.totalBox, g.totalUnit, g.totalLbs, g.totalKg)} total</span>
         </div>
         <div style="display:flex; flex-direction:column; gap:6px; margin-top:12px;">${rows}</div>
         <button class="orl-btn" style="width:100%; min-height:44px; margin-top:8px;" onclick="ORL.startPlacing(${jsArg(g.sku)}, ${jsArg(g.description)})">+ Place another pallet</button>
@@ -2502,7 +2575,7 @@
         ${g
           ? `<span style="flex:0 0 auto; text-align:right;">
                <span style="display:block; font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:800; color:#0D0D0C;">${esc(g.places[0].full)}${g.places.length > 1 ? ' +' + (g.places.length - 1) : ''}</span>
-               <span style="display:block; font-size:10.5px; color:#3F7D4E; font-weight:600; margin-top:1px;">${fmtCount(g.totalBox, g.totalUnit)} on hand</span>
+               <span style="display:block; font-size:10.5px; color:#3F7D4E; font-weight:600; margin-top:1px;">${fmtCount(g.totalBox, g.totalUnit, g.totalLbs, g.totalKg)} on hand</span>
              </span>`
           : `<span style="flex:0 0 auto; font-family:'Inter',sans-serif; font-size:11.5px; font-weight:600; color:#B7B3A5;">Locate →</span>`}
       </button>`;
@@ -2543,7 +2616,7 @@
         <span style="flex:1 1 auto; min-width:0;">
           <span style="display:block; font-family:'Inter',sans-serif; font-size:13px; font-weight:500; color:#1E1E1C; line-height:1.35;">${esc(e.desc || e.sku || '(pallet)')}</span>
           <span style="display:block; font-family:'JetBrains Mono',monospace; font-size:11px; color:#8A877C; margin-top:2px;">
-            ${e.from ? esc(e.from) + ' → ' + esc(e.to || '') : esc(e.loc || '')}${e.wh && e.wh !== e.loc ? ' · ' + esc(e.wh) : ''}${e.qty != null ? ' · ' + fmtCount(e.qty, e.qtyUnit) : ''}${e.prevQty != null ? ' (was ' + fmtCount(e.prevQty, e.prevQtyUnit) + ')' : ''}
+            ${e.from ? esc(e.from) + ' → ' + esc(e.to || '') : esc(e.loc || '')}${e.wh && e.wh !== e.loc ? ' · ' + esc(e.wh) : ''}${e.qty != null ? ' · ' + fmtCount(e.qty, e.qtyUnit, e.lbs, e.kg) : ''}${e.prevQty != null ? ' (was ' + fmtCount(e.prevQty, e.prevQtyUnit, e.prevLbs, e.prevKg) + ')' : ''}
           </span>
         </span>
         <span style="flex:0 0 auto; text-align:right;">
@@ -2624,6 +2697,7 @@
         root.querySelectorAll('.orl-qty-input' + sel).forEach(q => {
           const field = q.getAttribute('data-field');
           if (field === 'quantity' || field === 'quantityUnit') it[field] = parseCount(q.value);
+          else if (field === 'weightLbs' || field === 'weightKg') it[field] = parseWeight(q.value);
         });
       });
       commitMoveAmount(editor, ed);
@@ -2645,8 +2719,9 @@
   function setCount(ed, i, el) {
     const it = ed && ed.items[i];
     const field = el.getAttribute('data-field');
-    if (!it || (field !== 'quantity' && field !== 'quantityUnit')) return;
-    const n = parseCount(el.value);
+    const isW = field === 'weightLbs' || field === 'weightKg';
+    if (!it || (field !== 'quantity' && field !== 'quantityUnit' && !isW)) return;
+    const n = isW ? parseWeight(el.value) : parseCount(el.value);
     it[field] = n;
     const shown = n == null ? '' : String(n);
     if (el.value !== shown) el.value = shown;
@@ -2666,7 +2741,8 @@
       const tr = q && q.closest('tr');
       if (tr) tr.classList.add('orl-uncounted');
     });
-    showFlash('Enter a box or unit count for the highlighted product' + (bad.length > 1 ? 's' : '') + '.');
+    const wl = editor === 'floor' && CURRENT_WH.weightLabel;
+    showFlash('Enter a box' + (wl ? ', unit or ' + wl : ' or unit') + ' count for the highlighted product' + (bad.length > 1 ? 's' : '') + '.');
     focusQty(editor, bad[0]);
     return true;
   }
@@ -2709,9 +2785,9 @@
       showFlash(fridge.name + ' already has ' + (item.description || item.sku) + ' — open it and add to its count instead.');
       return;
     }
-    const moved = Object.assign({}, item, { quantity: amt.box, quantityUnit: amt.unit });
+    const moved = movedPart(item, amt);
     if (amt.full) e.items.splice(i, 1);
-    else { e.items[i].quantity = item.quantity - amt.box; e.items[i].quantityUnit = item.quantityUnit - amt.unit; }
+    else leaveRest(e.items[i], item, amt);
     const remaining = e.items.filter(it => it.sku.trim() || it.description.trim()).map(savedRow);
     let source, from;
     if (kind === 'rack') {
@@ -2738,8 +2814,8 @@
     e.itemMoveIndex = null;
     e.itemMoveAmount = {};
     render();
-    showFlash('Moved ' + fmtCount(amt.box, amt.unit) + ' to ' + fridge.name + '.' +
-      (amt.full ? '' : ' ' + fmtCount(item.quantity - amt.box, item.quantityUnit - amt.unit) + ' left here.'));
+    showFlash('Moved ' + fmtCount(amt.box, amt.unit, amt.lbs, amt.kg) + ' to ' + fridge.name + '.' +
+      (amt.full ? '' : ' ' + fmtCount(item.quantity - amt.box, item.quantityUnit - amt.unit, amt.lbs == null ? null : wOf(item.weightLbs - amt.lbs), amt.kg == null ? null : wOf(item.weightKg - amt.kg)) + ' left here.'));
   }
 
   /* ---------------- MOVE A WHOLE PALLET (mouse drag and finger drag) ---------------- */
@@ -3509,9 +3585,9 @@
 
     setItemMoveAmount(editor, field, value) {
       const ed = editor === 'floor' ? state.floorEditing : state.editing;
-      if (!ed || (field !== 'box' && field !== 'unit')) return;
+      if (!ed || (field !== 'box' && field !== 'unit' && !isWeightAmt(field))) return;
       ed.itemMoveAmount = ed.itemMoveAmount || {};
-      ed.itemMoveAmount[field] = parseCount(value);
+      ed.itemMoveAmount[field] = isWeightAmt(field) ? parseWeight(value) : parseCount(value);
     },
     toggleItemMove(i) {
       commitEditorInputs();
@@ -3582,9 +3658,9 @@
 
       // Take it off the pallet open in the editor — the whole line, or only
       // the amount moved, the rest staying where it is.
-      const moved = Object.assign({}, item, { quantity: amt.box, quantityUnit: amt.unit });
+      const moved = movedPart(item, amt);
       if (amt.full) e.items.splice(i, 1);
-      else { e.items[i].quantity = item.quantity - amt.box; e.items[i].quantityUnit = item.quantityUnit - amt.unit; }
+      else leaveRest(e.items[i], item, amt);
       const remainingSourceItems = e.items.filter(it => it.sku.trim() || it.description.trim())
         .map(savedRow);
       setCellItems(e.rowId, srcCode, remainingSourceItems);
@@ -3611,8 +3687,8 @@
       render();
       const dt = depthInfo(t.rowId, t.rowId + '-' + tgtCode);
       const displayTgt = dt.clean + (dt.tag && dt.tag !== 'Front' ? dt.suffix : '');
-      showFlash('Moved ' + fmtCount(amt.box, amt.unit) + ' to ' + displayTgt + (t.whId !== state.warehouseId ? ' in ' + targetWh.name : '') + '.' +
-        (amt.full ? '' : ' ' + fmtCount(item.quantity - amt.box, item.quantityUnit - amt.unit) + ' left here.'));
+      showFlash('Moved ' + fmtCount(amt.box, amt.unit, amt.lbs, amt.kg) + ' to ' + displayTgt + (t.whId !== state.warehouseId ? ' in ' + targetWh.name : '') + '.' +
+        (amt.full ? '' : ' ' + fmtCount(item.quantity - amt.box, item.quantityUnit - amt.unit, amt.lbs == null ? null : wOf(item.weightLbs - amt.lbs), amt.kg == null ? null : wOf(item.weightKg - amt.kg)) + ' left here.'));
     },
 
     // Jump straight from the spreadsheet view into a pallet's per-item move panel.
@@ -3688,9 +3764,9 @@
       }
 
       // Take it out of floor storage — the whole line, or only the amount moved.
-      const moved = Object.assign({}, item, { quantity: amt.box, quantityUnit: amt.unit });
+      const moved = movedPart(item, amt);
       if (amt.full) e.items.splice(i, 1);
-      else { e.items[i].quantity = item.quantity - amt.box; e.items[i].quantityUnit = item.quantityUnit - amt.unit; }
+      else leaveRest(e.items[i], item, amt);
       const remainingItems = e.items.filter(it => it.sku.trim() || it.description.trim())
         .map(savedRow);
       setFloorItems(e.floorId, remainingItems);
@@ -3715,8 +3791,8 @@
       render();
       const dt = depthInfo(t.rowId, t.rowId + '-' + tgtCode);
       const displayTgt = dt.clean + (dt.tag && dt.tag !== 'Front' ? dt.suffix : '');
-      showFlash('Moved ' + fmtCount(amt.box, amt.unit) + ' to ' + displayTgt + (t.whId !== state.warehouseId ? ' in ' + targetWh.name : '') + '.' +
-        (amt.full ? '' : ' ' + fmtCount(item.quantity - amt.box, item.quantityUnit - amt.unit) + ' left here.'));
+      showFlash('Moved ' + fmtCount(amt.box, amt.unit, amt.lbs, amt.kg) + ' to ' + displayTgt + (t.whId !== state.warehouseId ? ' in ' + targetWh.name : '') + '.' +
+        (amt.full ? '' : ' ' + fmtCount(item.quantity - amt.box, item.quantityUnit - amt.unit, amt.lbs == null ? null : wOf(item.weightLbs - amt.lbs), amt.kg == null ? null : wOf(item.weightKg - amt.kg)) + ' left here.'));
     },
 
     // Jump straight from the spreadsheet view into a floor pallet's move panel.

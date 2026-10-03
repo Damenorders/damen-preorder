@@ -47,6 +47,8 @@ type ClientRow = {
   description: string;
   quantity: number;
   quantityUnit: number;
+  weightLbs: number | null;
+  weightKg: number | null;
   consignment: boolean;
 };
 
@@ -56,6 +58,8 @@ function clientRow(r: Awaited<ReturnType<typeof placementsFor>>[number]): Client
     description: r.sku ? (r.catalogDescription ?? r.description) : r.description,
     quantity: r.quantity,
     quantityUnit: r.quantityUnit,
+    weightLbs: r.weightLbs,
+    weightKg: r.weightKg,
     consignment: r.consignment,
   };
 }
@@ -104,6 +108,10 @@ export async function getOdooAudit(limit = 200) {
     prevQty: r.prevQuantity ?? undefined,
     qtyUnit: r.quantityUnit ?? undefined,
     prevQtyUnit: r.prevQuantityUnit ?? undefined,
+    lbs: r.weightLbs ?? undefined,
+    kg: r.weightKg ?? undefined,
+    prevLbs: r.prevWeightLbs ?? undefined,
+    prevKg: r.prevWeightKg ?? undefined,
     cons: r.consignment ?? undefined,
   }));
 }
@@ -115,6 +123,10 @@ export interface OdooExportRow {
   description: string;
   boxes: number;
   units: number;
+  /** Pounds (counted in the Fish Fridge), null when none. */
+  lbs: number | null;
+  /** Kilograms (counted in the Meat Fridge), null when none. */
+  kg: number | null;
   consignment: boolean;
   /** "Yes", "No" (typed, not in the list) or "No longer in list". */
   inOdoo: string;
@@ -132,6 +144,8 @@ export async function getOdooExportRows(unit?: OdooWarehouseUnit): Promise<OdooE
       description: odooPlacements.description,
       quantity: odooPlacements.quantity,
       quantityUnit: odooPlacements.quantityUnit,
+      weightLbs: odooPlacements.weightLbs,
+      weightKg: odooPlacements.weightKg,
       consignment: odooPlacements.consignment,
       updatedAt: odooPlacements.updatedAt,
       catalogDescription: odooItems.description,
@@ -154,6 +168,8 @@ export async function getOdooExportRows(unit?: OdooWarehouseUnit): Promise<OdooE
       description: r.sku ? (r.catalogDescription ?? r.description) : r.description,
       boxes: r.quantity,
       units: r.quantityUnit,
+      lbs: r.weightLbs,
+      kg: r.weightKg,
       consignment: r.consignment,
       inOdoo: !r.sku ? "No" : r.catalogActive ? "Yes" : "No longer in list",
       countedBy: r.userName ?? "",

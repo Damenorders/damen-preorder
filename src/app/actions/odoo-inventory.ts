@@ -165,6 +165,8 @@ async function applyOdooSync(
       description: d.description,
       quantity: d.quantity,
       quantityUnit: d.quantityUnit,
+      weightLbs: d.weightLbs,
+      weightKg: d.weightKg,
       consignment: d.consignment,
       updatedBy: user.id,
     });
@@ -175,6 +177,8 @@ async function applyOdooSync(
       .set({
         quantity: u.quantity,
         quantityUnit: u.quantityUnit,
+        weightLbs: u.weightLbs,
+        weightKg: u.weightKg,
         description: u.description,
         consignment: u.consignment,
         updatedBy: user.id,
@@ -203,6 +207,10 @@ async function insertAudits(tx: Tx, user: User, rows: OdooAuditRow[]) {
       quantityUnit: a.quantityUnit,
       prevQuantity: "prevQuantity" in a ? a.prevQuantity : undefined,
       prevQuantityUnit: "prevQuantityUnit" in a ? a.prevQuantityUnit : undefined,
+      weightLbs: a.weightLbs,
+      weightKg: a.weightKg,
+      prevWeightLbs: "prevWeightLbs" in a ? a.prevWeightLbs : undefined,
+      prevWeightKg: "prevWeightKg" in a ? a.prevWeightKg : undefined,
       consignment: a.consignment,
       userId: user.id,
       userName: user.name,

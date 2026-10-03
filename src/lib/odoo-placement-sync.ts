@@ -8,7 +8,9 @@
  *    never registered as a new product;
  *  - the same product twice at one location is refused instead of one row
  *    silently overwriting the other's count;
- *  - every row carries a consignment flag.
+ *  - every row carries a consignment flag;
+ *  - a row may carry weight counts: pounds (entered in the Fish Fridge) and
+ *    kilograms (entered in the Meat Fridge), kept wherever the row moves.
  *
  * Saves stay location-scoped exactly like the Warehouse Inventory: a save can
  * only delete rows at the locations it sent, never anyone else's.
@@ -21,6 +23,10 @@ export interface OdooClientItem {
   quantity?: number;
   /** Loose-unit count. */
   quantityUnit?: number;
+  /** Weight in pounds; null/absent = not counted. */
+  weightLbs?: number | null;
+  /** Weight in kilograms; null/absent = not counted. */
+  weightKg?: number | null;
   consignment?: boolean;
 }
 
@@ -45,6 +51,8 @@ export interface OdooDesired {
   description: string;
   quantity: number;
   quantityUnit: number;
+  weightLbs: number | null;
+  weightKg: number | null;
   consignment: boolean;
 }
 
@@ -60,6 +68,8 @@ export interface OdooExistingPlacement {
   description: string;
   quantity: number;
   quantityUnit: number;
+  weightLbs: number | null;
+  weightKg: number | null;
   consignment: boolean;
   floorId: string | null;
 }
@@ -73,6 +83,10 @@ export interface OdooAuditDraft {
   quantityUnit: number;
   prevQuantity?: number;
   prevQuantityUnit?: number;
+  weightLbs: number | null;
+  weightKg: number | null;
+  prevWeightLbs?: number | null;
+  prevWeightKg?: number | null;
   consignment: boolean;
 }
 
@@ -82,6 +96,8 @@ export interface OdooSyncPlan {
     id: string;
     quantity: number;
     quantityUnit: number;
+    weightLbs: number | null;
+    weightKg: number | null;
     description: string;
     consignment: boolean;
   }[];
@@ -105,6 +121,19 @@ function count(v: unknown): number {
   const n = Number(v);
   return Number.isFinite(n) ? Math.max(0, Math.trunc(n)) : 0;
 }
+
+/**
+ * A weight to two decimals, or null when none was entered. Negative or
+ * unreadable input counts as not entered — never a made-up number.
+ */
+export function weight(v: unknown): number | null {
+  if (v === undefined || v === null || v === "") return null;
+  const n = Number(String(v).replace(",", "."));
+  return Number.isFinite(n) && n >= 0 ? Math.round(n * 100) / 100 : null;
+}
+const sameWeight = (a: number | null | undefined, b: number | null | undefined) => (a ?? null) === (b ?? null);
+const weightDrop = (prev: number | null | undefined, now: number | null | undefined) =>
+  Math.round(((prev ?? 0) - (now ?? 0)) * 100) / 100;
 
 type NormalisedItem = Omit<OdooDesired, "location" | "rack" | "level" | "position" | "floorId">;
 
@@ -154,6 +183,8 @@ export function normaliseOdoo(
       description,
       quantity: count(it.quantity),
       quantityUnit: count(it.quantityUnit),
+      weightLbs: weight(it.weightLbs),
+      weightKg: weight(it.weightKg),
       consignment: it.consignment === true,
     });
   }
@@ -240,6 +271,8 @@ export function planOdooSync(
       location: d.location,
       quantity: d.quantity,
       quantityUnit: d.quantityUnit,
+      weightLbs: d.weightLbs,
+      weightKg: d.weightKg,
       consignment: d.consignment,
     };
     if (!prev) {
@@ -247,13 +280,19 @@ export function planOdooSync(
       plan.audits.push({ action: "added", ...base });
       continue;
     }
-    const countChanged = prev.quantity !== d.quantity || prev.quantityUnit !== d.quantityUnit;
+    const countChanged =
+      prev.quantity !== d.quantity ||
+      prev.quantityUnit !== d.quantityUnit ||
+      !sameWeight(prev.weightLbs, d.weightLbs) ||
+      !sameWeight(prev.weightKg, d.weightKg);
     const consignmentChanged = prev.consignment !== d.consignment;
     if (countChanged || consignmentChanged || prev.description !== d.description) {
       plan.updates.push({
         id: prev.id,
         quantity: d.quantity,
         quantityUnit: d.quantityUnit,
+        weightLbs: d.weightLbs,
+        weightKg: d.weightKg,
         description: d.description,
         consignment: d.consignment,
       });
@@ -264,6 +303,8 @@ export function planOdooSync(
         ...base,
         prevQuantity: prev.quantity,
         prevQuantityUnit: prev.quantityUnit,
+        prevWeightLbs: prev.weightLbs,
+        prevWeightKg: prev.weightKg,
       });
     }
     if (consignmentChanged) plan.audits.push({ action: "consignment", ...base });
@@ -281,6 +322,8 @@ export function planOdooSync(
       location: prev.location,
       quantity: prev.quantity,
       quantityUnit: prev.quantityUnit,
+      weightLbs: prev.weightLbs,
+      weightKg: prev.weightKg,
       consignment: prev.consignment,
     });
   }
@@ -304,6 +347,8 @@ export type OdooAuditRow =
       toLocation: string;
       quantity: number;
       quantityUnit: number;
+      weightLbs: number | null;
+      weightKg: number | null;
       consignment: boolean;
     };
 
@@ -345,6 +390,8 @@ export function pairMoves(
       toLocation: label(added.unit, added.location),
       quantity: added.quantity,
       quantityUnit: added.quantityUnit,
+      weightLbs: added.weightLbs,
+      weightKg: added.weightKg,
       consignment: added.consignment,
     });
   }
@@ -353,7 +400,9 @@ export function pairMoves(
     if (dropped.action !== "qty" || used.has(dropped)) continue;
     const box = (dropped.prevQuantity ?? dropped.quantity) - dropped.quantity;
     const unit = (dropped.prevQuantityUnit ?? dropped.quantityUnit) - dropped.quantityUnit;
-    if (box < 0 || unit < 0 || box + unit === 0) continue;
+    const lbs = weightDrop(dropped.prevWeightLbs, dropped.weightLbs);
+    const kg = weightDrop(dropped.prevWeightKg, dropped.weightKg);
+    if (box < 0 || unit < 0 || lbs < 0 || kg < 0 || box + unit + lbs + kg === 0) continue;
     const added = audits.find(
       (a) =>
         a.action === "added" &&
@@ -361,7 +410,9 @@ export function pairMoves(
         keyOf(a) === keyOf(dropped) &&
         (a.unit !== dropped.unit || a.location !== dropped.location) &&
         a.quantity === box &&
-        a.quantityUnit === unit,
+        a.quantityUnit === unit &&
+        (a.weightLbs ?? 0) === lbs &&
+        (a.weightKg ?? 0) === kg,
     );
     if (!added) continue;
     used.add(added);
@@ -375,6 +426,8 @@ export function pairMoves(
       toLocation: label(added.unit, added.location),
       quantity: added.quantity,
       quantityUnit: added.quantityUnit,
+      weightLbs: added.weightLbs,
+      weightKg: added.weightKg,
       consignment: added.consignment,
     });
   }

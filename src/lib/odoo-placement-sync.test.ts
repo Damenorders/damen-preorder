@@ -6,6 +6,7 @@ import {
   itemKeyFor,
   pairMoves,
   planOdooSync,
+  weight,
   type OdooDesired,
   type OdooExistingPlacement,
   type ResolveSku,
@@ -32,6 +33,8 @@ function row(
     description,
     quantity: 1,
     quantityUnit: 0,
+    weightLbs: null,
+    weightKg: null,
     consignment: false,
     floorId: location.startsWith("floor:") ? location.slice(6) : null,
     ...opts,
@@ -128,7 +131,7 @@ test("re-saving an unchanged location changes nothing", () => {
 });
 
 test("a move is logged as one 'moved' row, not removed + added", () => {
-  const base = { sku: "A100", description: "TS - SQUARE RICE PAPER 22CM", quantity: 3, quantityUnit: 0, consignment: true };
+  const base = { sku: "A100", description: "TS - SQUARE RICE PAPER 22CM", quantity: 3, quantityUnit: 0, consignment: true, weightLbs: null, weightKg: null };
   const rows = pairMoves(
     [
       { action: "added", unit: "dry", location: "15-B-6", ...base },
@@ -137,12 +140,12 @@ test("a move is logged as one 'moved' row, not removed + added", () => {
     (unit, loc) => `${unit}:${loc}`,
   );
   assert.deepEqual(rows, [
-    { action: "moved", unit: "dry", sku: "A100", description: base.description, fromLocation: "dry:15-B-4", toLocation: "dry:15-B-6", quantity: 3, quantityUnit: 0, consignment: true },
+    { action: "moved", unit: "dry", sku: "A100", description: base.description, fromLocation: "dry:15-B-4", toLocation: "dry:15-B-6", quantity: 3, quantityUnit: 0, weightLbs: null, weightKg: null, consignment: true },
   ]);
 });
 
 test("moving part of a line is one 'moved' row with the amount moved", () => {
-  const base = { sku: "A100", description: "TS - SQUARE RICE PAPER 22CM", consignment: false };
+  const base = { sku: "A100", description: "TS - SQUARE RICE PAPER 22CM", consignment: false, weightLbs: null, weightKg: null };
   const rows = pairMoves(
     [
       { action: "added", unit: "dry", location: "15-B-6", ...base, quantity: 6, quantityUnit: 0 },
@@ -151,12 +154,12 @@ test("moving part of a line is one 'moved' row with the amount moved", () => {
     (unit, loc) => `${unit}:${loc}`,
   );
   assert.deepEqual(rows, [
-    { action: "moved", unit: "dry", sku: "A100", description: base.description, fromLocation: "dry:15-B-4", toLocation: "dry:15-B-6", quantity: 6, quantityUnit: 0, consignment: false },
+    { action: "moved", unit: "dry", sku: "A100", description: base.description, fromLocation: "dry:15-B-4", toLocation: "dry:15-B-6", quantity: 6, quantityUnit: 0, weightLbs: null, weightKg: null, consignment: false },
   ]);
 });
 
 test("a count drop that doesn't match what arrived is not a move", () => {
-  const base = { sku: "A100", description: "TS - SQUARE RICE PAPER 22CM", consignment: false };
+  const base = { sku: "A100", description: "TS - SQUARE RICE PAPER 22CM", consignment: false, weightLbs: null, weightKg: null };
   const rows = pairMoves(
     [
       { action: "added", unit: "dry", location: "15-B-6", ...base, quantity: 5, quantityUnit: 0 },
@@ -168,15 +171,15 @@ test("a count drop that doesn't match what arrived is not a move", () => {
 });
 
 test("a swap logs two moves; unrelated changes stay as they are", () => {
-  const a = { sku: "A100", description: "TS - SQUARE RICE PAPER 22CM", quantity: 1, quantityUnit: 0, consignment: false };
-  const b = { sku: null, description: "Mystery sauce", quantity: 2, quantityUnit: 0, consignment: false };
+  const a = { sku: "A100", description: "TS - SQUARE RICE PAPER 22CM", quantity: 1, quantityUnit: 0, consignment: false, weightLbs: null, weightKg: null };
+  const b = { sku: null, description: "Mystery sauce", quantity: 2, quantityUnit: 0, consignment: false, weightLbs: null, weightKg: null };
   const rows = pairMoves(
     [
       { action: "added", unit: "freezer", location: "30-A-1b", ...a },
       { action: "removed", unit: "freezer", location: "30-A-1b", ...b },
       { action: "added", unit: "dry", location: "15-B-4", ...b },
       { action: "removed", unit: "dry", location: "15-B-4", ...a },
-      { action: "removed", unit: "dry", location: "15-B-4", sku: "B200", description: "OLIVE OIL 6 X 2.84L", quantity: 1, quantityUnit: 0, consignment: false },
+      { action: "removed", unit: "dry", location: "15-B-4", sku: "B200", description: "OLIVE OIL 6 X 2.84L", quantity: 1, quantityUnit: 0, weightLbs: null, weightKg: null, consignment: false },
       { action: "qty", unit: "dry", location: "15-B-9", ...a, prevQuantity: 4 },
     ],
     (unit, loc) => `${unit}:${loc}`,
@@ -187,4 +190,39 @@ test("a swap logs two moves; unrelated changes stay as they are", () => {
     ["removed", "15-B-4", ""],
     ["qty", "15-B-9", ""],
   ]);
+});
+
+test("weights: two decimals, blank stays blank, never made up", () => {
+  assert.equal(weight("18.456"), 18.46);
+  assert.equal(weight("12,5"), 12.5);
+  assert.equal(weight(""), null);
+  assert.equal(weight(null), null);
+  assert.equal(weight("-3"), null);
+  assert.equal(weight("abc"), null);
+  const r = rack({ "15": { "B-3": [{ sku: "A100", quantity: 0, weightLbs: 18.5 }, { sku: "B200", quantity: 1 }] } });
+  assert.deepEqual(r.desired.map((d) => [d.weightLbs, d.weightKg]), [[18.5, null], [null, null]]);
+});
+
+test("a weight change is saved and logged like a count change", () => {
+  const existing = [row("floor:main", "A100", { quantity: 0, weightKg: 10 })];
+  const r = desiredFromOdooFloorBlob({ main: [{ sku: "A100", quantity: 0, weightKg: 12.25 }] }, resolve);
+  assert.ok(r.ok);
+  const plan = planOdooSync(existing, "floor", (r as { desired: OdooDesired[] }).desired, (r as { locations: Set<string> }).locations);
+  assert.equal(plan.updates[0].weightKg, 12.25);
+  assert.equal(plan.audits[0].action, "qty");
+  assert.equal(plan.audits[0].prevWeightKg, 10);
+});
+
+test("part of a weighed line moved pairs into one 'moved' row with its weight", () => {
+  const base = { sku: "A100", description: "TS - SQUARE RICE PAPER 22CM", consignment: false, weightKg: null };
+  const rows = pairMoves(
+    [
+      { action: "added", unit: "dry", location: "15-B-6", ...base, quantity: 1, quantityUnit: 0, weightLbs: 4.5 },
+      { action: "qty", unit: "fishfridge", location: "floor:main", ...base, quantity: 2, quantityUnit: 0, weightLbs: 6, prevQuantity: 3, prevQuantityUnit: 0, prevWeightLbs: 10.5 },
+    ],
+    (unit, loc) => `${unit}:${loc}`,
+  );
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].action, "moved");
+  assert.equal(rows[0].weightLbs, 4.5);
 });

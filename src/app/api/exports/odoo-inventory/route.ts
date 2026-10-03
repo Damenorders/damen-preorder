@@ -32,6 +32,8 @@ export async function GET(request: Request) {
       "Description",
       "Boxes",
       "Units",
+      "Qty LBS",
+      "Qty KG",
       "Consignment",
       "In Odoo",
       "Counted by",
@@ -44,12 +46,15 @@ export async function GET(request: Request) {
       r.description,
       r.boxes,
       r.units,
+      // Blank, not 0, where no weight was counted.
+      r.lbs ?? "",
+      r.kg ?? "",
       r.consignment ? "True" : "False",
       r.inOdoo,
       r.countedBy,
       formatDateTime(r.updatedAt),
     ]),
-    columnWidths: [12, 14, 16, 52, 8, 8, 13, 17, 18, 22],
+    columnWidths: [12, 14, 16, 52, 8, 8, 10, 10, 13, 17, 18, 22],
   });
 
   const stamp = formatDate(new Date()).replace(/[^a-zA-Z0-9]+/g, "-");

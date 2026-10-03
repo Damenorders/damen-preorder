@@ -4,6 +4,7 @@ import {
   uuid,
   text,
   integer,
+  numeric,
   boolean,
   timestamp,
   index,
@@ -72,6 +73,11 @@ export const odooPlacements = pgTable(
     quantity: integer("quantity").notNull().default(0),
     // Loose-unit count. Never added to the box count here.
     quantityUnit: integer("quantity_unit").notNull().default(0),
+    // Weight counts (drizzle/0032): entered in the Fish Fridge (pounds) and the
+    // Meat Fridge (kilograms); null when not counted. Kept with the line
+    // wherever it moves, never converted from one unit to the other.
+    weightLbs: numeric("weight_lbs", { precision: 12, scale: 2, mode: "number" }),
+    weightKg: numeric("weight_kg", { precision: 12, scale: 2, mode: "number" }),
     consignment: boolean("consignment").notNull().default(false),
     updatedBy: uuid("updated_by").references(() => users.id),
     updatedAt: timestamp("updated_at", { withTimezone: true })
@@ -100,6 +106,10 @@ export const odooAudit = pgTable(
     prevQuantity: integer("prev_quantity"),
     quantityUnit: integer("quantity_unit"),
     prevQuantityUnit: integer("prev_quantity_unit"),
+    weightLbs: numeric("weight_lbs", { precision: 12, scale: 2, mode: "number" }),
+    weightKg: numeric("weight_kg", { precision: 12, scale: 2, mode: "number" }),
+    prevWeightLbs: numeric("prev_weight_lbs", { precision: 12, scale: 2, mode: "number" }),
+    prevWeightKg: numeric("prev_weight_kg", { precision: 12, scale: 2, mode: "number" }),
     consignment: boolean("consignment"),
     userId: uuid("user_id").references(() => users.id),
     userName: text("user_name").notNull().default(""),
