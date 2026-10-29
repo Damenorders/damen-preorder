@@ -31,9 +31,11 @@ export default async function CodeFixesPage({
     fixed: allLines.filter((l) => l.status === "fixed").length,
     all: allLines.length,
   };
+  // An entry with no products (only a client or a note) counts as pending.
   const shown = entries
-    .map((e) => ({ ...e, lines: tab === "all" ? e.lines : e.lines.filter((l) => l.status === tab) }))
-    .filter((e) => e.lines.length > 0);
+    .filter((e) => e.lines.length > 0 || tab !== "fixed")
+    .map((e) => ({ ...e, lines: tab === "all" ? e.lines : e.lines.filter((l) => l.status === tab), empty: e.lines.length === 0 }))
+    .filter((e) => e.empty || e.lines.length > 0);
 
   const thClass =
     "whitespace-nowrap border-b border-neutral-200 bg-neutral-50 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-neutral-500";
@@ -82,7 +84,7 @@ export default async function CodeFixesPage({
             <section key={e.id} className="rounded-2xl border border-neutral-200 bg-white shadow-sm">
               <div className="flex flex-wrap items-start justify-between gap-3 px-4 py-3">
                 <div>
-                  <h2 className="text-base font-semibold">{e.clientName}</h2>
+                  <h2 className="text-base font-semibold">{e.clientName ?? "No client"}</h2>
                   <p className="text-xs text-neutral-500">
                     Entered by {e.createdByName} · {formatDateTime(e.createdAt)}
                     {e.updatedAt.getTime() - e.createdAt.getTime() > 1000 &&
@@ -97,9 +99,12 @@ export default async function CodeFixesPage({
                   >
                     Edit
                   </Link>
-                  <CodeFixDeleteButton id={e.id} clientName={e.clientName} />
+                  <CodeFixDeleteButton id={e.id} clientName={e.clientName ?? "No client"} />
                 </div>
               </div>
+              {e.empty ? (
+                <p className="border-t border-neutral-100 px-4 py-3 text-sm text-neutral-500">No products.</p>
+              ) : (
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[760px] border-collapse">
                   <thead>
@@ -120,12 +125,12 @@ export default async function CodeFixesPage({
                         </td>
                         <td className={tdClass}>{l.clientDescription ?? "—"}</td>
                         <td className={`${tdClass} whitespace-nowrap text-right font-semibold`}>
-                          ${l.price}
+                          {l.price === null ? "—" : `$${l.price}`}
                         </td>
                         <td className={`${tdClass} whitespace-nowrap font-mono font-semibold`}>
-                          {l.generalSku}
+                          {l.generalSku ?? "—"}
                         </td>
-                        <td className={tdClass}>{l.generalDescription}</td>
+                        <td className={tdClass}>{l.generalDescription ?? "—"}</td>
                         <td className={`${tdClass} whitespace-nowrap`}>
                           {canToggle ? (
                             <CodeFixStatusToggle lineId={l.id} status={l.status} />
@@ -151,6 +156,7 @@ export default async function CodeFixesPage({
                   </tbody>
                 </table>
               </div>
+              )}
             </section>
           ))
         )}

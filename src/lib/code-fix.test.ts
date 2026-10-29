@@ -68,24 +68,35 @@ test("a template SKU takes the template's spelling and description", () => {
   });
 });
 
-test("a SKU not in the template needs a typed description", () => {
-  const missing = checkLine(lookup, line({ clientSku: "BARBNEW" }), 2);
-  assert.equal(missing.ok, false);
-  assert.match(!missing.ok ? missing.error : "", /Product 2: BARBNEW is not in the template/);
+test("a SKU not in the template keeps whatever was typed, description or not", () => {
+  const bare = checkLine(lookup, line({ clientSku: "BARBNEW" }), 2);
+  assert.ok(bare.ok);
+  assert.equal(bare.ok && bare.line.clientSku, "BARBNEW");
+  assert.equal(bare.ok && bare.line.clientDescription, null);
 
   const typed = checkLine(lookup, line({ clientSku: "BARBNEW", clientDescription: " New  fries " }), 2);
-  assert.ok(typed.ok);
   assert.equal(typed.ok && typed.line.clientDescription, "New fries");
 });
 
-test("client SKU is optional; general SKU and price are not", () => {
-  const noClient = checkLine(lookup, line({ clientSku: "" }), 1);
-  assert.ok(noClient.ok);
-  assert.equal(noClient.ok && noClient.line.clientSku, null);
+test("every field is optional; only a typed non-price is refused", () => {
+  const empty = checkLine(lookup, line({ clientSku: "", price: "", generalSku: "" }), 1);
+  assert.deepEqual(empty, {
+    ok: true,
+    line: {
+      id: undefined,
+      clientSku: null,
+      clientDescription: null,
+      price: null,
+      generalSku: null,
+      generalDescription: null,
+    },
+  });
 
-  assert.equal(checkLine(lookup, line({ generalSku: "" }), 1).ok, false);
-  assert.equal(checkLine(lookup, line({ price: "" }), 1).ok, false);
-  assert.equal(checkLine(lookup, line({ price: "thirty" }), 1).ok, false);
-  // A client description with no client SKU is refused, not silently dropped.
-  assert.equal(checkLine(lookup, line({ clientSku: "", clientDescription: "x" }), 1).ok, false);
+  // A description alone is kept.
+  const descOnly = checkLine(lookup, line({ clientSku: "", clientDescription: "x" }), 1);
+  assert.equal(descOnly.ok && descOnly.line.clientDescription, "x");
+
+  const bad = checkLine(lookup, line({ price: "thirty" }), 3);
+  assert.equal(bad.ok, false);
+  assert.match(!bad.ok ? bad.error : "", /Product 3: "thirty" is not a price/);
 });

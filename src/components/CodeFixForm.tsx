@@ -74,7 +74,6 @@ export default function CodeFixForm({
 
   async function handleSubmit() {
     setError(null);
-    if (!clientName.trim()) return setError("Enter the client name.");
     setSubmitting(true);
     const result = await saveCodeFix({
       id: initial?.id,
@@ -159,7 +158,6 @@ export default function CodeFixForm({
           <SkuPicker
             lookup={lookup}
             label="Client SKU"
-            optional
             sku={line.clientSku}
             description={line.clientDescription}
             onChange={(sku, description) =>
@@ -201,7 +199,7 @@ export default function CodeFixForm({
 
       <section className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
         <label className="block text-sm font-medium text-neutral-700">
-          Note <span className="font-normal text-neutral-400">(optional)</span>
+          Note
           <textarea
             value={note}
             onChange={(e) => setNote(e.target.value)}
@@ -237,14 +235,12 @@ export default function CodeFixForm({
 function SkuPicker({
   lookup,
   label,
-  optional = false,
   sku,
   description,
   onChange,
 }: {
   lookup: CatalogLookup;
   label: string;
-  optional?: boolean;
   sku: string;
   description: string;
   onChange: (sku: string, description: string) => void;
@@ -291,7 +287,7 @@ function SkuPicker({
     <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-[12rem_1fr]">
       <div className="relative">
         <label className="block text-sm font-medium text-neutral-700">
-          {label} {optional && <span className="font-normal text-neutral-400">(optional)</span>}
+          {label}
           <input
             type="text"
             value={sku}
@@ -311,7 +307,7 @@ function SkuPicker({
           Description
           {sku.trim() && !hit && (
             <span className="ml-2 rounded-md bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-900">
-              Not in template — type the description
+              Not in template
             </span>
           )}
           <input

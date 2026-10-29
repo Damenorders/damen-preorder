@@ -90,58 +90,46 @@ export interface CleanLine {
   id?: number;
   clientSku: string | null;
   clientDescription: string | null;
-  price: string; // two decimals, as stored
-  generalSku: string;
-  generalDescription: string;
+  price: string | null; // two decimals, as stored
+  generalSku: string | null;
+  generalDescription: string | null;
 }
 
 /**
- * Checks one line against the template. A SKU in the template takes the
- * template's spelling and description; one not in it needs a typed
- * description. Returns the cleaned line or the error to show.
+ * Cleans one line against the template. Every field is optional. A SKU in the
+ * template takes the template's spelling and description; any other SKU or
+ * description is kept as typed. Only a price that is typed but not a price
+ * is refused.
  */
 export function checkLine(
   lookup: CatalogLookup,
   line: CodeFixLineInput,
   n: number,
 ): { ok: true; line: CleanLine } | { ok: false; error: string } {
-  const at = `Product ${n}:`;
-
-  const resolve = (sku: string, description: string, label: string) => {
+  const resolve = (sku: string, description: string) => {
     const s = sku.trim();
     const d = description.trim().replace(/\s+/g, " ");
-    if (!s) return { error: `${at} enter the ${label}.` } as const;
-    const hit = findBySku(lookup, s);
-    if (hit) return { sku: hit.sku, description: hit.description } as const;
-    if (!d) return { error: `${at} ${s} is not in the template — type its description.` } as const;
-    return { sku: s, description: d } as const;
+    const hit = s ? findBySku(lookup, s) : null;
+    if (hit) return { sku: hit.sku, description: hit.description };
+    return { sku: s || null, description: d || null };
   };
 
-  let clientSku: string | null = null;
-  let clientDescription: string | null = null;
-  if (line.clientSku.trim()) {
-    const c = resolve(line.clientSku, line.clientDescription, "client SKU");
-    if ("error" in c) return { ok: false, error: c.error! };
-    clientSku = c.sku;
-    clientDescription = c.description;
-  } else if (line.clientDescription.trim()) {
-    return { ok: false, error: `${at} enter the client SKU for "${line.clientDescription.trim()}", or clear it.` };
+  let price: string | null = null;
+  if (line.price.trim()) {
+    const p = parsePrice(line.price);
+    if (p === null) return { ok: false, error: `Product ${n}: "${line.price}" is not a price.` };
+    price = p.toFixed(2);
   }
 
-  const price = parsePrice(line.price);
-  if (line.price.trim() === "") return { ok: false, error: `${at} enter the client price.` };
-  if (price === null) return { ok: false, error: `${at} "${line.price}" is not a price.` };
-
-  const g = resolve(line.generalSku, line.generalDescription, "general SKU");
-  if ("error" in g) return { ok: false, error: g.error! };
-
+  const c = resolve(line.clientSku, line.clientDescription);
+  const g = resolve(line.generalSku, line.generalDescription);
   return {
     ok: true,
     line: {
       id: line.id,
-      clientSku,
-      clientDescription,
-      price: price.toFixed(2),
+      clientSku: c.sku,
+      clientDescription: c.description,
+      price,
       generalSku: g.sku,
       generalDescription: g.description,
     },

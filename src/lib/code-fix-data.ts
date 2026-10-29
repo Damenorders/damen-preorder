@@ -26,7 +26,7 @@ export async function getCodeFixClientNames(): Promise<string[]> {
     .selectDistinct({ clientName: codeFixes.clientName })
     .from(codeFixes)
     .orderBy(asc(codeFixes.clientName));
-  return rows.map((r) => r.clientName);
+  return rows.flatMap((r) => (r.clientName ? [r.clientName] : []));
 }
 
 async function withLines(entries: CodeFix[]): Promise<CodeFixWithLines[]> {

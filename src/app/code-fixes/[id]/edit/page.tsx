@@ -27,7 +27,7 @@ export default async function EditCodeFixPage({
       user={user}
       backHref="/code-fixes"
       backLabel="Codes to Fix"
-      title={`Edit — ${entry.clientName}`}
+      title={`Edit — ${entry.clientName ?? "No client"}`}
       subtitle="Removing a product deletes it; the others keep their Pending / Fixed status."
       wide
     >
@@ -36,15 +36,15 @@ export default async function EditCodeFixPage({
         clients={clients}
         initial={{
           id: entry.id,
-          clientName: entry.clientName,
+          clientName: entry.clientName ?? "",
           note: entry.note ?? "",
           lines: entry.lines.map((l) => ({
             id: l.id,
             clientSku: l.clientSku ?? "",
             clientDescription: l.clientDescription ?? "",
-            price: l.price,
-            generalSku: l.generalSku,
-            generalDescription: l.generalDescription,
+            price: l.price ?? "",
+            generalSku: l.generalSku ?? "",
+            generalDescription: l.generalDescription ?? "",
           })),
         }}
         doneHref="/code-fixes"

@@ -14,7 +14,7 @@ export default async function NewCodeFixPage() {
       backHref={homePathFor(user.role)}
       backLabel="Dashboard"
       title="Codes to Fix"
-      subtitle="Client SKU and price, and the general SKU it matches."
+      subtitle="Client SKU and price, and the general SKU it matches. Every field is optional."
       wide
     >
       <CodeFixForm

@@ -29,7 +29,7 @@ export const codeFixes = pgTable(
   "code_fixes",
   {
     id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
-    clientName: text("client_name").notNull(),
+    clientName: text("client_name"),
     note: text("note"),
     createdBy: uuid("created_by").references(() => users.id),
     createdByName: text("created_by_name").notNull().default(""),
@@ -45,9 +45,9 @@ export const codeFixes = pgTable(
 );
 
 /**
- * One product on an entry. The client SKU is optional; the general SKU and
- * the price are required. A SKU not in the template keeps the description
- * the rep typed. Status is per line — the buyer fixes lines one at a time.
+ * One product on an entry. Every field is optional (user, 2026-10-29). A SKU
+ * in the template takes its description; any other keeps what was typed.
+ * Status is per line — the buyer fixes lines one at a time.
  */
 export const codeFixLines = pgTable(
   "code_fix_lines",
@@ -59,9 +59,9 @@ export const codeFixLines = pgTable(
     position: integer("position").notNull().default(0),
     clientSku: text("client_sku"),
     clientDescription: text("client_description"),
-    price: numeric("price", { precision: 12, scale: 2 }).notNull(),
-    generalSku: text("general_sku").notNull(),
-    generalDescription: text("general_description").notNull(),
+    price: numeric("price", { precision: 12, scale: 2 }),
+    generalSku: text("general_sku"),
+    generalDescription: text("general_description"),
     status: text("status", { enum: ["pending", "fixed"] })
       .notNull()
       .default("pending"),

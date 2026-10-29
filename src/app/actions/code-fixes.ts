@@ -26,16 +26,17 @@ export type CodeFixActionResult =
 export async function saveCodeFix(input: CodeFixInput): Promise<CodeFixActionResult> {
   const user = await requireRole("rep", "buyer");
 
-  const name = input.clientName?.trim().replace(/\s+/g, " ");
-  if (!name) return { ok: false, error: "Enter the client name." };
+  // Every field is optional; only a completely empty entry is refused.
+  const name = input.clientName?.trim().replace(/\s+/g, " ") || null;
+  const note = input.note?.trim() || null;
 
-  // A completely blank product row is ignored; anything half-filled is checked.
+  // A completely blank product row is ignored.
   const filled = (input.lines ?? []).filter((l) =>
     [l.clientSku, l.clientDescription, l.price, l.generalSku, l.generalDescription].some(
       (v) => String(v ?? "").trim() !== "",
     ),
   );
-  if (filled.length === 0) return { ok: false, error: "Add at least one product." };
+  if (!name && !note && filled.length === 0) return { ok: false, error: "Nothing to save — fill in at least one field." };
 
   const lookup = buildLookup(await getCodeFixCatalog());
   const lines: CleanLine[] = [];
@@ -47,13 +48,14 @@ export async function saveCodeFix(input: CodeFixInput): Promise<CodeFixActionRes
 
   // The card keeps its own client names (not the shared client list): a name
   // already used here, in any case, keeps its first spelling.
-  const [known] = await db
-    .select({ clientName: codeFixes.clientName })
-    .from(codeFixes)
-    .where(sql`lower(${codeFixes.clientName}) = ${name.toLowerCase()}`)
-    .limit(1);
+  const [known] = name
+    ? await db
+        .select({ clientName: codeFixes.clientName })
+        .from(codeFixes)
+        .where(sql`lower(${codeFixes.clientName}) = ${name.toLowerCase()}`)
+        .limit(1)
+    : [];
   const client = { clientName: known?.clientName ?? name };
-  const note = input.note?.trim() || null;
   const lineValues = (l: CleanLine, position: number) => ({
     position,
     clientSku: l.clientSku,
@@ -119,7 +121,9 @@ export async function saveCodeFix(input: CodeFixInput): Promise<CodeFixActionRes
         updatedByName: user.name,
       })
       .returning({ id: codeFixes.id });
-    await tx.insert(codeFixLines).values(lines.map((l, i) => ({ codeFixId: created.id, ...lineValues(l, i) })));
+    if (lines.length) {
+      await tx.insert(codeFixLines).values(lines.map((l, i) => ({ codeFixId: created.id, ...lineValues(l, i) })));
+    }
     await logAudit(tx, user, [
       {
         action: "create",
