@@ -46,6 +46,14 @@ export default async function RepDashboard() {
             subtitle="Report a delivery or order error"
             links={[{ label: "Report an Error", href: "/errors/new", primary: true }]}
           />
+          <DashboardCard
+            title="Codes to Fix"
+            subtitle="Client SKUs and prices for the buyers to fix"
+            links={[
+              { label: "Codes to Fix", href: "/code-fixes/new", primary: true, variant: "highlight" },
+              { label: "View Entries", href: "/code-fixes" },
+            ]}
+          />
         </div>
       </main>
     </>

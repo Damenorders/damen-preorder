@@ -401,3 +401,5 @@ export * from "./product-list-schema";
 export * from "./purchase-order-schema";
 
 export * from "./odoo-inventory-schema";
+
+export * from "./code-fix-schema";

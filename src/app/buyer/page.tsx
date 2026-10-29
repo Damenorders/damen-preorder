@@ -103,6 +103,17 @@ export default async function BuyerDashboard() {
               ]}
             />
           )}
+          {/* Codes to Fix: rep/buyer/admin — hidden from the Butcher role. */}
+          {!isButcher && (
+            <DashboardCard
+              title="Codes to Fix"
+              subtitle="Client SKUs and prices for the buyers to fix"
+              links={[
+                { label: "Codes to Fix", href: "/code-fixes/new", primary: true, variant: "highlight" },
+                { label: "View Entries", href: "/code-fixes" },
+              ]}
+            />
+          )}
           {/* Product Lists are buyer/admin only — hidden from the Butcher role. */}
           {!isButcher && (
             <DashboardCard

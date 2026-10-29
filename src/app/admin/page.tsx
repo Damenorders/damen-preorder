@@ -96,6 +96,14 @@ export default async function AdminDashboard() {
             ]}
           />
           <DashboardCard
+            title="Codes to Fix"
+            subtitle="Client SKUs and prices for the buyers to fix"
+            links={[
+              { label: "Codes to Fix", href: "/code-fixes/new", primary: true, variant: "highlight" },
+              { label: "View Entries", href: "/code-fixes" },
+            ]}
+          />
+          <DashboardCard
             title="Product List"
             subtitle="Build a list for a client, export to Excel"
             links={[

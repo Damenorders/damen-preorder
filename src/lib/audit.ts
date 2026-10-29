@@ -22,7 +22,8 @@ export interface AuditEntry {
     | "delivery"
     | "inventory_item"
     | "item_sourcing"
-    | "purchase_order";
+    | "purchase_order"
+    | "code_fix";
   recordId: string | number;
   oldValue?: unknown;
   newValue?: unknown;
