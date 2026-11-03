@@ -31,6 +31,8 @@ export const odooWarehouseUnitEnum = pgEnum("odoo_warehouse_unit", [
   // floor area 'main' holding any number of products.
   "meatfridge",
   "fishfridge",
+  // Racked like the five above (drizzle/0035_odoo_new_freezer.sql).
+  "newfreezer",
 ]);
 
 /**

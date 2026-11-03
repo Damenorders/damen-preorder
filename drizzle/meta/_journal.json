@@ -246,6 +246,13 @@
       "when": 1785000000014,
       "tag": "0034_code_fixes_optional",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1785000000015,
+      "tag": "0035_odoo_new_freezer",
+      "breakpoints": true
     }
   ]
 }

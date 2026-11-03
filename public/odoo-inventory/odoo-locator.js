@@ -44,7 +44,7 @@
 
   // Some racks store more than one pallet per column position, one behind the other.
   // Maps rackId -> depth count (2 = front/rear, 3 = front/middle/rear). Absent = single-depth.
-  const RACK_DEPTH = { 30: 2, 33: 2 }; // Freezer racks #30 and #33 are double-deep (front/rear)
+  const RACK_DEPTH = { 30: 2, 33: 2, 101: 2, 102: 2, 104: 2, 105: 2, 106: 2 }; // Freezer #30/#33 and New Freezer #101/#102/#104/#105/#106 are double-deep (front/rear)
   function rackDepthOf(rackId) { return RACK_DEPTH[rackId] || 1; }
   function isDepthLevel(rackId, level) { return rackDepthOf(rackId) > 1; }
   // The suffix letters used for a rack's depth positions, front-to-back: e.g. ['a','b'] or ['a','b','c'].
@@ -235,7 +235,22 @@
   const COLUMN_GROUPS = {
     // Rack #51 reads right-to-left: positions shown 4, 3, 2, 1.
     51: [[4, 3], [2, 1]],
-    60: [[1, 2], [3, 4], [5, 6], [7, 8, 9]]
+    60: [[1, 2], [3, 4], [5, 6], [7, 8, 9]],
+    // New Freezer #101/#102: a 2-pallet bay at the aisle end, then five 3-pallet bays.
+    101: [[1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11], [12, 13, 14], [15, 16, 17]],
+    102: [[1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11], [12, 13, 14], [15, 16, 17]],
+    // New Freezer #103/#104: the same 2-pallet aisle bay, then three 3-pallet bays.
+    103: [[1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]],
+    104: [[1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]],
+    // New Freezer #105: the 2-pallet aisle bay, then four 2-pallet bays.
+    105: [[1, 2], [3, 4], [5, 6], [7, 8], [9, 10]],
+    // New Freezer #106: a 1-pallet bay at the aisle end, three 2-pallet bays, and a
+    // 1-pallet floor bay at the back-wall end.
+    106: [[1], [2, 3], [4, 5], [6, 7], [8]],
+    // New Freezer #107: a 1-pallet bay at the aisle end, then three 2-pallet bays.
+    107: [[1], [2, 3], [4, 5], [6, 7]],
+    // New Freezer #108: four 2-pallet bays, then a 1-pallet floor bay at the back-wall end.
+    108: [[1, 2], [3, 4], [5, 6], [7, 8], [9]]
   };
   const FRIDGE60_RACK_IDS = [62, 60, 61, 63];
   const FRIDGE60_VALID_LOCATIONS = (function() {
@@ -255,6 +270,45 @@
     return out;
   })();
   const FRIDGE60_LAYOUT = buildLayout(FRIDGE60_RACK_IDS, FRIDGE60_VALID_LOCATIONS);
+
+  // New Freezer: racks #101 to #108 along the back wall. Position 1 is at the aisle
+  // end. On #101-#105 positions 1-2 sit over a walkway: only the top level exists there.
+  // #101/#102: positions 1-17, level B on all, level A from 3; two pallets deep.
+  // #103/#104: positions 1-11, level C on all, levels A and B from 3; #104 two deep.
+  // #105: positions 1-10 (2 per bay), level C on all, levels A and B from 3; two deep.
+  // #106: positions 1-7 on levels A-C, then position 8 at the back-wall end is one
+  // floor pallet with no beams (level A only); two deep.
+  // #107: positions 1-7 on levels A-C; one pallet deep.
+  // #108: positions 1-8 on levels A-C, then position 9 at the back-wall end is one
+  // floor pallet with no beams (level A only); one pallet deep.
+  const overWalkway = top => (level, p) => p > 2 || level === top;
+  const NEWFREEZER_SPECS = {
+    101: { maxPos: 17, levels: ['A', 'B'], has: overWalkway('B') },
+    102: { maxPos: 17, levels: ['A', 'B'], has: overWalkway('B') },
+    103: { maxPos: 11, levels: ['A', 'B', 'C'], has: overWalkway('C') },
+    104: { maxPos: 11, levels: ['A', 'B', 'C'], has: overWalkway('C') },
+    105: { maxPos: 10, levels: ['A', 'B', 'C'], has: overWalkway('C') },
+    106: { maxPos: 8, levels: ['A', 'B', 'C'], has: (level, p) => p < 8 || level === 'A' },
+    107: { maxPos: 7, levels: ['A', 'B', 'C'], has: () => true },
+    108: { maxPos: 9, levels: ['A', 'B', 'C'], has: (level, p) => p < 9 || level === 'A' }
+  };
+  const NEWFREEZER_RACK_IDS = [101, 102, 103, 104, 105, 106, 107, 108];
+  const NEWFREEZER_VALID_LOCATIONS = (function() {
+    const out = [];
+    NEWFREEZER_RACK_IDS.forEach(id => {
+      const spec = NEWFREEZER_SPECS[id];
+      spec.levels.forEach(level => {
+        for (let p = 1; p <= spec.maxPos; p++) {
+          if (!spec.has(level, p)) continue;
+          depthSuffixes(id).forEach(s => out.push(id + '-' + level + '-' + p + s));
+        }
+      });
+    });
+    return out;
+  })();
+  const NEWFREEZER_LAYOUT = buildLayout(NEWFREEZER_RACK_IDS, NEWFREEZER_VALID_LOCATIONS);
+  // Racks drawn in the top view with position 1 at the far end of the run (the aisle).
+  const RUN_REVERSED = new Set([101, 102, 103, 104, 105, 106, 107, 108]);
 
   const WAREHOUSES = {
     dry: {
@@ -308,6 +362,14 @@
       rackIds: [], layout: {},
       floorIds: ['main'], floorLabel: () => 'Fish Fridge',
       storagePrefix: 'fishfridge-'
+    },
+    // Racked like the five above, but not drawn on the site map — it opens from
+    // the third button under it, next to the two fridges. No floor areas.
+    newfreezer: {
+      id: 'newfreezer', name: 'New Freezer',
+      rackIds: NEWFREEZER_RACK_IDS, layout: NEWFREEZER_LAYOUT,
+      floorIds: [], floorLabel: id => id,
+      storagePrefix: 'newfreezer-'
     }
   };
   const FRIDGE_SPOT = 'main';
@@ -1754,6 +1816,46 @@
   }
 
 
+  // New Freezer plan, from the hand-drawn top view: racks #101-#108 hang off the back
+  // wall (top) left to right, the aisle runs along the front (bottom). #102|#103,
+  // #104|#105 and #106|#107 stand back to back with a wall between them (hatched red,
+  // the #104|#105 wall the widest). The door is in the front wall between #103 and
+  // #104. Placed in % of the room as drawn; on a phone the plan scrolls sideways.
+  // A rack with no layout yet would show as a plain outline, not clickable.
+  function renderOverviewNewFreezer() {
+    const box = (left, width, height) => `position:absolute; left:${left}%; top:0; width:${width}%; height:${height}%; box-sizing:border-box;`;
+    const rack = (id, left, width, height) => getRow(id)
+      ? `<div style="${box(left, width, height)}">${rackRunHtml(getRow(id), 'v', 260)}</div>`
+      : `<div style="${box(left, width, height)} border:2px dashed #A6A398; border-top:none; border-radius:0 0 4px 4px; background:#FBFAF7; display:flex; align-items:center; justify-content:center;" title="Rack #${id} — locations not set up yet">
+          <span style="writing-mode:vertical-rl; font-family:'Barlow Condensed', sans-serif; font-weight:700; font-size:22px; letter-spacing:0.5px; color:#A6A398;">#${id}</span>
+        </div>`;
+    const wall = (left, width, height) => `
+      <div style="${box(left, width, height)} border-left:2px solid #1E3A6B; border-right:2px solid #1E3A6B;
+                  background:repeating-linear-gradient(45deg, #C0392B 0 1.5px, transparent 1.5px 9px),
+                             repeating-linear-gradient(-45deg, #C0392B 0 1.5px, transparent 1.5px 9px);" title="Wall"></div>`;
+
+    return `
+      <div class="orl-warehouse">
+        <div class="orl-blueprint-scroll" style="overflow-x:auto; overflow-y:visible;">
+        <div class="orl-blueprintbody" style="position:relative; width:100%; min-width:900px; aspect-ratio:1470/635; border:3px solid #2A2925; border-radius:4px; background:#FFFFFF; box-sizing:border-box;">
+          ${rack(101, 1.2, 6.6, 67)}
+          ${rack(102, 17.3, 6.6, 70)}
+          ${wall(23.9, 2.3, 70)}
+          ${rack(103, 26.2, 6.6, 71)}
+          ${rack(104, 42.2, 6.6, 72)}
+          ${wall(48.8, 4.9, 72)}
+          ${rack(105, 53.7, 6.6, 71)}
+          ${rack(106, 66.3, 6.6, 76)}
+          ${wall(72.9, 1.4, 77)}
+          ${rack(107, 74.3, 6.6, 78)}
+          ${rack(108, 90.8, 8.3, 84)}
+          <div style="position:absolute; left:34%; width:6.8%; bottom:-3px; height:28px; box-sizing:border-box; border:2px dashed #A6A398; border-radius:6px 6px 0 0; background:#F7F5EF; display:flex; align-items:center; justify-content:center; font-family:'JetBrains Mono', monospace; font-weight:700; font-size:9px; color:#6B6A62; text-transform:uppercase; letter-spacing:0.5px;" title="Door — front wall, between #103 and #104">Door</div>
+        </div>
+        </div>
+      </div>`;
+  }
+
+
   function dockDoorHtml(title, widthPx) {
     const style = widthPx ? ` style="flex:0 0 ${widthPx}px;"` : '';
     return `
@@ -1771,7 +1873,7 @@
     const maxPos = layout.maxPos;
     const levels = layout.levelsOrder || [];
     const vertical = orient === 'v';
-    const groups = COLUMN_GROUPS[row.id] || (function() {
+    let groups = COLUMN_GROUPS[row.id] || (function() {
       const per = row.palletsPerColumn || 2, out = [];
       for (let p = 1; p <= maxPos; p += per) {
         const g = [];
@@ -1780,6 +1882,7 @@
       }
       return out;
     })();
+    if (RUN_REVERSED.has(row.id)) groups = groups.map(g => g.slice().reverse()).reverse();
     const stocked = pos => levels.some(l => layout.exists.has(l + '-' + pos) && cellItems(row.id, l + '-' + pos).length);
     const depthAt = pos => levels.filter(l => layout.exists.has(l + '-' + pos)).length;
     const { filled, total } = rackFillStats(row);
@@ -3094,6 +3197,7 @@
         : CURRENT_WH.id === 'fridge40' ? renderOverviewFridge40()
         : CURRENT_WH.id === 'fridge50' ? renderOverviewFridge50()
         : CURRENT_WH.id === 'fridge60' ? renderOverviewFridge60()
+        : CURRENT_WH.id === 'newfreezer' ? renderOverviewNewFreezer()
         : renderOverviewDry();
     } else if (state.screen === 'rack') {
       const activeRow = getRow(state.activeRowId) || state.rows[0];
@@ -3241,7 +3345,23 @@
           <span style="font-size:11.5px; color:#8A877C;">${n} product${n === 1 ? '' : 's'}</span>
         </button>`;
     };
-    return `<div style="display:flex; gap:10px; max-width:1180px; margin:14px auto 0;">${btn('meatfridge')}${btn('fishfridge')}</div>`;
+    // The New Freezer is racked, so its button opens the rack plan and counts pallets.
+    const freezerBtn = id => {
+      const cache = whCache[id] || { rows: [], data: {} };
+      let filled = 0, total = 0;
+      cache.rows.forEach(row => {
+        const l = WAREHOUSES[id].layout[row.id];
+        total += l ? l.exists.size : 0;
+        const d = cache.data[row.id] || {};
+        Object.keys(d).forEach(code => { if (d[code] && d[code].length) filled++; });
+      });
+      return `<button class="orl-btn" onclick="ORL.enterWarehouse('${id}')"
+                style="flex:1 1 0; min-width:0; min-height:56px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;">
+          <span style="font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:18px; letter-spacing:0.4px; text-transform:uppercase; color:#1E1E1C;">${esc(WAREHOUSES[id].name)}</span>
+          <span style="font-size:11.5px; color:#8A877C;">${filled}/${total} pallets</span>
+        </button>`;
+    };
+    return `<div style="display:flex; gap:10px; max-width:1180px; margin:14px auto 0;">${btn('meatfridge')}${btn('fishfridge')}${freezerBtn('newfreezer')}</div>`;
   }
 
   window.ORL = {

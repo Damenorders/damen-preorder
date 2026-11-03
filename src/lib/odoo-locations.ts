@@ -4,7 +4,7 @@ import type { OdooWarehouseUnit } from "@/db/odoo-inventory-schema";
 // same labels public/odoo-inventory/odoo-locator.js draws, so the Activity log
 // and the export read exactly like the screen.
 
-export const ODOO_UNITS: OdooWarehouseUnit[] = ["dry", "freezer", "fridge40", "fridge50", "fridge60", "meatfridge", "fishfridge"];
+export const ODOO_UNITS: OdooWarehouseUnit[] = ["dry", "freezer", "fridge40", "fridge50", "fridge60", "meatfridge", "fishfridge", "newfreezer"];
 
 /** The fridges that are one location each: no racks, a single floor area 'main'. */
 export const ODOO_FRIDGES: OdooWarehouseUnit[] = ["meatfridge", "fishfridge"];
@@ -17,6 +17,7 @@ export const ODOO_UNIT_LABELS: Record<OdooWarehouseUnit, string> = {
   fridge60: "Fridge 60",
   meatfridge: "Meat Fridge",
   fishfridge: "Fish Fridge",
+  newfreezer: "New Freezer",
 };
 
 const FLOOR_LABELS: Record<OdooWarehouseUnit, Record<string, string>> = {
@@ -27,6 +28,7 @@ const FLOOR_LABELS: Record<OdooWarehouseUnit, Record<string, string>> = {
   fridge60: { floor2: "Floor 2", floor1: "Floor 1" },
   meatfridge: { main: "Meat Fridge" },
   fishfridge: { main: "Fish Fridge" },
+  newfreezer: {},
 };
 
 export function floorLabel(unit: OdooWarehouseUnit, floorId: string): string {
