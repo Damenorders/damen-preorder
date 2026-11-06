@@ -236,9 +236,10 @@
     // Rack #51 reads right-to-left: positions shown 4, 3, 2, 1.
     51: [[4, 3], [2, 1]],
     60: [[1, 2], [3, 4], [5, 6], [7, 8, 9]],
-    // New Freezer #101/#102: a 2-pallet bay at the aisle end, then five 3-pallet bays.
+    // New Freezer #101: a 2-pallet bay at the aisle end, then five 3-pallet bays.
+    // #102: the same, one 3-pallet bay shorter.
     101: [[1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11], [12, 13, 14], [15, 16, 17]],
-    102: [[1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11], [12, 13, 14], [15, 16, 17]],
+    102: [[1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11], [12, 13, 14]],
     // New Freezer #103/#104: the same 2-pallet aisle bay, then three 3-pallet bays.
     103: [[1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]],
     104: [[1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]],
@@ -273,7 +274,8 @@
 
   // New Freezer: racks #101 to #108 along the back wall. Position 1 is at the aisle
   // end. On #101-#105 positions 1-2 sit over a walkway: only the top level exists there.
-  // #101/#102: positions 1-17, level B on all, level A from 3; two pallets deep.
+  // #101: positions 1-17, level B on all, level A from 3; two pallets deep.
+  // #102: the same, positions 1-14.
   // #103/#104: positions 1-11, level C on all, levels A and B from 3; #104 two deep.
   // #105: positions 1-10 (2 per bay), level C on all, levels A and B from 3; two deep.
   // #106: positions 1-7 on levels A-C, then position 8 at the back-wall end is one
@@ -284,7 +286,7 @@
   const overWalkway = top => (level, p) => p > 2 || level === top;
   const NEWFREEZER_SPECS = {
     101: { maxPos: 17, levels: ['A', 'B'], has: overWalkway('B') },
-    102: { maxPos: 17, levels: ['A', 'B'], has: overWalkway('B') },
+    102: { maxPos: 14, levels: ['A', 'B'], has: overWalkway('B') },
     103: { maxPos: 11, levels: ['A', 'B', 'C'], has: overWalkway('C') },
     104: { maxPos: 11, levels: ['A', 'B', 'C'], has: overWalkway('C') },
     105: { maxPos: 10, levels: ['A', 'B', 'C'], has: overWalkway('C') },
