@@ -23,7 +23,7 @@ export interface DashboardOrderLine {
 }
 
 // Submissions-style order within a card: by day, then Pending → Ready →
-// Shipped → Invoiced (fish only), then client name.
+// Shipped, then client name (Fish has its own order, below).
 const STATUS_RANK: Record<SubmissionStatus, number> = {
   pending: 0,
   ready: 1,
@@ -35,6 +35,26 @@ function compareOrders(a: DashboardOrderRow, b: DashboardOrderRow): number {
     return a.deliveryDate.localeCompare(b.deliveryDate);
   const rank = STATUS_RANK[a.submissionStatus] - STATUS_RANK[b.submissionStatus];
   return rank !== 0 ? rank : a.clientName.localeCompare(b.clientName);
+}
+
+// Fish: the fish team's workflow — Ready, then Shipped, then Pending, with
+// Invoiced (done) at the bottom; day and client name break ties.
+const FISH_STATUS_RANK: Record<SubmissionStatus, number> = {
+  ready: 0,
+  shipped: 1,
+  pending: 2,
+  invoiced: 3,
+};
+function compareFishOrders(
+  a: DashboardOrderRow,
+  b: DashboardOrderRow,
+): number {
+  const rank =
+    FISH_STATUS_RANK[a.submissionStatus] - FISH_STATUS_RANK[b.submissionStatus];
+  if (rank !== 0) return rank;
+  if (a.deliveryDate !== b.deliveryDate)
+    return a.deliveryDate.localeCompare(b.deliveryDate);
+  return a.clientName.localeCompare(b.clientName);
 }
 
 // Other Preorders: status always drives the order — Pending on top, then Ready,
@@ -239,7 +259,15 @@ export default function BuyerCommandCenter({
     // Shipped. Other Preorders sorts by status first, so Pending is always on
     // top regardless of date.
     DEPARTMENTS.forEach((d) =>
-      map.get(d)?.sort(d === "other" ? compareOrdersByStatus : compareOrders),
+      map
+        .get(d)
+        ?.sort(
+          d === "other"
+            ? compareOrdersByStatus
+            : d === "fish"
+              ? compareFishOrders
+              : compareOrders,
+        ),
     );
     return map;
   }, [orders, dates]);
