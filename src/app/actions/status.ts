@@ -15,7 +15,12 @@ import { requireRole } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { notifyOrdersChanged } from "@/lib/realtime-server";
 
-const SUBMISSION_STATUSES: SubmissionStatus[] = ["pending", "ready", "shipped"];
+const SUBMISSION_STATUSES: SubmissionStatus[] = [
+  "pending",
+  "ready",
+  "shipped",
+  "invoiced",
+];
 const BUYER_TABLE_STATUSES: BuyerTableStatus[] = [
   "pending",
   "ordered",
@@ -37,6 +42,9 @@ export async function setSubmissionStatus(
     where: eq(orders.id, orderId),
   });
   if (!existing) return { ok: false, error: "Order not found." };
+  if (status === "invoiced" && existing.department !== "fish") {
+    return { ok: false, error: "Invoiced is for fish orders only." };
+  }
   if (existing.submissionStatus === status) return { ok: true };
 
   await db.transaction(async (tx) => {

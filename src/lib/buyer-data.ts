@@ -88,7 +88,7 @@ export async function getAllSubmissions(
   }
   if (
     filters.status &&
-    ["pending", "ready", "shipped"].includes(filters.status)
+    ["pending", "ready", "shipped", "invoiced"].includes(filters.status)
   ) {
     conditions.push(
       eq(orders.submissionStatus, filters.status as SubmissionStatus),
@@ -100,8 +100,10 @@ export async function getAllSubmissions(
   if (filters.createdDate) conditions.push(onBusinessDate(orders.createdAt, filters.createdDate));
   if (filters.updatedDate) conditions.push(onBusinessDate(orders.updatedAt, filters.updatedDate));
 
-  // Shipped orders always sink to the bottom, regardless of the chosen sort.
-  const shippedLast = sql`case when ${orders.submissionStatus} = 'shipped' then 1 else 0 end`;
+  // Finished orders always sink to the bottom, regardless of the chosen sort:
+  // Invoiced for fish (a Shipped fish order stays in place), Shipped for the
+  // rest.
+  const shippedLast = sql`case when ${orders.department} = 'fish' then (case when ${orders.submissionStatus}::text = 'invoiced' then 1 else 0 end) when ${orders.submissionStatus} = 'shipped' then 1 else 0 end`;
   const orderRows = await db.query.orders.findMany({
     where: conditions.length ? and(...conditions) : undefined,
     orderBy:

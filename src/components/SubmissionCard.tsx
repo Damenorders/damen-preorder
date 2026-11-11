@@ -14,11 +14,12 @@ import LineWeightInput from "@/components/LineWeightInput";
 import type { SubmissionView } from "@/lib/orders-data";
 
 // Same colour language as the buyer's dropdowns:
-// Pending yellow, Ready green, Shipped dark green.
+// Pending yellow, Ready green, Shipped dark green, Invoiced slate (fish only).
 const statusStyles: Record<SubmissionView["submissionStatus"], string> = {
   pending: "bg-amber-100 text-amber-900",
   ready: "bg-green-100 text-green-800",
   shipped: "bg-emerald-800 text-white",
+  invoiced: "bg-slate-700 text-white",
 };
 
 export default function SubmissionCard({
@@ -136,6 +137,7 @@ export default function SubmissionCard({
               kind="submission"
               orderId={submission.id}
               value={submission.submissionStatus}
+              department={submission.department}
             />
           ) : (
             <span

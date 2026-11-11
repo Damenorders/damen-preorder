@@ -23,11 +23,12 @@ export interface DashboardOrderLine {
 }
 
 // Submissions-style order within a card: by day, then Pending → Ready →
-// Shipped, then client name.
+// Shipped → Invoiced (fish only), then client name.
 const STATUS_RANK: Record<SubmissionStatus, number> = {
   pending: 0,
   ready: 1,
   shipped: 2,
+  invoiced: 3,
 };
 function compareOrders(a: DashboardOrderRow, b: DashboardOrderRow): number {
   if (a.deliveryDate !== b.deliveryDate)
@@ -318,6 +319,7 @@ export default function BuyerCommandCenter({
                         kind="submission"
                         orderId={o.id}
                         value={o.submissionStatus}
+                        department={o.department}
                         compact
                       />
                     </span>

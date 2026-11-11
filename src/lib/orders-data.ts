@@ -135,11 +135,14 @@ export async function getSubmissions(
 ): Promise<SubmissionView[]> {
   const where = eq(orders.department, department);
 
-  // Shipped orders always sink to the bottom, regardless of the chosen sort.
-  const shippedLast = sql`case when ${orders.submissionStatus} = 'shipped' then 1 else 0 end`;
-  // Within a delivery day, Ready orders sink below Pending ones (but the day
-  // grouping itself is preserved — days are never split apart).
-  const readyAfterPending = sql`case when ${orders.submissionStatus} = 'ready' then 1 else 0 end`;
+  // Finished orders always sink to the bottom, regardless of the chosen sort:
+  // Invoiced for fish (a Shipped fish order stays in place), Shipped for the
+  // rest.
+  const shippedLast = sql`case when ${orders.department} = 'fish' then (case when ${orders.submissionStatus}::text = 'invoiced' then 1 else 0 end) when ${orders.submissionStatus} = 'shipped' then 1 else 0 end`;
+  // Within a delivery day, Ready orders sink below Pending ones, and a Shipped
+  // (not yet Invoiced) fish order below those (but the day grouping itself is
+  // preserved — days are never split apart).
+  const readyAfterPending = sql`case when ${orders.submissionStatus} = 'ready' then 1 when ${orders.submissionStatus} = 'shipped' then 2 else 0 end`;
   const orderRows = await db.query.orders.findMany({
     where,
     orderBy:

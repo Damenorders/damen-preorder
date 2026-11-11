@@ -12,11 +12,22 @@ import {
 import {
   buyerTableStatusLabels,
   submissionStatusLabels,
+  submissionStatusesFor,
 } from "@/lib/labels";
-import type { BuyerTableStatus, SubmissionStatus } from "@/db/schema";
+import type {
+  BuyerTableStatus,
+  Department,
+  SubmissionStatus,
+} from "@/db/schema";
 
 type Props = (
-  | { kind: "submission"; orderId: number; value: SubmissionStatus }
+  | {
+      kind: "submission";
+      orderId: number;
+      value: SubmissionStatus;
+      /** Decides the options: only fish orders offer Invoiced. */
+      department: Department;
+    }
   | { kind: "buyer"; orderId: number; value: BuyerTableStatus }
 ) & { compact?: boolean };
 
@@ -26,6 +37,7 @@ const statusColors: Record<string, string> = {
   pending: "border-amber-300 bg-amber-100 text-amber-900",
   ready: "border-green-300 bg-green-100 text-green-800",
   shipped: "border-emerald-800 bg-emerald-800 text-white",
+  invoiced: "border-slate-700 bg-slate-700 text-white",
   ordered: "border-sky-300 bg-sky-100 text-sky-800",
   pending_delivery: "border-orange-300 bg-orange-100 text-orange-800",
   pending_pickup: "border-violet-300 bg-violet-100 text-violet-800",
@@ -37,10 +49,13 @@ export default function StatusSelect(props: Props) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  const labels: Record<string, string> =
+  const options: [string, string][] =
     props.kind === "submission"
-      ? submissionStatusLabels
-      : buyerTableStatusLabels;
+      ? submissionStatusesFor(props.department).map((s) => [
+          s,
+          submissionStatusLabels[s],
+        ])
+      : Object.entries(buyerTableStatusLabels);
 
   function handleChange(next: string) {
     setError(null);
@@ -70,7 +85,7 @@ export default function StatusSelect(props: Props) {
           props.kind === "submission" ? "Submission status" : "Buyer status"
         }
       >
-        {Object.entries(labels).map(([value, label]) => (
+        {options.map(([value, label]) => (
           <option key={value} value={value} className="bg-white text-neutral-900">
             {label}
           </option>

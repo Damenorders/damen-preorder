@@ -253,6 +253,13 @@
       "when": 1785000000015,
       "tag": "0035_odoo_new_freezer",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1785000000016,
+      "tag": "0036_fish_invoiced",
+      "breakpoints": true
     }
   ]
 }
