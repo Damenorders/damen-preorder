@@ -20,6 +20,7 @@ const SUBMISSION_STATUSES: SubmissionStatus[] = [
   "ready",
   "shipped",
   "invoiced",
+  "ordered",
 ];
 const BUYER_TABLE_STATUSES: BuyerTableStatus[] = [
   "pending",
@@ -44,6 +45,9 @@ export async function setSubmissionStatus(
   if (!existing) return { ok: false, error: "Order not found." };
   if (status === "invoiced" && existing.department !== "fish") {
     return { ok: false, error: "Invoiced is for fish orders only." };
+  }
+  if (status === "ordered" && existing.department !== "other") {
+    return { ok: false, error: "Ordered is for Other orders only." };
   }
   if (existing.submissionStatus === status) return { ok: true };
 

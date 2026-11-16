@@ -23,9 +23,11 @@ export interface DashboardOrderLine {
 }
 
 // Submissions-style order within a card: by day, then Pending → Ready →
-// Shipped, then client name (Fish has its own order, below).
+// Shipped, then client name (Fish has its own order, below). Ordered (Other
+// only) sits between Pending and Ready.
 const STATUS_RANK: Record<SubmissionStatus, number> = {
   pending: 0,
+  ordered: 0.5,
   ready: 1,
   shipped: 2,
   invoiced: 3,
@@ -43,6 +45,7 @@ const FISH_STATUS_RANK: Record<SubmissionStatus, number> = {
   ready: 0,
   shipped: 1,
   pending: 2,
+  ordered: 2, // not offered on fish
   invoiced: 3,
 };
 function compareFishOrders(
@@ -57,8 +60,8 @@ function compareFishOrders(
   return a.clientName.localeCompare(b.clientName);
 }
 
-// Other Preorders: status always drives the order — Pending on top, then Ready,
-// then Shipped — with day and client name as tie-breakers.
+// Other Preorders: status always drives the order — Pending on top, then
+// Ordered, then Ready, then Shipped — with day and client name as tie-breakers.
 function compareOrdersByStatus(
   a: DashboardOrderRow,
   b: DashboardOrderRow,

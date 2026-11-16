@@ -44,6 +44,9 @@ export const submissionStatusEnum = pgEnum("submission_status", [
   // Fish orders only (enforced in setSubmissionStatus). For fish, Invoiced —
   // not Shipped — is the status that sinks an order to the bottom.
   "invoiced",
+  // Other orders only (enforced in setSubmissionStatus); sits between Pending
+  // and Ready.
+  "ordered",
 ]);
 
 // SPEC.md §12 — buyer/admin only

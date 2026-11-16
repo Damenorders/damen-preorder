@@ -20,6 +20,7 @@ const statusStyles: Record<SubmissionView["submissionStatus"], string> = {
   ready: "bg-green-100 text-green-800",
   shipped: "bg-emerald-800 text-white",
   invoiced: "bg-slate-700 text-white",
+  ordered: "bg-sky-100 text-sky-800",
 };
 
 export default function SubmissionCard({

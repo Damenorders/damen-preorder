@@ -139,9 +139,10 @@ export async function getSubmissions(
   // Invoiced for fish (a Shipped fish order stays in place), Shipped for the
   // rest.
   const shippedLast = sql`case when ${orders.department} = 'fish' then (case when ${orders.submissionStatus}::text = 'invoiced' then 1 else 0 end) when ${orders.submissionStatus} = 'shipped' then 1 else 0 end`;
-  // Within a delivery day, Ready orders sink below Pending ones (but the day
-  // grouping itself is preserved — days are never split apart).
-  const readyAfterPending = sql`case when ${orders.submissionStatus} = 'ready' then 1 else 0 end`;
+  // Within a delivery day, Ordered (Other only) then Ready orders sink below
+  // Pending ones (but the day grouping itself is preserved — days are never
+  // split apart).
+  const readyAfterPending = sql`case ${orders.submissionStatus}::text when 'ordered' then 1 when 'ready' then 2 else 0 end`;
   // Fish follows the fish team's workflow: status leads, across all days —
   // Ready, then Shipped, then Pending, and Invoiced (done) at the bottom.
   // Delivery date (or newest order, for "submitted") breaks ties.

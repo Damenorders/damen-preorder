@@ -63,15 +63,16 @@ export const submissionStatusLabels: Record<SubmissionStatus, string> = {
   ready: "Ready",
   shipped: "Shipped",
   invoiced: "Invoiced",
+  ordered: "Ordered",
 };
 
-// Invoiced exists for fish orders only.
+// Invoiced exists for fish orders only; Ordered for Other orders only.
 export function submissionStatusesFor(
   department: Department,
 ): SubmissionStatus[] {
-  return department === "fish"
-    ? ["pending", "ready", "shipped", "invoiced"]
-    : ["pending", "ready", "shipped"];
+  if (department === "fish") return ["pending", "ready", "shipped", "invoiced"];
+  if (department === "other") return ["pending", "ordered", "ready", "shipped"];
+  return ["pending", "ready", "shipped"];
 }
 
 // SPEC.md §12

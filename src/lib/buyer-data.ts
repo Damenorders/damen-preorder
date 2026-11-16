@@ -88,7 +88,7 @@ export async function getAllSubmissions(
   }
   if (
     filters.status &&
-    ["pending", "ready", "shipped", "invoiced"].includes(filters.status)
+    ["pending", "ready", "shipped", "invoiced", "ordered"].includes(filters.status)
   ) {
     conditions.push(
       eq(orders.submissionStatus, filters.status as SubmissionStatus),
