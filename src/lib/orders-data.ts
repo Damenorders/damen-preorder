@@ -147,13 +147,22 @@ export async function getSubmissions(
   // Ready, then Shipped, then Pending, and Invoiced (done) at the bottom.
   // Delivery date (or newest order, for "submitted") breaks ties.
   const fishStatusRank = sql`case ${orders.submissionStatus}::text when 'ready' then 0 when 'shipped' then 1 when 'pending' then 2 else 3 end`;
+  // Other also leads with status, across all days — Ready, then Ordered, then
+  // Pending, with Shipped (done) at the bottom.
+  const otherStatusRank = sql`case ${orders.submissionStatus}::text when 'ready' then 0 when 'ordered' then 1 when 'pending' then 2 else 3 end`;
+  const statusRank =
+    department === "fish"
+      ? fishStatusRank
+      : department === "other"
+        ? otherStatusRank
+        : null;
   const orderRows = await db.query.orders.findMany({
     where,
     orderBy:
-      department === "fish"
+      statusRank
         ? sortBy === "submitted"
-          ? [fishStatusRank, desc(orders.createdAt)]
-          : [fishStatusRank, orders.deliveryDate, desc(orders.createdAt)]
+          ? [statusRank, desc(orders.createdAt)]
+          : [statusRank, orders.deliveryDate, desc(orders.createdAt)]
         : sortBy === "submitted"
         ? [shippedLast, desc(orders.createdAt)]
         : [

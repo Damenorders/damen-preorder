@@ -60,13 +60,22 @@ function compareFishOrders(
   return a.clientName.localeCompare(b.clientName);
 }
 
-// Other Preorders: status always drives the order — Pending on top, then
-// Ordered, then Ready, then Shipped — with day and client name as tie-breakers.
+// Other Preorders: status always drives the order — Ready on top, then
+// Ordered, then Pending, then Shipped — with day and client name as
+// tie-breakers.
+const OTHER_STATUS_RANK: Record<SubmissionStatus, number> = {
+  ready: 0,
+  ordered: 1,
+  pending: 2,
+  shipped: 3,
+  invoiced: 3, // not offered on other
+};
 function compareOrdersByStatus(
   a: DashboardOrderRow,
   b: DashboardOrderRow,
 ): number {
-  const rank = STATUS_RANK[a.submissionStatus] - STATUS_RANK[b.submissionStatus];
+  const rank =
+    OTHER_STATUS_RANK[a.submissionStatus] - OTHER_STATUS_RANK[b.submissionStatus];
   if (rank !== 0) return rank;
   if (a.deliveryDate !== b.deliveryDate)
     return a.deliveryDate.localeCompare(b.deliveryDate);
@@ -259,7 +268,7 @@ export default function BuyerCommandCenter({
       }
     });
     // Meat/Fish read like the Submissions view — by day, then Pending → Ready →
-    // Shipped. Other Preorders sorts by status first, so Pending is always on
+    // Shipped. Other Preorders sorts by status first, so Ready is always on
     // top regardless of date.
     DEPARTMENTS.forEach((d) =>
       map
