@@ -98,7 +98,9 @@ export async function addProductListItem(
   const item = await db.query.inventoryItems.findFirst({
     where: eq(inventoryItems.code, code),
   });
-  if (!item) return { ok: false, error: "That item is not in the catalog." };
+  if (!item || !item.inProductList) {
+    return { ok: false, error: "That item is not on the product list." };
+  }
 
   // onConflictDoNothing: a double-tap, or two people tapping the same item at
   // once, leaves one line rather than failing or duplicating.
@@ -199,6 +201,9 @@ export async function searchCatalog(query: string): Promise<CatalogHit[]> {
     .where(
       and(
         eq(inventoryItems.active, true),
+        // Only the Product List card's own list (drizzle/0038), not the whole
+        // shared catalogue that Warehouse Inventory searches.
+        eq(inventoryItems.inProductList, true),
         or(
           ilike(inventoryItems.description, like),
           ilike(inventoryItems.code, like),

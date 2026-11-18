@@ -28,6 +28,12 @@ export const inventoryItems = pgTable("inventory_items", {
   description: text("description").notNull(),
   section: text("section").notNull(),
   active: boolean("active").notNull().default(true),
+  /**
+   * On the Product List card's own product list (drizzle/0038). Only these
+   * items show in the Product List search; Warehouse Inventory and Purchase
+   * Orders go by `active` and ignore this flag.
+   */
+  inProductList: boolean("in_product_list").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
