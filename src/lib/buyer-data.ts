@@ -3,7 +3,10 @@ import {
   and,
   desc,
   eq,
+  gte,
   inArray,
+  lte,
+  ne,
   sql,
   type AnyColumn,
   type SQL,
@@ -49,6 +52,13 @@ export function businessWeek(): string[] {
       timeZone: "America/Montreal",
     }),
   );
+}
+
+/** End of "rest of the week": the closest Sunday on or after tomorrow. */
+export function businessWeekEnd(): string {
+  const d = new Date(`${businessTomorrow()}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + ((7 - d.getUTCDay()) % 7));
+  return d.toISOString().slice(0, 10);
 }
 
 function onBusinessDate(column: AnyColumn, date: string): SQL {
@@ -191,6 +201,11 @@ export interface BuyerTableFilters {
    */
   statusFirst?: boolean;
   newestFirst?: boolean;
+  /** Inclusive delivery-date range (YYYY-MM-DD); used by the Forecast view. */
+  deliveryFrom?: string;
+  deliveryTo?: string;
+  /** Drop Received orders (Forecast: everything not yet in). */
+  excludeReceived?: boolean;
 }
 
 export interface BuyerTableRow {
@@ -255,6 +270,16 @@ export async function getBuyerTable(
     conditions.push(eq(orders.deliveryDate, delivery));
   }
   // "all" → no delivery condition
+  const isDate = (v?: string) => !!v && /^\d{4}-\d{2}-\d{2}$/.test(v);
+  if (isDate(filters.deliveryFrom)) {
+    conditions.push(gte(orders.deliveryDate, filters.deliveryFrom!));
+  }
+  if (isDate(filters.deliveryTo)) {
+    conditions.push(lte(orders.deliveryDate, filters.deliveryTo!));
+  }
+  if (filters.excludeReceived) {
+    conditions.push(ne(orders.buyerTableStatus, "received"));
+  }
 
   const departments = (filters.departments ?? []).filter(isDepartment);
   if (departments.length > 0) {
@@ -298,8 +323,12 @@ export async function getBuyerTable(
         const dateKey = filters.newestFirst
           ? desc(orders.deliveryDate)
           : orders.deliveryDate;
+        // Status first: Pending at the top, Received at the bottom. Within
+        // Received the latest delivery comes first, so the oldest Received
+        // lines end up at the very bottom of the page.
+        const receivedNewestFirst = sql`case when ${orders.buyerTableStatus} = 'received' then ${orders.deliveryDate} end desc`;
         return filters.statusFirst
-          ? [STATUS_PRIORITY, dateKey, desc(orders.updatedAt), orderLines.id]
+          ? [STATUS_PRIORITY, receivedNewestFirst, dateKey, desc(orders.updatedAt), orderLines.id]
           : [dateKey, STATUS_PRIORITY, desc(orders.updatedAt), orderLines.id];
       })(),
     );

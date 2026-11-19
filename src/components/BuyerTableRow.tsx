@@ -36,11 +36,16 @@ export default function BuyerTableRow({
   index,
   today,
   tomorrow,
+  selected,
+  onToggleSelect,
 }: {
   row: Row;
   index: number;
   today: string;
   tomorrow: string;
+  selected: boolean;
+  /** shift = extend the selection from the last ticked row to this one. */
+  onToggleSelect: (shift: boolean) => void;
 }) {
   const [open, setOpen] = useState(false);
   const zebra = index % 2 === 1 ? "bg-neutral-100" : "bg-white";
@@ -57,8 +62,22 @@ export default function BuyerTableRow({
     <>
       <tr
         onClick={() => setOpen((o) => !o)}
-        className={`cursor-pointer transition-colors hover:bg-accent-50 ${zebra}`}
+        className={`cursor-pointer transition-colors hover:bg-accent-50 ${selected ? "bg-accent-50" : zebra}`}
       >
+        <td className={`${tdClass} w-8 text-center`} onClick={stop}>
+          <input
+            type="checkbox"
+            checked={selected}
+            onChange={() => {}}
+            onClick={(e) => onToggleSelect(e.shiftKey)}
+            // Shift-click would otherwise highlight the text between rows.
+            onMouseDown={(e) => {
+              if (e.shiftKey) e.preventDefault();
+            }}
+            aria-label={`Select ${row.clientName} – ${row.product}`}
+            className="h-4 w-4 cursor-pointer accent-accent-600"
+          />
+        </td>
         <td className={`${tdClass} font-medium`}>{row.clientName}</td>
         <td className={tdClass} onClick={stop}>
           <StatusSelect kind="buyer" orderId={row.orderId} value={row.status} compact />
@@ -130,7 +149,7 @@ export default function BuyerTableRow({
       {open && (
         <tr className={zebra}>
           <td
-            colSpan={12}
+            colSpan={13}
             className="border-b border-neutral-200 px-3 py-2.5 text-[13px] text-neutral-700"
           >
             <span className="font-semibold text-neutral-500">Note: </span>

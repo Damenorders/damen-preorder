@@ -3,6 +3,7 @@ import { requireRole, homePathFor } from "@/lib/auth";
 import {
   businessToday,
   businessTomorrow,
+  businessWeekEnd,
   getBuyerTable,
   getFilterOptions,
 } from "@/lib/buyer-data";
@@ -14,7 +15,9 @@ import {
 import type { BuyerTableStatus } from "@/db/schema";
 import PageShell from "@/components/PageShell";
 import FilterBar, { type FilterField } from "@/components/FilterBar";
-import BuyerTableRow from "@/components/BuyerTableRow";
+import BuyerTableView from "@/components/BuyerTableView";
+import BuyerForecast from "@/components/BuyerForecast";
+import { buildForecast } from "@/lib/forecast";
 import LiveRefresh from "@/components/LiveRefresh";
 
 // Buyer Table — buyer/admin only. A real spreadsheet-style table, one row per
@@ -43,10 +46,13 @@ export default async function BuyerTablePage({
   };
 
   // SPEC.md §18 default: Pending + today/tomorrow (until the user filters)
-  const hasAnyParam = Object.keys(params).length > 0;
+  const forecast = get("view") === "forecast";
+  const hasAnyParam = Object.keys(params).filter((k) => k !== "view").length > 0;
   const status = get("status") ?? (hasAnyParam ? "all" : "pending");
   const delivery = get("delivery") ?? (hasAnyParam ? "all" : "today_tomorrow");
-  const statusFirst = get("sort") === "status";
+  // Status first is the default (Pending top, Received bottom); sort=date
+  // switches back to delivery date first.
+  const statusFirst = get("sort") !== "date";
   const newestFirst = get("dates") === "newest";
 
   const departments = (get("module") ?? "").split(",").filter(Boolean);
@@ -77,21 +83,51 @@ export default async function BuyerTablePage({
     }
     const nextStatusFirst = toggle === "status" ? !statusFirst : statusFirst;
     const nextNewestFirst = toggle === "dates" ? !newestFirst : newestFirst;
-    if (nextStatusFirst) p.set("sort", "status");
+    if (!nextStatusFirst) p.set("sort", "date");
     if (nextNewestFirst) p.set("dates", "newest");
+    if (forecast) p.set("view", "forecast");
     return `/buyer/table?${p.toString()}`;
+  }
+
+  // Forecast toggle keeps every other filter as it is.
+  function viewHref(next: boolean) {
+    const p = new URLSearchParams();
+    for (const [k, v] of Object.entries(params)) {
+      if (k !== "view" && typeof v === "string" && v !== "") p.set(k, v);
+    }
+    if (next) p.set("view", "forecast");
+    const qs = p.toString();
+    return qs ? `/buyer/table?${qs}` : "/buyer/table";
   }
 
   const isDefaultView = status === "pending" && delivery === "today_tomorrow";
 
+  const today = businessToday();
+  const tomorrow = businessTomorrow();
+  const weekEnd = businessWeekEnd();
+
+  // Forecast: everything not yet Received, delivering today → the closest
+  // Sunday after today. Status and delivery filters do not apply.
   const [rows, options] = await Promise.all([
-    getBuyerTable(filters),
+    getBuyerTable(
+      forecast
+        ? {
+            ...filters,
+            status: "all",
+            delivery: "all",
+            deliveryFrom: today,
+            deliveryTo: weekEnd,
+            excludeReceived: true,
+          }
+        : filters,
+    ),
     getFilterOptions(),
   ]);
+  const forecastGroups = forecast ? buildForecast(rows) : [];
 
   const activeCount =
-    (status !== "all" ? 1 : 0) +
-    (delivery !== "all" ? 1 : 0) +
+    (!forecast && status !== "all" ? 1 : 0) +
+    (!forecast && delivery !== "all" ? 1 : 0) +
     (departments.length > 0 ? 1 : 0) +
     [
       filters.clientName,
@@ -102,7 +138,7 @@ export default async function BuyerTablePage({
     ].filter(Boolean).length +
     (filters.hasNotes ? 1 : 0);
 
-  const fields: FilterField[] = [
+  const allFields: FilterField[] = [
     {
       type: "select",
       param: "status",
@@ -160,12 +196,10 @@ export default async function BuyerTablePage({
     { type: "date", param: "updated", label: "Updated on" },
     { type: "checkbox", param: "notes", label: "With notes" },
   ];
+  const fields = forecast
+    ? allFields.filter((f) => f.param !== "status" && f.param !== "delivery")
+    : allFields;
 
-  const today = businessToday();
-  const tomorrow = businessTomorrow();
-
-  const thClass =
-    "sticky top-0 whitespace-nowrap border-b border-neutral-200 bg-neutral-50 px-2 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-neutral-500";
 
   return (
     <PageShell
@@ -174,7 +208,9 @@ export default async function BuyerTablePage({
       backLabel="Dashboard"
       title="Buyer Table"
       subtitle={
-        isDefaultView
+        forecast
+          ? "Forecast: everything not yet Received, grouped by product + specs, to Sunday"
+          : isDefaultView
           ? `Needs action: Pending, delivering today or tomorrow · ${rows.length} line${rows.length === 1 ? "" : "s"}`
           : `${rows.length} line${rows.length === 1 ? "" : "s"}`
       }
@@ -182,6 +218,28 @@ export default async function BuyerTablePage({
     >
       <LiveRefresh />
       <div className="flex flex-col gap-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs font-medium text-neutral-500">View:</span>
+          <div className="inline-flex rounded-full border border-neutral-300 p-0.5">
+            <Link
+              href={viewHref(false)}
+              className={`rounded-full px-3.5 py-1.5 text-sm font-medium transition ${
+                !forecast ? "bg-accent-600 text-white" : "text-neutral-700 hover:text-accent-800"
+              }`}
+            >
+              Table
+            </Link>
+            <Link
+              href={viewHref(true)}
+              className={`rounded-full px-3.5 py-1.5 text-sm font-medium transition ${
+                forecast ? "bg-accent-600 text-white" : "text-neutral-700 hover:text-accent-800"
+              }`}
+            >
+              Forecast
+            </Link>
+          </div>
+        </div>
+        {!forecast && (
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-xs font-medium text-neutral-500">Sort:</span>
           <Link
@@ -207,46 +265,24 @@ export default async function BuyerTablePage({
               : "Dates: earliest first"}
           </Link>
         </div>
+        )}
         <FilterBar fields={fields} activeCount={activeCount} />
 
-        {rows.length === 0 ? (
+        {forecast ? (
+          <BuyerForecast
+            groups={forecastGroups}
+            today={today}
+            tomorrow={tomorrow}
+            weekEnd={weekEnd}
+          />
+        ) : rows.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-neutral-300 px-4 py-10 text-center text-neutral-500">
             {isDefaultView
               ? "Nothing needs action for today or tomorrow. Use the filters to see more."
               : "No orders match these filters."}
           </div>
         ) : (
-          <div className="overflow-x-auto rounded-2xl border border-neutral-200 bg-white shadow-sm">
-            <table className="w-full min-w-[1100px] border-collapse">
-              <thead>
-                <tr>
-                  <th className={thClass}>Client Name</th>
-                  <th className={thClass}>Status</th>
-                  <th className={thClass}>Delivery Date</th>
-                  <th className={`${thClass} text-right`}>Weight</th>
-                  <th className={`${thClass} text-right`}>Qty</th>
-                  <th className={thClass}>Product</th>
-                  <th className={thClass}>Specs</th>
-                  <th className={thClass}>Notes</th>
-                  <th className={thClass}>Created</th>
-                  <th className={thClass}>Updated</th>
-                  <th className={thClass}>Rep</th>
-                  <th className={thClass}></th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((row, i) => (
-                  <BuyerTableRow
-                    key={row.lineId}
-                    row={row}
-                    index={i}
-                    today={today}
-                    tomorrow={tomorrow}
-                  />
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <BuyerTableView rows={rows} today={today} tomorrow={tomorrow} />
         )}
       </div>
     </PageShell>

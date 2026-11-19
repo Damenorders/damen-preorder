@@ -4,7 +4,7 @@
 // Reps can never call these: requireRole redirects them away.
 
 import { revalidatePath } from "next/cache";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import {
   orders,
@@ -75,6 +75,51 @@ export async function setSubmissionStatus(
   revalidatePath("/", "layout");
   await notifyOrdersChanged();
   return { ok: true };
+}
+
+/** Buyer Table bulk change: one status for many orders, in one transaction. */
+export async function setBuyerTableStatusBulk(
+  orderIds: number[],
+  status: BuyerTableStatus,
+): Promise<{ ok: boolean; changed?: number; error?: string }> {
+  const user = await requireRole("buyer", "butcher");
+  if (!BUYER_TABLE_STATUSES.includes(status)) {
+    return { ok: false, error: "Invalid status." };
+  }
+  const ids = [...new Set(orderIds)].filter((id) => Number.isInteger(id));
+  if (ids.length === 0) return { ok: false, error: "No orders selected." };
+
+  const existing = await db.query.orders.findMany({
+    where: inArray(orders.id, ids),
+    columns: { id: true, buyerTableStatus: true },
+  });
+  if (existing.length !== ids.length) {
+    return { ok: false, error: "Some orders no longer exist. Refresh and try again." };
+  }
+  const toChange = existing.filter((o) => o.buyerTableStatus !== status);
+  if (toChange.length === 0) return { ok: true, changed: 0 };
+
+  await db.transaction(async (tx) => {
+    await tx
+      .update(orders)
+      .set({ buyerTableStatus: status, updatedAt: new Date() })
+      .where(inArray(orders.id, toChange.map((o) => o.id)));
+    await logAudit(
+      tx,
+      user,
+      toChange.map((o) => ({
+        action: "update:buyer_table_status",
+        recordType: "order",
+        recordId: o.id,
+        oldValue: o.buyerTableStatus,
+        newValue: status,
+      })),
+    );
+  });
+
+  revalidatePath("/", "layout");
+  await notifyOrdersChanged();
+  return { ok: true, changed: toChange.length };
 }
 
 export async function setBuyerTableStatus(
