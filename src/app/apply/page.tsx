@@ -2,6 +2,7 @@ import Image from "next/image";
 import { requireRole } from "@/lib/auth";
 import { signOut } from "@/app/actions/auth";
 import ApplicationForm from "@/components/ApplicationForm";
+import ThemeToggle from "@/components/ThemeToggle";
 
 // The clients role's entire app: a single Damen Online access application.
 // Standalone — no dashboard, header nav, or other views.
@@ -10,6 +11,7 @@ export default async function ApplyPage() {
 
   return (
     <main className="mx-auto flex w-full max-w-xl flex-1 flex-col px-4 py-10">
+      <ThemeToggle className="fixed right-3 top-3 z-40 flex h-9 w-9 items-center justify-center rounded-full border border-neutral-300 bg-white text-neutral-600 transition hover:bg-neutral-100" />
       <div className="mb-8 flex flex-col items-center text-center">
         <Image
           src="/damen-combined-logo.png"

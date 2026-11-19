@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
+import ThemeToggle from "@/components/ThemeToggle";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -38,6 +39,7 @@ export default function LoginPage() {
 
   return (
     <main className="flex flex-1 items-center justify-center bg-gradient-to-b from-accent-50 to-white px-4 py-12">
+      <ThemeToggle className="fixed right-3 top-3 z-40 flex h-9 w-9 items-center justify-center rounded-full border border-neutral-300 bg-white text-neutral-600 transition hover:bg-neutral-100" />
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
           <Image

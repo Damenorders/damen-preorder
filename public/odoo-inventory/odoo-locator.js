@@ -2,6 +2,116 @@
 (function() {
   const CSS_TEXT = "\n  @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;600;700;800&display=swap');\n\n  * { box-sizing: border-box; }\n\n  #orl-root {\n    font-family: 'Inter', sans-serif;\n    color: #2B2B28;\n    background: #F3F1EC;\n    background-image: linear-gradient(#E4E1D8 1px, transparent 1px), linear-gradient(90deg, #E4E1D8 1px, transparent 1px);\n    background-size: 24px 24px;\n    min-height: 100vh;\n    padding: 28px 20px 60px;\n  }\n\n  #orl-root h1 {\n    font-family: 'Barlow Condensed', sans-serif;\n    font-weight: 700;\n    font-size: 30px;\n    letter-spacing: 0.5px;\n    text-transform: uppercase;\n    margin: 0;\n    color: #1E1E1C;\n  }\n\n  .orl-eyebrow {\n    font-family: 'JetBrains Mono', monospace;\n    font-size: 11px;\n    letter-spacing: 1.5px;\n    text-transform: uppercase;\n    color: #B33A2E;\n    font-weight: 600;\n    margin: 0 0 4px;\n  }\n\n  .orl-top {\n    display: flex;\n    justify-content: space-between;\n    align-items: flex-end;\n    flex-wrap: wrap;\n    gap: 16px;\n    margin-bottom: 22px;\n    max-width: 1180px;\n    margin-left: auto;\n    margin-right: auto;\n  }\n\n  .orl-navbtns { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }\n  .orl-backbtn {\n    display: inline-flex; align-items: center; gap: 6px;\n    font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600;\n    color: #6B6A62; background: #FFF; border: 1px solid #DAD6C9; border-radius: 6px;\n    padding: 8px 14px; cursor: pointer;\n  }\n  .orl-backbtn:hover { border-color: #B33A2E; color: #B33A2E; }\n\n  .orl-viewtoggle {\n    display: flex;\n    background: #E8E5DC;\n    border-radius: 8px;\n    padding: 3px;\n    gap: 2px;\n  }\n  .orl-viewtoggle button {\n    border: none;\n    background: transparent;\n    padding: 8px 16px;\n    font-family: 'Inter', sans-serif;\n    font-size: 13px;\n    font-weight: 600;\n    color: #6B6A62;\n    border-radius: 6px;\n    cursor: pointer;\n  }\n  .orl-viewtoggle button.active {\n    background: #FFFFFF;\n    color: #1E1E1C;\n    box-shadow: 0 1px 2px rgba(0,0,0,0.08);\n  }\n\n  .orl-wrap { max-width: 1180px; margin: 0 auto; }\n\n  /* --- OVERVIEW / BLUEPRINT --- */\n  .orl-warehouse {\n    background: #FFFFFF; border: 1px solid #E4E1D8; border-radius: 12px;\n    padding: 30px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);\n  }\n  .orl-blueprintbody { width: 100%; }\n  .orl-blueprint-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }\n  .orl-blueprint-scroll .orl-blueprintbody { min-width: 720px; }\n  .orl-mainrow { display: flex; align-items: stretch; gap: 4px; width: 100%; }\n  .orl-pairgroup { display: flex; align-items: stretch; flex: 2 1 0; min-width: 0; gap: 4px; }\n  .orl-pairgroup.orl-thinpair { flex: 0 0 auto; }\n  .orl-rackblock.orl-thin { flex: 0 0 80px; }\n\n  .orl-rackrun { transition: filter 0.15s ease, transform 0.15s ease; }\n  .orl-rackrun:hover { filter: brightness(1.08) saturate(1.12); transform: translateY(-6px) scale(1.035); }\n  .orl-rackrun:active { transform: translateY(-2px) scale(1.015); transition: transform 0.05s ease; }\n\n  .orl-rackblock {\n    flex: 1 1 0; min-width: 0; min-height: 300px; cursor: pointer;\n    border: 3px solid #C0392B; border-radius: 10px;\n    background: linear-gradient(180deg, #FBFAF7 0%, #F3EFE6 100%);\n    padding: 14px 6px; text-align: center;\n    display: flex; flex-direction: column; align-items: center; justify-content: center;\n    transition: transform 0.08s ease, box-shadow 0.08s ease;\n  }\n  .orl-rackblock:hover { transform: translateY(-2px); box-shadow: 0 6px 14px -8px rgba(179,58,46,0.5); }\n  .orl-pairgroup .orl-rackblock:first-child { border-radius: 10px 0 0 10px; }\n  .orl-pairgroup .orl-rackblock:last-child { border-radius: 0 10px 10px 0; }\n  .orl-rackblock .orl-rackname {\n    font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 19px;\n    text-transform: uppercase; letter-spacing: 0.4px; color: #1E1E1C;\n  }\n  .orl-rackblock .orl-rackstat {\n    font-family: 'JetBrains Mono', monospace; font-size: 12.5px; color: #8A877C; margin-top: 7px;\n  }\n  .orl-rackblock .orl-rackticks {\n    display: flex; gap: 3px; justify-content: center; margin-top: 10px; flex-wrap: wrap; max-width: 110px;\n  }\n  .orl-rackticks span { width: 6px; height: 11px; border-radius: 1px; background: #E4E1D8; }\n  .orl-rackticks span.on { background: #6B9E78; }\n\n  .orl-pairbrace {\n    width: 8px; align-self: stretch; flex-shrink: 0;\n    background:\n      repeating-linear-gradient(45deg, #C0392B 0 3px, transparent 3px 11px),\n      repeating-linear-gradient(-45deg, #C0392B 0 3px, transparent 3px 11px);\n    opacity: 0.55;\n  }\n  .orl-pairbrace-h {\n    height: 10px; flex-shrink: 0;\n    background:\n      repeating-linear-gradient(45deg, #C0392B 0 3px, transparent 3px 11px),\n      repeating-linear-gradient(-45deg, #C0392B 0 3px, transparent 3px 11px);\n    opacity: 0.55;\n  }\n\n  .orl-vaisle {\n    flex: 0.55 1 0; min-width: 0;\n    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;\n  }\n  .orl-vaisle-clickable { cursor: pointer; border-radius: 8px; transition: background 0.08s ease; }\n  .orl-vaisle-clickable:hover { background: #FBEAE7; }\n  .orl-vaisle-clickable:hover .orl-vaisleline { border-color: #C0392B; }\n  .orl-vaisle-clickable .orl-vaislelabel { color: #B33A2E; font-weight: 700; }\n  .orl-vaisleline { flex: 1; width: 0; border-left: 3px dashed #C7C2B2; }\n  .orl-vaislelabel {\n    writing-mode: vertical-rl;\n    font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 600;\n    color: #A6A398; text-transform: uppercase; letter-spacing: 1.5px; white-space: nowrap;\n  }\n\n  .orl-capgroup { display: flex; flex-direction: column; gap: 10px; flex: 0.9 1 0; min-width: 0; }\n  .orl-rackblock-cap {\n    width: 100%; min-height: 72px; flex-direction: row; justify-content: space-between; align-items: center;\n    padding: 10px 18px; gap: 16px;\n  }\n  .orl-rackblock-cap .orl-rackstat { margin-top: 0; }\n  .orl-rackblock-cap .orl-rackticks { margin-top: 0; max-width: 130px; }\n\n  .orl-rackblock-small { min-height: 84px; padding: 10px 8px; flex: 0 0 auto; }\n  .orl-rackblock-short { min-height: 70px; }\n  .orl-rackblock-tall { min-height: 420px; }\n  .orl-emptycross {\n    border-radius: 8px; border: 2px dashed #C7C2B2;\n    background:\n      repeating-linear-gradient(45deg, #C0392B 0 2px, transparent 2px 16px),\n      repeating-linear-gradient(-45deg, #C0392B 0 2px, transparent 2px 16px);\n    opacity: 0.4;\n  }\n  .orl-rackblock-small .orl-rackticks { display: none; }\n\n  .orl-rackblock-corner .orl-rackname { font-size: 11px; white-space: normal; word-break: break-word; line-height: 1.15; text-align: center; }\n  .orl-rackblock-corner .orl-rackstat { font-size: 11px; font-weight: 700; white-space: nowrap; margin-top: 3px; line-height: 1.2; }\n  .orl-rackblock-corner .orl-rackticks { display: none; }\n  .orl-rackblock-fit .orl-rackticks { display: none; }\n  .orl-rackblock-fit .orl-rackname { white-space: normal; text-align: center; line-height: 1.1; }\n  .orl-rackblock-fit .orl-rackstat { white-space: nowrap; }\n\n  .orl-wall { flex: 0 0 14px; display: flex; align-items: stretch; justify-content: center; }\n  .orl-wallline {\n    width: 8px; align-self: stretch; border-radius: 2px;\n    background: repeating-linear-gradient(45deg, #3B3A35 0 4px, #55534C 4px 8px);\n  }\n\n  .orl-cornerwrap { display: flex; flex: 1 1 0; min-width: 0; align-items: stretch; }\n  .orl-cornerspacer { flex: 0.75 0 0; }\n\n  .orl-haisle { display: flex; align-items: center; gap: 16px; padding: 26px 0 22px; width: 100%; }\n  .orl-haisleline { flex: 1; height: 0; border-top: 3px dashed #C0392B; }\n  .orl-haiselabel {\n    font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 600;\n    color: #B33A2E; text-transform: uppercase; letter-spacing: 1.5px; white-space: nowrap;\n  }\n  .orl-bottomrow { display: flex; width: 100%; }\n  .orl-bottomspacer { flex: 1.9 0 0; }\n  .orl-bottomtrailer { flex: 5.1 0 0; }\n  .orl-bottomrow .orl-rackblock-cap { flex: 2 1 0; min-width: 0; }\n\n  /* --- LOADING DOCK MARKERS --- */\n  .orl-dock {\n    flex: 0 0 140px; align-self: flex-end; height: 50%;\n    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;\n  }\n  .orl-dock-panel {\n    width: 100%; flex: 1; min-height: 34px; border-radius: 10px;\n    background: repeating-linear-gradient(45deg, #C0392B 0 3px, #FBFAF7 3px 14px);\n    border: 3px solid #C0392B;\n    box-shadow: 0 6px 14px -8px rgba(179,58,46,0.5);\n  }\n  .orl-docklabel {\n    font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 700;\n    letter-spacing: 0.5px; color: #6B6A62; text-transform: uppercase; white-space: nowrap;\n  }\n\n\n  /* row tabs */\n  .orl-rowtabs { display: flex; align-items: center; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }\n  .orl-rowtab {\n    font-family: 'JetBrains Mono', monospace;\n    font-size: 13px;\n    font-weight: 600;\n    padding: 8px 14px;\n    border-radius: 6px;\n    background: #FFFFFF;\n    border: 1px solid #DAD6C9;\n    color: #55534C;\n    cursor: pointer;\n  }\n  .orl-rowtab.active { background: #B33A2E; border-color: #B33A2E; color: #FFF7F1; }\n\n  /* config bar */\n  .orl-config {\n    display: flex; align-items: center; gap: 18px; flex-wrap: wrap;\n    background: #FFFFFF; border: 1px solid #E4E1D8; border-radius: 10px;\n    padding: 12px 16px; margin-bottom: 18px; font-size: 13px;\n  }\n  .orl-config label { display: flex; align-items: center; gap: 8px; color: #6B6A62; font-weight: 500; }\n  .orl-config input[type=number] {\n    width: 60px; padding: 5px 8px; border: 1px solid #DAD6C9; border-radius: 5px;\n    font-family: 'JetBrains Mono', monospace; font-size: 13px;\n  }\n  .orl-config input[type=text] {\n    padding: 5px 8px; border: 1px solid #DAD6C9; border-radius: 5px; font-size: 13px; width: 150px;\n  }\n  .orl-config .orl-configspacer { flex: 1; }\n  .orl-configlabel { color: #A6A398; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }\n  .orl-configvalue { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #3B3A35; font-weight: 600; }\n\n  /* --- RACK VISUAL --- */\n  .orl-rackscroll { display: flex; justify-content: safe center; padding-bottom: 14px; overflow-x: auto; -webkit-overflow-scrolling: touch; }\n  .orl-rack {\n    display: flex; flex-direction: column; width: max-content; flex: 0 0 auto; min-width: max-content;\n    background: linear-gradient(180deg, #FAF9F5 0%, #EFECE3 100%);\n    border-radius: 10px; padding: 16px 20px 8px;\n    box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 12px 24px -18px rgba(0,0,0,0.35);\n  }\n\n  .orl-level { display: flex; align-items: stretch; }\n  .orl-levelbadge {\n    width: 52px; flex-shrink: 0;\n    display: flex; align-items: center; justify-content: center;\n    font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 17px;\n    color: #8E2A20; white-space: nowrap;\n  }\n  .orl-shelfarea { flex: 0 0 auto; min-width: max-content; display: flex; flex-direction: column; }\n  .orl-shelfrow { display: flex; align-items: stretch; justify-content: flex-start; padding: 10px 0 8px; gap: 2px; }\n  .orl-beam { height: 8px; background: linear-gradient(180deg, #E08A2B 0%, #C46F1C 100%); border-radius: 2px; box-shadow: inset 0 -2px 0 rgba(0,0,0,0.15); }\n\n  .orl-upright {\n    width: 5px; flex: 0 0 5px; align-self: stretch; margin: 0 3px;\n    background: linear-gradient(90deg, #3A6FD3 0%, #2E5AB8 60%, #22458E 100%);\n    border-radius: 1px;\n  }\n\n  .orl-slot {\n    flex: 1 1 0; min-width: 34px; max-width: 92px; height: var(--slot-h, 64px);\n    border-radius: 4px; cursor: pointer; overflow: visible;\n    display: flex; align-items: flex-end; justify-content: center;\n    position: relative; transition: transform 0.08s ease;\n    border: 1.5px dashed #C7C2B2; background: #FBFAF7;\n  }\n  .orl-slot:hover { transform: translateY(-2px); }\n  .orl-slot[draggable=\"true\"] { cursor: grab; }\n  .orl-slot.orl-drop-ok { outline: 2px solid #6B9E78; outline-offset: 1px; }\n  .orl-slot.orl-drop-bad { outline: 2px solid #B33A2E; outline-offset: 1px; }\n  .orl-flash {\n    position: fixed; top: 22px; left: 50%; transform: translateX(-50%);\n    background: #B33A2E; color: #FFF7F1; font-family: 'Inter', sans-serif; font-weight: 600;\n    font-size: 13px; padding: 10px 18px; border-radius: 8px;\n    box-shadow: 0 10px 24px rgba(0,0,0,0.28); z-index: 100;\n  }\n  .orl-slot.filled {\n    border: 1.5px solid #6B9E78; background: #F1F7F0;\n  }\n\n  /* --- MULTI-DEPTH SLOTS (2 or 3 pallets stacked one behind the other) --- */\n  .orl-slot-depth { flex: 1 1 0; min-width: 34px; max-width: 92px; height: var(--slot-h, 64px); position: relative; }\n  .orl-depth-layer {\n    position: absolute; border-radius: 4px; cursor: pointer;\n    display: flex; align-items: flex-end; justify-content: center;\n    transition: transform 0.08s ease;\n    border: 1.5px dashed #C7C2B2; background: #FBFAF7;\n  }\n  .orl-depth-layer:hover { transform: translateY(-2px); }\n  .orl-depth-layer[draggable=\"true\"] { cursor: grab; }\n  .orl-depth-layer.filled { border: 1.5px solid #6B9E78; background: #F1F7F0; }\n  .orl-depth-layer.orl-drop-ok { outline: 2px solid #6B9E78; outline-offset: 1px; }\n  .orl-depth-layer.orl-drop-bad { outline: 2px solid #B33A2E; outline-offset: 1px; }\n  .orl-depthtag {\n    font-family: 'JetBrains Mono', monospace; font-size: 8px; font-weight: 700;\n    color: #A6A398; letter-spacing: 0.5px; position: relative; z-index: 1; margin-bottom: calc(var(--slot-h, 64px) * 0.3);\n  }\n  .orl-depth-layer.filled .orl-depthtag { color: #6B9E78; }\n  .orl-slot-empty {\n    flex: 1 1 0; min-width: 34px; max-width: 92px; height: var(--slot-h, 64px);\n  }\n  /* pallet look: wood-slat deck across the bottom of the whole slot, with dark\n     block-cutouts near the front to read as a pallet, not just a plain square */\n  .orl-slot::before, .orl-depth-layer::before {\n    content: \"\"; position: absolute; left: 8%; right: 8%; bottom: calc(var(--slot-h, 64px) * 0.09); height: calc(var(--slot-h, 64px) * 0.19);\n    border-radius: 2px;\n    background:\n      repeating-linear-gradient(90deg, #C7BFA8 0 3px, #DCD5C0 3px 9px),\n      linear-gradient(180deg, #E7DFC8 0%, #CFC5A9 100%);\n    background-blend-mode: overlay;\n    box-shadow: inset 0 1px 0 rgba(255,255,255,0.4), inset 0 -2px 0 rgba(0,0,0,0.12);\n  }\n  .orl-slot::after, .orl-depth-layer::after {\n    content: \"\"; position: absolute; left: 20%; width: 14%; bottom: calc(var(--slot-h, 64px) * 0.09); height: calc(var(--slot-h, 64px) * 0.19);\n    background: rgba(43,43,40,0.16); border-radius: 1px;\n    box-shadow: 46% 0 0 rgba(43,43,40,0.16);\n  }\n  .orl-slot.filled::before, .orl-depth-layer.filled::before {\n    background:\n      repeating-linear-gradient(90deg, #9FC7A7 0 3px, #B9DBBF 3px 9px),\n      linear-gradient(180deg, #C7E4CB 0%, #A7D2AF 100%);\n    background-blend-mode: overlay;\n  }\n  .orl-slot.filled::after, .orl-depth-layer.filled::after { background: rgba(45,90,55,0.22); box-shadow: 46% 0 0 rgba(45,90,55,0.22); }\n  .orl-slotcode {\n    font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 800;\n    color: #0D0D0C; white-space: nowrap; position: relative; z-index: 1; margin-bottom: calc(var(--slot-h, 64px) * 0.3);\n  }\n  .orl-slot.filled .orl-slotcode { color: #0D0D0C; }\n  .orl-itembadge {\n    position: absolute; top: -6px; left: 50%; transform: translateX(-50%);\n    background: #6B9E78; color: #F1F7F0;\n    font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 600;\n    border-radius: 8px; padding: 1px 5px; line-height: 1.3;\n  }\n\n  .orl-endpost {\n    width: 6px; flex: 0 0 6px; align-self: stretch; margin: 0 3px;\n    background: linear-gradient(90deg, #3A6FD3 0%, #22458E 100%);\n    border-radius: 2px;\n  }\n\n  .orl-floor {\n    height: 10px; margin-top: 6px;\n    background: linear-gradient(180deg, #D8D2C0 0%, #C4BDA6 100%);\n    border-radius: 3px;\n  }\n\n  /* --- TABLE VIEW --- */\n  .orl-tablebar { display: flex; gap: 10px; align-items: center; margin-bottom: 14px; flex-wrap: wrap; }\n  .orl-search {\n    padding: 8px 12px; border: 1px solid #DAD6C9; border-radius: 6px; font-size: 13px;\n    width: 240px; background: #FFF;\n  }\n  .orl-tablesummary { font-size: 12px; color: #A6A398; }\n  .orl-btn {\n    padding: 8px 14px; border-radius: 6px; font-size: 13px; font-weight: 600;\n    border: 1px solid #DAD6C9; background: #FFF; color: #3B3A35; cursor: pointer;\n  }\n  .orl-btn:hover { border-color: #B33A2E; color: #B33A2E; }\n  .orl-btn.orl-danger:hover { border-color: #B33A2E; background: #FBEAF0; color: #99351A; }\n\n  .orl-table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: 10px; }\n  table.orl-table { width: 100%; min-width: 660px; table-layout: fixed; border-collapse: collapse; background: #FFF; border-radius: 10px; overflow: hidden; border: 1px solid #E4E1D8; }\n  table.orl-table td, table.orl-table th { overflow: hidden; text-overflow: ellipsis; }\n  table.orl-table th {\n    text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;\n    color: #A6A398; font-weight: 600; padding: 10px 14px; background: #F7F5EF; border-bottom: 1px solid #E4E1D8;\n  }\n  table.orl-table td { padding: 8px 14px; font-size: 13px; border-bottom: 1px solid #EFEDE5; vertical-align: middle; }\n  table.orl-table td:nth-child(5), table.orl-table td:nth-child(6),\n  table.orl-table th:nth-child(5), table.orl-table th:nth-child(6) { padding-left: 6px; padding-right: 6px; }\n  table.orl-table tr:last-child td { border-bottom: none; }\n  table.orl-table tr:hover { background: #FBFAF6; }\n  .orl-code { font-family: 'JetBrains Mono', monospace; font-weight: 600; color: #8E2A20; font-size: 12.5px; }\n  table.orl-table input {\n    width: 100%; border: 1px solid transparent; padding: 5px 7px; border-radius: 5px; font-size: 13px; font-family: inherit;\n    background: transparent;\n  }\n  table.orl-table input:hover, table.orl-table input:focus { border-color: #DAD6C9; background: #FFF; outline: none; }\n  .orl-emptytag { color: #B7B3A5; font-style: italic; font-size: 12px; }\n\n  /* --- MODAL --- */\n  /* The overlay — not the modal — is the scroll container, and it is sized to\n     the VISUAL viewport (--orl-vvh), never to vh. With a phone keyboard open vh\n     still reports the full page height, so a modal capped at 90vh stayed taller\n     than the visible area with nothing able to scroll: the lower rows, their\n     catalog suggestions and the Save button all sat stranded behind the keyboard. */\n  .orl-overlay {\n    position: fixed; left: 0; width: 100%;\n    top: var(--orl-vvtop, 0px); height: var(--orl-vvh, 100%);\n    background: rgba(30,28,24,0.45);\n    display: flex; align-items: flex-start; justify-content: center; z-index: 50; padding: 20px;\n    overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;\n  }\n  .orl-modal {\n    background: #FFF; border-radius: 12px; padding: 24px; width: min(460px, 92vw);\n    margin: auto; /* centres it while it fits, and cannot clip once it overflows */\n    box-shadow: 0 20px 50px rgba(0,0,0,0.25);\n  }\n  .orl-modal h3 {\n    font-family: 'Barlow Condensed', sans-serif; font-size: 22px; font-weight: 700; margin: 0 0 2px;\n    text-transform: uppercase; letter-spacing: 0.5px;\n  }\n  .orl-modal .orl-code { font-size: 13px; }\n  .orl-itemcard {\n    border: 1px solid #E4E1D8; border-radius: 7px; padding: 10px; margin-top: 8px; position: relative;\n    background: #FCFBF8;\n  }\n  .orl-itemcard .orl-itemnum {\n    font-family: 'JetBrains Mono', monospace; font-size: 9.5px; font-weight: 600; color: #B7B3A5;\n    text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;\n    display: flex; align-items: center; gap: 6px;\n  }\n  .orl-itemmoveicon {\n    border: 1px solid #DAD6C9; background: #FFF; border-radius: 5px; width: 18px; height: 18px;\n    display: inline-flex; align-items: center; justify-content: center; cursor: pointer;\n    color: #6B6A62; font-size: 10px; line-height: 1; padding: 0;\n    font-family: 'Inter', sans-serif; text-transform: none; letter-spacing: normal;\n  }\n  .orl-itemmoveicon:hover, .orl-itemmoveicon.active { border-color: #B33A2E; color: #B33A2E; background: #FBEAE7; }\n  .orl-itemremove {\n    position: absolute; top: 8px; right: 8px; border: none; background: none; cursor: pointer;\n    color: #B7B3A5; font-size: 12px; font-weight: 600;\n  }\n  .orl-itemremove:hover { color: #B33A2E; }\n\n  /* Row actions (move / remove) share one narrow column, sized as real tap\n     targets — the old inline-styled ⇄ measured 17x23px on a phone. */\n  .orl-actcol { width: 62px; }\n  .orl-qtycol { width: 76px; }\n  .orl-rowbtn {\n    border: none; background: transparent; cursor: pointer; padding: 0;\n    width: 28px; height: 28px; border-radius: 6px; line-height: 1;\n    display: inline-flex; align-items: center; justify-content: center;\n    font-family: 'Inter', sans-serif; font-size: 15px; color: #A6A398;\n  }\n  .orl-rowbtn:hover { background: #FBEAE7; color: #B33A2E; }\n  .orl-rowbtn.active { color: #C0392B; }\n  .orl-notincat { font-family: 'Inter', sans-serif; font-size: 10px; font-weight: 600; color: #B07A12; margin-top: 2px; }\n  @media (max-width: 760px) {\n    .orl-actcol { width: 96px; }\n    .orl-qtycol { width: 64px; }\n    .orl-rowbtn { width: 44px; height: 44px; font-size: 18px; }\n    /* iOS Safari zooms the page in on focus for any input under 16px and never\n       zooms back out. These fields carry their font-size inline, so !important\n       is the only way to raise the floor without rewriting every style attribute.\n       type=number (the 28px quantity) is already well over 16px and is excluded\n       so the rule cannot shrink it. */\n    .orl-modal input:not([type=number]), .orl-modal textarea, .orl-modal select,\n    .orl-search { font-size: 16px !important; }\n\n    /* Give the description its own full-width line. Sharing a row with the\n       quantity and two 44px buttons left it ~141px, which truncated longer\n       product names once the font floor went to 16px. The row becomes a card:\n       description across the top, quantity and actions beneath it. */\n    .orl-itemtable, .orl-itemtable tbody, .orl-itemtable tr, .orl-itemtable td { display: block; }\n    .orl-itemtable thead { display: none; }\n    .orl-itemtable tr.orl-itemrow {\n      display: grid; grid-template-columns: 72px 72px 1fr;\n      grid-template-areas: 'desc desc desc' 'box unit act';\n      align-items: center; gap: 8px;\n      border: 1px solid #1E1E1C; border-radius: 8px;\n      margin-top: 8px; padding: 10px;\n    }\n    .orl-itemrow > td { border: none !important; padding: 0 !important; width: auto !important; }\n    .orl-itemrow > td:first-child { grid-area: desc; }\n    .orl-itemrow > td.orl-boxcol { grid-area: box; }\n    .orl-itemrow > td.orl-unitcol { grid-area: unit; }\n    .orl-itemrow > td.orl-actcol { grid-area: act; justify-self: end; }\n    /* thead is hidden, so the quantity box needs its own label back. */\n    .orl-itemrow > td.orl-qtycol::before {\n      content: attr(data-label); display: block; text-align: center;\n      font-family: 'Inter', sans-serif; font-size: 10px; font-weight: 600;\n      letter-spacing: 0.5px; text-transform: uppercase; color: #A6A398; margin-bottom: 2px;\n    }\n  }\n  .orl-field { margin-top: 6px; }\n  .orl-fieldrow { display: flex; gap: 6px; margin-top: 6px; align-items: flex-end; }\n  .orl-fieldrow .orl-field { margin-top: 0; }\n  .orl-fieldrow .orl-field:first-child { flex: 0 0 55%; min-width: 0; }\n  .orl-qtyfield { flex: 1; }\n  .orl-qtyfield label {\n    display: block; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px;\n    font-weight: 600; color: #A6A398; margin-bottom: 4px; text-align: center;\n  }\n  .orl-qtyfield input { text-align: center; font-weight: 700; }\n  .orl-field label { display: none; }\n  .orl-field input, .orl-field textarea, .orl-field select {\n    width: 100%; border: 1px solid #DAD6C9; border-radius: 6px; padding: 6px 9px; font-size: 13px; font-family: inherit;\n  }\n  .orl-field textarea { resize: none; min-height: 28px; overflow: hidden; line-height: 1.35; }\n  .orl-addbtn {\n    margin-top: 12px; width: 100%; padding: 9px; border-radius: 7px; border: 1px dashed #B7B3A5;\n    background: transparent; color: #6B6A62; font-size: 13px; font-weight: 600; cursor: pointer;\n  }\n  .orl-addbtn:hover { border-color: #B33A2E; color: #B33A2E; }\n  .orl-modalbtns { display: flex; gap: 8px; margin-top: 22px; }\n  .orl-modalbtns .orl-btn { flex: 1; }\n  .orl-btn.orl-primary { background: #B33A2E; border-color: #B33A2E; color: #FFF7F1; }\n  .orl-btn.orl-primary:hover { background: #8E2A20; border-color: #8E2A20; color: #FFF7F1; }\n\n  .orl-movesection { margin-top: 22px; border-top: 1px solid #E4E1D8; padding-top: 16px; }\n  .orl-movetoggle {\n    width: 100%; background: #FBFAF7; border: 1.5px dashed #C7C2B2; border-radius: 8px;\n    color: #3B3A35; font-size: 14px; font-weight: 600; cursor: pointer;\n    padding: 12px 14px; display: flex; align-items: center; gap: 8px;\n  }\n  .orl-movetoggle:hover { color: #B33A2E; border-color: #B33A2E; background: #FBEAE7; }\n  .orl-movegrid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 14px; }\n  .orl-movefield label {\n    display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;\n    font-weight: 600; color: #A6A398; margin-bottom: 6px;\n  }\n  .orl-movefield select, .orl-movefield input {\n    width: 100%; border: 1.5px solid #E3B400; border-radius: 7px; padding: 10px 11px;\n    font-size: 15px; font-family: inherit; background: #FFF3B0; font-weight: 600; color: #3B3A35;\n  }\n  .orl-movefield select:focus, .orl-movefield input:focus { outline: none; border-color: #B33A2E; }\n  @media (max-width: 420px) {\n    .orl-movegrid { grid-template-columns: 1fr; }\n  }\n\n  .orl-loading { padding: 40px; text-align: center; color: #A6A398; font-size: 14px; }\n\n  /* --- DASHBOARD --- */\n  .orl-whgrid { display: flex; gap: 18px; flex-wrap: wrap; }\n  .orl-whcard {\n    background: #FFFFFF; border: 1px solid #E4E1D8; border-radius: 12px;\n    padding: 22px 24px; min-width: 220px; flex: 1 1 220px; max-width: 320px;\n    cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.05);\n    transition: transform 0.08s ease, box-shadow 0.08s ease;\n  }\n  .orl-whcard:hover { transform: translateY(-2px); box-shadow: 0 10px 20px -12px rgba(179,58,46,0.4); border-color: #C0392B; }\n  .orl-whname {\n    font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 22px;\n    text-transform: uppercase; letter-spacing: 0.5px; color: #1E1E1C; margin-bottom: 10px;\n  }\n  .orl-whstat { font-family: 'JetBrains Mono', monospace; font-size: 12.5px; color: #6B6A62; margin-top: 4px; }\n  .orl-whracks { font-size: 11px; color: #A6A398; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 10px; }\n\n  .orl-legend { display: flex; gap: 18px; margin-top: 14px; font-size: 12px; color: #6B6A62; flex-wrap: wrap; }\n  .orl-legend span { display: inline-flex; align-items: center; gap: 6px; }\n  .orl-legenddot { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }\n\n  /* --- MOBILE / NARROW SCREEN ADJUSTMENTS --- */\n  @media (max-width: 640px) {\n    #orl-root { padding: 16px 12px 40px; }\n    #orl-root h1 { font-size: 22px; }\n    .orl-warehouse { padding: 16px 14px; }\n    .orl-modal { padding: 18px; }\n    .orl-top { gap: 12px; margin-bottom: 16px; }\n    .orl-backbtn { padding: 8px 12px; font-size: 12.5px; }\n    .orl-viewtoggle button { padding: 8px 12px; font-size: 12.5px; }\n    .orl-rackblock { min-height: 220px; }\n    .orl-rackblock-short { min-height: 60px; }\n    .orl-fieldrow { flex-direction: column; align-items: stretch; }\n    .orl-fieldrow .orl-field:first-child { flex: none; }\n    .orl-qtyfield { flex: none; }\n    .orl-itemmoveicon { width: 26px; height: 26px; font-size: 12px; }\n    .orl-itemremove { width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; }\n    .orl-config { gap: 12px; padding: 10px 12px; }\n    .orl-tablebar { gap: 8px; }\n    .orl-rowtabs { gap: 6px; margin-bottom: 14px; }\n    .orl-rowtab { padding: 7px 11px; font-size: 12.5px; }\n  }\n\n\n  /* --- MOBILE --- */\n  @media (max-width: 760px) {\n    #orl-root { padding: 14px 12px 28px; }\n    .orl-top { margin-bottom: 16px; gap: 10px; align-items: flex-start; }\n    .orl-top h1 { font-size: 26px; }\n    .orl-navbtns { flex-wrap: wrap; gap: 8px; }\n    .orl-backbtn, .orl-btn { font-size: 12px; padding: 7px 10px; }\n\n    .orl-warehouse { padding: 12px; border-radius: 10px; }\n    .orl-blueprint-scroll .orl-blueprintbody { min-width: 1000px; }\n    .orl-floorshift { transform: translateX(32px); }\n    .orl-rackname { font-size: 14px; }\n    .orl-rackstat { font-size: 10px; }\n    .orl-rackblock { padding: 10px 4px; min-height: 220px; }\n    .orl-rackblock-tall { min-height: 300px; }\n    .orl-rackblock.orl-thin { flex: 0 0 62px; }\n    .orl-levelbadge { width: 40px; font-size: 14px; }\n    .orl-slot, .orl-slot-empty, .orl-slot-depth { min-width: 30px; max-width: 68px; }\n    .orl-slotcode { font-size: 9px; }\n\n    .orl-whgrid { gap: 12px; }\n    .orl-whcard { min-width: 0; max-width: none; flex: 1 1 100%; padding: 16px 18px; }\n\n    .orl-tablebar { gap: 8px; }\n    .orl-search { width: 100%; }\n    table.orl-table { min-width: 560px; }\n    table.orl-table td, table.orl-table th { font-size: 11px; padding: 7px 6px; }\n\n    .orl-modal { padding: 18px 16px; width: min(460px, 94vw); } .orl-overlay { padding: 10px 12px 24px; }\n    .orl-modal h3 { font-size: 24px; }\n    .orl-movegrid { grid-template-columns: 1fr 1fr; }\n  }\n\n  /* the site map is percentage-positioned: keep its 16/9 proportions and pan instead\n     of squeezing labels into unreadable slivers on narrow screens */\n  .orl-sitemap-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }\n  .orl-sitemap-scroll .orl-sitemap { min-width: 620px; }\n";
 
+  // ---- Dark theme ----------------------------------------------------------
+  // The app's own theme switch sets <html data-theme="dark">. This file's
+  // colours are literal hex values, so each one in CSS text and in rendered
+  // style="" attributes is wrapped as var(--orl-dk-<role>-<HEX>, #hex). With
+  // no variable defined (the light theme) the literal applies exactly as
+  // before; under data-theme="dark" a generated stylesheet defines a dark
+  // counterpart. Roles: t = text colour, l = borders/shadows, b = fills.
+  const DK_PREFIX = '--orl-dk-';
+  const DK_SEEN = new Map();  // variable name -> dark colour
+  const DK_KEEP = new Set();  // colours that stay as they are in the dark theme
+  let dkSheet = null;
+  function dkTone(hex, role) {
+    let h = hex.slice(1);
+    if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+    const r = parseInt(h.slice(0, 2), 16) / 255, g = parseInt(h.slice(2, 4), 16) / 255, b = parseInt(h.slice(4, 6), 16) / 255;
+    const lin = (c) => (c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
+    const Y = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+    let l = (max + min) / 2, s = 0, hue = 0;
+    if (max !== min) {
+      const d = max - min;
+      s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+      hue = max === r ? (g - b) / d + (g < b ? 6 : 0) : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+      hue /= 6;
+    }
+    if (role === 't') {
+      if (Y >= 0.18) return null;            // already light (text on a coloured fill)
+      l = 0.93 - l * 0.6;
+    } else if (role === 'l') {
+      if (Y > 0.3) l = 0.14 + (1 - l) * 0.6; // light rule lines → dim lines
+      else if (Y < 0.05) l = 1 - l * 1.1;    // near-black outlines → light outlines
+      else return null;
+    } else {
+      if (Y > 0.3) l = 0.07 + (1 - l) * 0.45; // light surfaces/tints → dark tints
+      else if (Y < 0.05) l = 0.2 + l * 0.5;   // near-black fills → raised dark grey
+      else return null;                        // solid colours (buttons, chips) stay
+    }
+    l = Math.min(1, Math.max(0, l));
+    const q = l < 0.5 ? l * (1 + s) : l + s - l * s, p = 2 * l - q;
+    const ch = (t) => {
+      if (t < 0) t += 1; if (t > 1) t -= 1;
+      const v = t < 1 / 6 ? p + (q - p) * 6 * t : t < 1 / 2 ? q : t < 2 / 3 ? p + (q - p) * (2 / 3 - t) * 6 : p;
+      return Math.round(v * 255).toString(16).padStart(2, '0');
+    };
+    if (s === 0) return '#' + Math.round(l * 255).toString(16).padStart(2, '0').repeat(3);
+    return '#' + ch(hue + 1 / 3) + ch(hue) + ch(hue - 1 / 3);
+  }
+  function dkRole(prop) {
+    prop = prop.toLowerCase();
+    if (prop === 'color' || prop === 'caret-color' || prop === '-webkit-text-fill-color') return 't';
+    if (prop.indexOf('border') === 0 || prop.indexOf('outline') === 0 || prop === 'box-shadow' || prop === 'stroke') return 'l';
+    return 'b';
+  }
+  function dkSync() {
+    if (!dkSheet || !dkSheet.isConnected) {
+      dkSheet = document.getElementById('orl-dk-palette');
+      if (!dkSheet) {
+        dkSheet = document.createElement('style');
+        dkSheet.id = 'orl-dk-palette';
+        document.head.appendChild(dkSheet);
+      }
+    }
+    let vars = '';
+    DK_SEEN.forEach((v, k) => { vars += k + ':' + v + ';'; });
+    // SVG presentation attributes can't hold var(); restyle the few the map uses.
+    dkSheet.textContent = ':root[data-theme="dark"]{' + vars + '}' +
+      ':root[data-theme="dark"] [fill="#F6F2E9"]{fill:#26241f}' +
+      ':root[data-theme="dark"] [fill="#FFF3B0"]{fill:#4a3f05}' +
+      ':root[data-theme="dark"] [stroke="#1E3A6B"]{stroke:#9fb4e0}';
+  }
+  function dkCss(css) {
+    let added = false;
+    const out = String(css).replace(/([a-zA-Z-]+)(\s*:)([^;{}]*)/g, (m, prop, colon, value) => {
+      const role = dkRole(prop);
+      if (value.indexOf('#') < 0 && (role !== 't' || value.indexOf('rgb') < 0)) return m;
+      const wrap = (key, literal, solidHex, alpha) => {
+        const name = DK_PREFIX + role + '-' + key;
+        if (DK_KEEP.has(name)) return literal;
+        if (!DK_SEEN.has(name)) {
+          let dark = dkTone(solidHex, role);
+          if (!dark) { DK_KEEP.add(name); return literal; }
+          if (alpha != null) {
+            dark = 'rgba(' + parseInt(dark.slice(1, 3), 16) + ',' + parseInt(dark.slice(3, 5), 16) + ',' +
+              parseInt(dark.slice(5, 7), 16) + ',' + alpha + ')';
+          }
+          DK_SEEN.set(name, dark);
+          added = true;
+        }
+        return 'var(' + name + ',' + literal + ')';
+      };
+      let v = value.replace(/#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})\b/g, (hex, digits) => wrap(digits.toUpperCase(), hex, hex));
+      // Text colours given as rgb()/rgba() (e.g. bay numbers) get the same treatment.
+      if (role === 't') {
+        v = v.replace(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([\d.]+)\s*)?\)/g, (lit, r, g, b, a) => {
+          const hex = '#' + [r, g, b].map((n) => Math.min(255, +n).toString(16).padStart(2, '0')).join('');
+          return wrap('rgb-' + r + '-' + g + '-' + b + (a != null ? '-' + a.replace('.', '_') : ''), lit, hex, a);
+        });
+      }
+      return prop + colon + v;
+    });
+    if (added) dkSync();
+    return out;
+  }
+  function dkHtml(html) {
+    return String(html).replace(/style="([^"]*)"/g, (m, css) => 'style="' + dkCss(css) + '"');
+  }
+  function dkVal(prop, value) {
+    return dkCss(prop + ':' + value).slice(prop.length + 1);
+  }
+
   // Persistence bridge: inside the Damen app the host provides window.ODOO_STORAGE; a standalone
   // browser session falls back to localStorage so the site still saves.
   const STORE = (window.ODOO_STORAGE && typeof window.ODOO_STORAGE.get === 'function') ? window.ODOO_STORAGE : {
@@ -603,13 +713,13 @@
     if (!acQuery) { acEl.style.display = 'none'; return; }
     // Text but no match: say so instead of vanishing, so the list only ever
     // goes away when a product is picked or the field is left.
-    acEl.innerHTML = acMatches.length
+    acEl.innerHTML = dkHtml(acMatches.length
       ? acMatches.map((it, i) =>
           '<div class="orl-ac-opt' + (i === acActive ? ' active' : '') + '" data-i="' + i + '">' +
             '<span class="orl-ac-desc">' + esc(it.d) + '</span>' +
             '<span class="orl-ac-code">' + esc(it.c) + '</span>' +
           '</div>').join('')
-      : '<div class="orl-ac-empty">No catalog product matches “' + esc(acQuery) + '”</div>';
+      : '<div class="orl-ac-empty">No catalog product matches “' + esc(acQuery) + '”</div>');
     acMount();
     acEl.style.display = 'block';
     if (acActive >= 0) {
@@ -769,6 +879,7 @@
         " .orl-ac-opt { padding: 13px 14px; min-height: 48px; justify-content: center; }" +
         " .orl-ac-desc { font-size: 16px; font-weight: 500; }" +
         " .orl-ac-code { font-size: 12.5px; } }";
+      st.textContent = dkCss(st.textContent);
       document.head.appendChild(st);
     }
 
@@ -1452,13 +1563,13 @@
       wrap.className = 'orl-overlay';
       wrap.style.zIndex = '60';
       wrap.innerHTML =
-        '<div class="orl-modal" role="alertdialog" aria-modal="true" style="width:min(400px, 92vw);">' +
+        dkHtml('<div class="orl-modal" role="alertdialog" aria-modal="true" style="width:min(400px, 92vw);">' +
           '<div style="font-family:\'Inter\',sans-serif; font-size:15px; line-height:1.45; color:#1E1E1C;">' + esc(message) + '</div>' +
           '<div class="orl-modalbtns">' +
             '<button class="orl-btn" data-answer="no">Cancel</button>' +
             '<button class="orl-btn ' + (danger ? 'orl-danger' : 'orl-primary') + '" data-answer="yes">' + esc(okLabel) + '</button>' +
           '</div>' +
-        '</div>';
+        '</div>');
       const onKey = (e) => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); done(false); } };
       function done(answer) {
         document.removeEventListener('keydown', onKey, true);
@@ -2756,7 +2867,7 @@
     if (!note) { if (warn) cell.removeChild(warn); return; }
     const d = warn || cell.appendChild(document.createElement('div'));
     d.className = 'orl-notincat' + (note.bad ? ' orl-note-bad' : '');
-    d.innerHTML = noteInnerHtml(note);
+    d.innerHTML = dkHtml(noteInnerHtml(note));
   }
 
   // One edit to a row's code or description, shared by the change handlers and
@@ -3121,7 +3232,7 @@
 
     if (state.screen === 'find' || state.screen === 'catalog' || state.screen === 'audit') {
       const titles = { find: 'Find an item', catalog: 'Odoo catalog', audit: 'Activity log' };
-      root.innerHTML = `
+      root.innerHTML = dkHtml(`
         ${placingBanner()}
         <div class="orl-top">
           <div>
@@ -3132,12 +3243,12 @@
         ${globalNav(state.screen)}
         <div class="orl-wrap">${state.screen === 'find' ? renderFind() : state.screen === 'catalog' ? renderCatalog() : renderAudit()}</div>
         ${state.flash ? `<div class="orl-flash">${esc(state.flash)}</div>` : ''}
-      `;
+      `);
       return;
     }
 
     if (state.screen === 'dashboard') {
-      root.innerHTML = `
+      root.innerHTML = dkHtml(`
         <div class="orl-top">
           <div>
             <div class="orl-eyebrow">Odoo Inventory</div>
@@ -3148,13 +3259,13 @@
         ${globalNav('')}
         <div class="orl-wrap">${renderDashboard()}</div>
         ${state.flash ? `<div class="orl-flash">${esc(state.flash)}</div>` : ''}
-      `;
+      `);
       return;
     }
 
     if (state.screen === 'fridge') {
       if (!state.floorEditing) { state.screen = 'map'; state.warehouseId = null; renderScreen(); return; }
-      root.innerHTML = `
+      root.innerHTML = dkHtml(`
         <div class="orl-top">
           <div>
             <div class="orl-eyebrow">Odoo Inventory</div>
@@ -3165,12 +3276,12 @@
         ${globalNav('map')}
         ${renderFloorModal()}
         ${state.flash ? `<div class="orl-flash">${esc(state.flash)}</div>` : ''}
-      `;
+      `);
       return;
     }
 
     if (state.screen === 'map') {
-      root.innerHTML = `
+      root.innerHTML = dkHtml(`
         ${placingBanner()}
         <div class="orl-top">
           <div>
@@ -3182,7 +3293,7 @@
         ${globalNav('map')}
         <div class="orl-wrap">${renderWarehouseMap()}</div>
         ${state.flash ? `<div class="orl-flash">${esc(state.flash)}</div>` : ''}
-      `;
+      `);
       return;
     }
 
@@ -3228,7 +3339,7 @@
       body = renderTable();
     }
 
-    root.innerHTML = `
+    root.innerHTML = dkHtml(`
       ${placingBanner()}
       <div class="orl-top">
         <div>
@@ -3248,7 +3359,7 @@
       ${renderModal()}
       ${renderFloorModal()}
       ${state.flash ? `<div class="orl-flash">${esc(state.flash)}</div>` : ''}
-    `;
+    `);
   }
 
   function renderDashboard() {
@@ -3374,7 +3485,7 @@
       if (svgShape) {
         svgShape.setAttribute('fill', on ? '#FFF3B0' : '#F6F2E9');
       } else {
-        el.style.background = on ? '#FFF3B0' : 'linear-gradient(180deg, #FBFAF7 0%, #F3EFE6 100%)';
+        el.style.background = dkVal('background', on ? '#FFF3B0' : 'linear-gradient(180deg, #FBFAF7 0%, #F3EFE6 100%)');
       }
     },
     enterWarehouse(whId) { switchWarehouse(whId); },
@@ -4011,7 +4122,7 @@
       if (!document.getElementById('odoo-locator-styles')) {
         const style = document.createElement('style');
         style.id = 'odoo-locator-styles';
-        style.textContent = CSS_TEXT;
+        style.textContent = dkCss(CSS_TEXT);
         document.head.appendChild(style);
       }
       this.style.display = 'block';

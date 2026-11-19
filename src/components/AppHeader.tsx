@@ -3,6 +3,7 @@ import Link from "next/link";
 import { signOut } from "@/app/actions/auth";
 import { homePathFor } from "@/lib/auth";
 import type { User } from "@/db/schema";
+import ThemeToggle from "@/components/ThemeToggle";
 
 const roleLabels: Record<User["role"], string> = {
   admin: "Admin",
@@ -119,6 +120,7 @@ export default function AppHeader({ user }: { user: User }) {
             </svg>
             <span className="hidden sm:inline">Dashboard</span>
           </Link>
+          <ThemeToggle className="flex h-9 w-9 items-center justify-center rounded-full border border-white/30 text-white transition hover:bg-white/10" />
           <form action={signOut}>
             <button
               type="submit"
